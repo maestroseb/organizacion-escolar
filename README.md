@@ -5,19 +5,26 @@ el documento de diseño completo.
 
 ## Estado
 
-En desarrollo — Fase 1 (MVP), paso 1: estructura básica de pestañas.
+En desarrollo — Fase 1 (MVP), paso 1: estructura básica de pestañas vía
+asistente HTML.
 
-## Cómo probar el paso 1
+## Cómo probar
 
 1. Crea un Google Sheets vacío.
 2. `Extensiones → Apps Script`.
-3. Copia el contenido de `appsscript.json` en el manifiesto del proyecto
-   (icono de engranaje → "Mostrar archivo de manifiesto appsscript.json").
-4. Crea dos archivos de script y pega el contenido de:
-   - `src/00_Constants.gs`
-   - `src/01_Schema.gs`
-5. Guarda, recarga el Sheets. Aparecerá un menú **Horarios** arriba.
-6. `Horarios → Inicializar libro (crear pestañas)`.
-7. Se crearán las 9 pestañas `_*` con sus cabeceras.
+3. En el editor de Apps Script:
+   - Icono de engranaje → "Mostrar archivo de manifiesto" → pega el contenido
+     de `appsscript.json`.
+   - Crea estos archivos (botón `+` → Script / HTML) con el mismo nombre y
+     pega el contenido:
+     - `00_Constants.gs`
+     - `01_Schema.gs`
+     - `02_SetupUI.gs`
+     - `ui/setup.html`  *(en Apps Script, ponle el nombre `ui/setup` al
+       crearlo como HTML; el editor permite la barra)*
+4. Guarda y recarga el Sheets.
+5. Aparecerá un menú **Horarios** arriba → **Abrir asistente de configuración**.
+6. Se abre el wizard; pulsa **Crear estructura de pestañas**.
 
-La función es idempotente: puedes volver a ejecutarla sin perder datos.
+Más adelante usaremos `clasp` para sincronizar el repo con Apps Script en vez
+del copiar/pegar manual.

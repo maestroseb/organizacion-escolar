@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body {
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+      margin: 0;
+      color: #202124;
+      background: #fff;
+    }
+    .layout { display: flex; height: 100vh; }
+    .sidebar {
+      width: 260px;
+      background: #f8f9fa;
+      border-right: 1px solid #e0e0e0;
+      padding: 20px 0;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      color: #5f6368;
+      margin: 0 20px 12px;
+      letter-spacing: 0.5px;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      font-size: 14px;
+    }
+    .step:hover { background: #eef; }
+    .step.active { background: #e8f0fe; border-left-color: #1a73e8; font-weight: 500; }
+    .step.done .num { background: #34a853; color: #fff; }
+    .step.disabled { color: #9aa0a6; cursor: not-allowed; }
+    .step.disabled:hover { background: transparent; }
+    .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      background: #dadce0;
+      color: #5f6368;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+    .step.active .num { background: #1a73e8; color: #fff; }
+    .content {
+      flex: 1;
+      padding: 32px 40px;
+      overflow-y: auto;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; font-weight: 500; }
+    .subtitle { color: #5f6368; margin-bottom: 24px; }
+    button {
+      background: #1a73e8;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover { background: #1765cc; }
+    button:disabled { background: #dadce0; color: #5f6368; cursor: not-allowed; }
+    button.secondary {
+      background: #fff; color: #1a73e8; border: 1px solid #dadce0;
+    }
+    button.secondary:hover { background: #f8f9fa; }
+    .result {
+      margin-top: 20px;
+      padding: 16px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+    .result.ok { background: #e6f4ea; border: 1px solid #34a853; }
+    .result.err { background: #fce8e6; border: 1px solid #d93025; color: #b3261e; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+    th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+    th { color: #5f6368; font-weight: 500; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    .badge.new { background: #e6f4ea; color: #137333; }
+    .badge.exist { background: #e8eaed; color: #5f6368; }
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .placeholder {
+      color: #9aa0a6;
+      font-style: italic;
+      padding: 40px;
+      text-align: center;
+      border: 2px dashed #e0e0e0;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="sidebar">
+      <h2>Pasos</h2>
+      <div class="step active" data-step="1">
+        <span class="num">1</span>Estructura del libro
+      </div>
+      <div class="step disabled" data-step="2">
+        <span class="num">2</span>Datos del centro
+      </div>
+      <div class="step disabled" data-step="3">
+        <span class="num">3</span>Tramos horarios
+      </div>
+      <div class="step disabled" data-step="4">
+        <span class="num">4</span>Grupos
+      </div>
+      <div class="step disabled" data-step="5">
+        <span class="num">5</span>Docentes
+      </div>
+      <div class="step disabled" data-step="6">
+        <span class="num">6</span>Tutorías
+      </div>
+      <div class="step disabled" data-step="7">
+        <span class="num">7</span>Localizaciones
+      </div>
+      <div class="step disabled" data-step="8">
+        <span class="num">8</span>Materias
+      </div>
+      <div class="step disabled" data-step="9">
+        <span class="num">9</span>Cargos y roles
+      </div>
+    </div>
+
+    <div class="content" id="content">
+      <h1>Paso 1: Estructura del libro</h1>
+      <p class="subtitle">
+        Vamos a crear las 9 pestañas de datos que el sistema necesita
+        (todas con prefijo <code>_</code>) y sus cabeceras.
+        Esta operación es segura de repetir: no borra datos existentes.
+      </p>
+
+      <div id="estado-inicial">
+        <p>Comprobando estado actual del libro…</p>
+      </div>
+
+      <div id="zona-accion" style="display:none; margin-top: 24px;">
+        <button id="btn-crear" onclick="crearEstructura()">Crear estructura de pestañas</button>
+      </div>
+
+      <div id="resultado"></div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener('load', comprobarEstado);
+
+    function comprobarEstado() {
+      google.script.run
+        .withSuccessHandler(mostrarEstado)
+        .withFailureHandler(mostrarError)
+        .estadoEstructura();
+    }
+
+    function mostrarEstado(estado) {
+      const cont = document.getElementById('estado-inicial');
+      const accion = document.getElementById('zona-accion');
+      const btn = document.getElementById('btn-crear');
+      if (estado.completo) {
+        cont.innerHTML = '<div class="result ok">' +
+          '✓ El libro ya tiene las ' + estado.total + ' pestañas creadas.' +
+          ' Puedes volver a ejecutar la creación para reparar cabeceras que falten.' +
+          '</div>';
+        btn.textContent = 'Verificar / reparar cabeceras';
+        marcarPasoCompleto(1);
+      } else {
+        cont.innerHTML = '<p>Faltan <strong>' + estado.faltan.length + '</strong> de ' +
+          estado.total + ' pestañas: <code>' + estado.faltan.join(', ') + '</code></p>';
+      }
+      accion.style.display = 'block';
+    }
+
+    function crearEstructura() {
+      const btn = document.getElementById('btn-crear');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Creando…';
+      document.getElementById('resultado').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(mostrarResultado)
+        .withFailureHandler(mostrarError)
+        .inicializarLibro();
+    }
+
+    function mostrarResultado(res) {
+      const btn = document.getElementById('btn-crear');
+      btn.disabled = false;
+      btn.textContent = 'Verificar / reparar cabeceras';
+
+      let html = '<div class="result ok">✓ Listo. Se procesaron ' + res.total + ' pestañas.</div>';
+      html += '<table><thead><tr><th>Pestaña</th><th>Columnas</th><th></th><th>Estado</th></tr></thead><tbody>';
+      res.detalle.forEach(function(d) {
+        const badge = d.nueva
+          ? '<span class="badge new">nueva</span>'
+          : '<span class="badge exist">existía</span>';
+        html += '<tr><td><code>' + d.pestana + '</code></td><td>' + d.columnas +
+                '</td><td>' + badge + '</td><td>' + d.estado + '</td></tr>';
+      });
+      html += '</tbody></table>';
+      html += '<p style="margin-top:20px; color:#5f6368;">' +
+              'El paso 2 (datos del centro) llegará en la siguiente entrega.</p>';
+      document.getElementById('resultado').innerHTML = html;
+      marcarPasoCompleto(1);
+    }
+
+    function mostrarError(err) {
+      const btn = document.getElementById('btn-crear');
+      if (btn) { btn.disabled = false; btn.textContent = 'Reintentar'; }
+      document.getElementById('resultado').innerHTML =
+        '<div class="result err">✗ Error: ' + (err.message || err) + '</div>';
+    }
+
+    function marcarPasoCompleto(n) {
+      const el = document.querySelector('.step[data-step="' + n + '"]');
+      if (el) el.classList.add('done');
+    }
+  </script>
+</body>
+</html>

@@ -1,12 +1,12 @@
 /**
  * Inicialización y reparación del esquema del libro.
  *
- * Función principal: inicializarLibro().
- * Ejecútala una vez sobre un Google Sheets vacío vinculado a este script.
- * Crea las 9 pestañas _* con sus cabeceras según SCHEMA.
- *
+ * inicializarLibro() crea las 9 pestañas _* con sus cabeceras según SCHEMA.
  * Es idempotente: si una pestaña ya existe, no la borra; añade columnas
  * que falten al final y avisa de las que sobran.
+ *
+ * Se invoca desde el wizard HTML (ver src/ui/setup.html) vía google.script.run.
+ * Devuelve un objeto con el resumen para que el wizard lo muestre.
  */
 
 function inicializarLibro() {
@@ -15,27 +15,39 @@ function inicializarLibro() {
     throw new Error('No hay hoja de cálculo activa. Vincula este script a un Sheets.');
   }
 
-  const resumen = [];
+  const detalle = [];
 
   SHEET_ORDER.forEach(function(nombre) {
     const cabeceras = SCHEMA[nombre];
+    const existia = ss.getSheetByName(nombre) !== null;
     const sheet = ss.getSheetByName(nombre) || ss.insertSheet(nombre);
     const estado = aplicarCabeceras_(sheet, cabeceras);
-    resumen.push(nombre + ': ' + estado);
+    detalle.push({ pestana: nombre, columnas: cabeceras.length, nueva: !existia, estado: estado });
   });
 
   eliminarHojaPorDefecto_(ss);
 
-  const msg = 'Libro inicializado.\n\n' + resumen.join('\n');
-  SpreadsheetApp.getActive().toast('Inicialización completada', 'OK', 5);
-  Logger.log(msg);
-  return msg;
+  return {
+    ok: true,
+    total: SHEET_ORDER.length,
+    detalle: detalle
+  };
 }
 
 /**
- * Escribe las cabeceras en la fila 1. Si ya hay cabeceras, comprueba que
- * coinciden y añade al final las que falten.
+ * Indica si el libro ya tiene todas las pestañas _* creadas.
+ * Lo usa el wizard para marcar el paso 1 como completado al reabrir.
  */
+function estadoEstructura() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const faltan = SHEET_ORDER.filter(function(n) { return !ss.getSheetByName(n); });
+  return {
+    completo: faltan.length === 0,
+    faltan: faltan,
+    total: SHEET_ORDER.length
+  };
+}
+
 function aplicarCabeceras_(sheet, cabeceras) {
   const ancho = cabeceras.length;
   const primeraFila = sheet.getRange(1, 1, 1, Math.max(ancho, sheet.getLastColumn() || 1))
@@ -46,7 +58,7 @@ function aplicarCabeceras_(sheet, cabeceras) {
     sheet.getRange(1, 1, 1, ancho).setValues([cabeceras]);
     formatearCabecera_(sheet, ancho);
     sheet.setFrozenRows(1);
-    return 'creada con ' + ancho + ' columnas';
+    return 'creada';
   }
 
   const faltan = cabeceras.filter(function(c) { return existentes.indexOf(c) === -1; });
@@ -58,11 +70,13 @@ function aplicarCabeceras_(sheet, cabeceras) {
     formatearCabecera_(sheet, existentes.length + faltan.length);
   }
 
-  let estado = 'ya existía';
-  if (faltan.length) estado += ', añadidas: ' + faltan.join(', ');
-  if (sobran.length) estado += ', sobran (revisar manualmente): ' + sobran.join(', ');
   sheet.setFrozenRows(1);
-  return estado;
+
+  if (!faltan.length && !sobran.length) return 'ya existía (sin cambios)';
+  const partes = [];
+  if (faltan.length) partes.push('añadidas: ' + faltan.join(', '));
+  if (sobran.length) partes.push('sobran: ' + sobran.join(', '));
+  return partes.join(' | ');
 }
 
 function formatearCabecera_(sheet, ancho) {
@@ -71,10 +85,6 @@ function formatearCabecera_(sheet, ancho) {
   rango.setBackground('#efefef');
 }
 
-/**
- * Si el libro se acaba de crear, tendrá una pestaña por defecto "Hoja 1" /
- * "Sheet1" vacía. La eliminamos si seguimos teniendo más de una pestaña.
- */
 function eliminarHojaPorDefecto_(ss) {
   const candidatas = ['Hoja 1', 'Hoja1', 'Sheet1', 'Sheet 1'];
   const hojas = ss.getSheets();
@@ -84,15 +94,4 @@ function eliminarHojaPorDefecto_(ss) {
       ss.deleteSheet(h);
     }
   });
-}
-
-/**
- * Menú personalizado que aparece al abrir el Sheets.
- * Permite lanzar la inicialización con un clic.
- */
-function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('Horarios')
-    .addItem('Inicializar libro (crear pestañas)', 'inicializarLibro')
-    .addToUi();
 }
