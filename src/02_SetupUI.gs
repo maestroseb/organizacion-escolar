@@ -16,7 +16,7 @@ function onOpen() {
 }
 
 function abrirSetup() {
-  const html = HtmlService.createHtmlOutputFromFile('setup')
+  const html = HtmlService.createHtmlOutputFromFile('src/setup')
     .setWidth(820)
     .setHeight(620);
   SpreadsheetApp.getUi().showModalDialog(html, 'Asistente de configuración');
