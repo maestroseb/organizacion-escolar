@@ -20,8 +20,7 @@ asistente HTML.
      - `00_Constants.gs`
      - `01_Schema.gs`
      - `02_SetupUI.gs`
-     - `ui/setup.html`  *(en Apps Script, ponle el nombre `ui/setup` al
-       crearlo como HTML; el editor permite la barra)*
+     - `setup.html`  *(botón `+` → HTML, nombre `setup`, sin extensión)*
 4. Guarda y recarga el Sheets.
 5. Aparecerá un menú **Horarios** arriba → **Abrir asistente de configuración**.
 6. Se abre el wizard; pulsa **Crear estructura de pestañas**.
