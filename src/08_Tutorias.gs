@@ -27,15 +27,22 @@ function guardarTutorias(asignaciones) {
   const docentesValidos = {};
   listarDocentes().forEach(function(d) { docentesValidos[d.id] = true; });
 
-  let cambios = 0;
   Object.keys(asignaciones).forEach(function(grupoId) {
     const tutorId = asignaciones[grupoId] || '';
     if (tutorId && !docentesValidos[tutorId]) {
       throw new Error('Docente desconocido: ' + tutorId);
     }
-    update(SHEETS.GRUPOS, grupoId, { tutor_id: tutorId });
-    cambios++;
   });
+
+  const grupos = getAll(SHEETS.GRUPOS);
+  let cambios = 0;
+  grupos.forEach(function(g) {
+    if (asignaciones[g.id] !== undefined) {
+      g.tutor_id = asignaciones[g.id] || '';
+      cambios++;
+    }
+  });
+  bulkReplace(SHEETS.GRUPOS, grupos);
 
   return { ok: true, total: cambios };
 }
