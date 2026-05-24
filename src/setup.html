@@ -285,18 +285,24 @@
     function precargarEstadoPasos() {
       google.script.run
         .withSuccessHandler(function(res) {
-          if (res.centro) {
+          console.log('[precarga] obtenerCentro →', JSON.stringify(res));
+          if (res && res.centro) {
             rellenarFormCentro(res.centro, res.prefs);
             marcarPasoCompleto(2);
             habilitarPaso(2);
             habilitarPaso(3);
+          } else {
+            console.warn('[precarga] No se encontró fila en _Centro');
           }
         })
-        .withFailureHandler(function() {})
+        .withFailureHandler(function(err) {
+          console.error('[precarga] obtenerCentro FALLÓ:', err && (err.message || err));
+        })
         .obtenerCentro();
 
       google.script.run
         .withSuccessHandler(function(tramos) {
+          console.log('[precarga] listarTramos →', tramos && tramos.length, 'tramos');
           if (tramos && tramos.length > 0) {
             tramosLocal = tramos.map(function(t) {
               return {
@@ -312,7 +318,9 @@
             habilitarPaso(3);
           }
         })
-        .withFailureHandler(function() {})
+        .withFailureHandler(function(err) {
+          console.error('[precarga] listarTramos FALLÓ:', err && (err.message || err));
+        })
         .listarTramos();
     }
 
