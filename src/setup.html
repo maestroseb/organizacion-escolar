@@ -415,7 +415,7 @@
     function cargarCentro() {
       google.script.run
         .withSuccessHandler(function(res) {
-          if (res.centro) {
+          if (res && res.centro) {
             rellenarFormCentro(res.centro, res.prefs);
             marcarPasoCompleto(2);
             habilitarPaso(3);
