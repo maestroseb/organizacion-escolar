@@ -825,16 +825,19 @@
     }
 
     /**
-     * Si el texto acaba en " <letra>" o "(<letra>)", incrementa la letra.
-     * Si no, le añade " B" al final (asumiendo que el original es la línea A).
-     * Si está vacío, devuelve vacío.
+     * Si el texto acaba en una letra A-Z (pegada o separada por espacio,
+     * o entre paréntesis), incrementa esa letra (A→B, B→C…).
+     * Si no, añade " B" al final asumiendo que era implícitamente la A.
      */
     function _siguienteLinea(texto) {
       if (!texto) return '';
-      const finLetra = texto.match(/^(.*?)([\s(])([A-Z])(\)?)$/);
+      const conParen = texto.match(/^(.*\()([A-Z])(\))\s*$/);
+      if (conParen) {
+        return conParen[1] + String.fromCharCode(conParen[2].charCodeAt(0) + 1) + conParen[3];
+      }
+      const finLetra = texto.match(/^(.*?)([A-Z])\s*$/);
       if (finLetra) {
-        const sig = String.fromCharCode(finLetra[3].charCodeAt(0) + 1);
-        return finLetra[1] + finLetra[2] + sig + finLetra[4];
+        return finLetra[1] + String.fromCharCode(finLetra[2].charCodeAt(0) + 1);
       }
       return texto + ' B';
     }
