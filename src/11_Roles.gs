@@ -66,23 +66,14 @@ function guardarRoles(roles) {
     nombres[k] = true;
   });
 
-  const idsConservados = {};
-  roles.forEach(function(r) { if (r.id) idsConservados[r.id] = true; });
-  const existentes = getAll(SHEETS.ROLES);
-  existentes.forEach(function(e) {
-    if (!idsConservados[e.id]) remove(SHEETS.ROLES, e.id);
-  });
-
-  const guardados = [];
-  roles.forEach(function(r) {
-    const fila = {
+  const filas = roles.map(function(r) {
+    return {
       id: r.id || undefined,
       nombre: String(r.nombre).trim(),
       nombre_largo: r.nombre_largo || '',
       color: r.color || ''
     };
-    guardados.push(upsert(SHEETS.ROLES, fila));
   });
-
-  return { ok: true, total: guardados.length };
+  bulkReplace(SHEETS.ROLES, filas);
+  return { ok: true, total: filas.length };
 }

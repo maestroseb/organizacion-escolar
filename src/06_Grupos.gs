@@ -90,17 +90,9 @@ function guardarGrupos(grupos) {
     nombres[k] = true;
   });
 
-  const idsConservados = {};
-  grupos.forEach(function(g) { if (g.id) idsConservados[g.id] = true; });
-  const existentes = getAll(SHEETS.GRUPOS);
-  existentes.forEach(function(e) {
-    if (!idsConservados[e.id]) remove(SHEETS.GRUPOS, e.id);
-  });
-
-  const guardados = [];
-  grupos.forEach(function(g, i) {
+  const filas = grupos.map(function(g, i) {
     const etapa = g.nivel.indexOf('INF') === 0 ? 'INFANTIL' : 'PRIMARIA';
-    const fila = {
+    return {
       id: g.id || undefined,
       nombre_corto: String(g.nombre_corto).trim(),
       nombre_largo: g.nombre_largo || '',
@@ -110,10 +102,9 @@ function guardarGrupos(grupos) {
       tutor_id: g.tutor_id || '',
       color: g.color || ''
     };
-    guardados.push(upsert(SHEETS.GRUPOS, fila));
   });
-
-  return { ok: true, total: guardados.length };
+  bulkReplace(SHEETS.GRUPOS, filas);
+  return { ok: true, total: filas.length };
 }
 
 function nivelesDisponibles() {

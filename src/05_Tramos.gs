@@ -36,16 +36,8 @@ function guardarTramos(tramos) {
     return _minutos(a.hora_inicio) - _minutos(b.hora_inicio);
   });
 
-  const idsConservados = {};
-  ordenados.forEach(function(t) { if (t.id) idsConservados[t.id] = true; });
-  const existentes = getAll(SHEETS.TRAMOS);
-  existentes.forEach(function(e) {
-    if (!idsConservados[e.id]) remove(SHEETS.TRAMOS, e.id);
-  });
-
-  const guardados = [];
-  ordenados.forEach(function(t, i) {
-    const fila = {
+  const filas = ordenados.map(function(t, i) {
+    return {
       id: t.id || undefined,
       orden: i + 1,
       hora_inicio: t.hora_inicio,
@@ -53,10 +45,9 @@ function guardarTramos(tramos) {
       es_recreo: !!t.es_recreo,
       etiqueta: t.etiqueta || ''
     };
-    guardados.push(upsert(SHEETS.TRAMOS, fila));
   });
-
-  return { ok: true, total: guardados.length };
+  bulkReplace(SHEETS.TRAMOS, filas);
+  return { ok: true, total: filas.length };
 }
 
 /**

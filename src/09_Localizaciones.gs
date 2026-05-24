@@ -72,23 +72,14 @@ function guardarLocalizaciones(locs) {
     codigos[k] = true;
   });
 
-  const idsConservados = {};
-  locs.forEach(function(l) { if (l.id) idsConservados[l.id] = true; });
-  const existentes = getAll(SHEETS.LOCALIZACIONES);
-  existentes.forEach(function(e) {
-    if (!idsConservados[e.id]) remove(SHEETS.LOCALIZACIONES, e.id);
-  });
-
-  const guardados = [];
-  locs.forEach(function(l, i) {
-    const fila = {
+  const filas = locs.map(function(l, i) {
+    return {
       id: l.id || undefined,
       codigo: String(l.codigo).trim(),
       descripcion: l.descripcion || '',
       orden: i + 1
     };
-    guardados.push(upsert(SHEETS.LOCALIZACIONES, fila));
   });
-
-  return { ok: true, total: guardados.length };
+  bulkReplace(SHEETS.LOCALIZACIONES, filas);
+  return { ok: true, total: filas.length };
 }

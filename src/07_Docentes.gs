@@ -34,16 +34,8 @@ function guardarDocentes(docentes) {
     nombres[k] = true;
   });
 
-  const idsConservados = {};
-  docentes.forEach(function(d) { if (d.id) idsConservados[d.id] = true; });
-  const existentes = getAll(SHEETS.DOCENTES);
-  existentes.forEach(function(e) {
-    if (!idsConservados[e.id]) remove(SHEETS.DOCENTES, e.id);
-  });
-
-  const guardados = [];
-  docentes.forEach(function(d, i) {
-    const fila = {
+  const filas = docentes.map(function(d, i) {
+    return {
       id: d.id || undefined,
       nombre_corto: String(d.nombre_corto).trim(),
       nombre_completo: d.nombre_completo || '',
@@ -53,8 +45,7 @@ function guardarDocentes(docentes) {
       orden: i + 1,
       color: d.color || ''
     };
-    guardados.push(upsert(SHEETS.DOCENTES, fila));
   });
-
-  return { ok: true, total: guardados.length };
+  bulkReplace(SHEETS.DOCENTES, filas);
+  return { ok: true, total: filas.length };
 }

@@ -87,6 +87,55 @@ function upsert(sheetName, obj) {
   return insert(sheetName, obj);
 }
 
+/**
+ * Reemplaza el contenido completo de una pestaña con la lista dada.
+ * Mucho más rápido que llamar a `upsert` en bucle (1 lectura + 1
+ * limpieza + 1 escritura por pestaña, en lugar de O(N) llamadas a la
+ * API de Sheets).
+ *
+ * Para cada objeto:
+ *   - Si tiene `id`, se conserva (importante para no romper FKs).
+ *   - Si no, se autogenera continuando desde el máximo existente.
+ *
+ * Devuelve los objetos con su id asignado.
+ */
+function bulkReplace(sheetName, objects) {
+  const sheet = _getSheet(sheetName);
+  const headers = SCHEMA[sheetName];
+  const prefix = _idPrefix(sheetName);
+
+  const existentes = getAll(sheetName);
+  let maxN = 0;
+  existentes.forEach(function(o) {
+    const m = String(o.id).match(new RegExp('^' + prefix + '_(\\d+)$'));
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (n > maxN) maxN = n;
+    }
+  });
+
+  objects.forEach(function(o) {
+    if (!o.id) {
+      maxN++;
+      o.id = prefix + '_' + maxN;
+    }
+  });
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow >= 2) {
+    sheet.getRange(2, 1, lastRow - 1, headers.length).clearContent();
+  }
+
+  if (objects.length > 0) {
+    const rows = objects.map(function(o) {
+      return headers.map(function(h) { return o[h] === undefined || o[h] === null ? '' : o[h]; });
+    });
+    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+  }
+
+  return objects;
+}
+
 /** Borra una fila por id. */
 function remove(sheetName, id) {
   const sheet = _getSheet(sheetName);

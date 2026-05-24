@@ -92,24 +92,15 @@ function guardarMaterias(materias) {
     nombres[k] = true;
   });
 
-  const idsConservados = {};
-  materias.forEach(function(m) { if (m.id) idsConservados[m.id] = true; });
-  const existentes = getAll(SHEETS.MATERIAS);
-  existentes.forEach(function(e) {
-    if (!idsConservados[e.id]) remove(SHEETS.MATERIAS, e.id);
-  });
-
-  const guardados = [];
-  materias.forEach(function(m) {
-    const fila = {
+  const filas = materias.map(function(m) {
+    return {
       id: m.id || undefined,
       nombre: String(m.nombre).trim(),
       abreviatura: m.abreviatura || '',
       color: m.color || '',
       es_recreo: !!m.es_recreo
     };
-    guardados.push(upsert(SHEETS.MATERIAS, fila));
   });
-
-  return { ok: true, total: guardados.length };
+  bulkReplace(SHEETS.MATERIAS, filas);
+  return { ok: true, total: filas.length };
 }
