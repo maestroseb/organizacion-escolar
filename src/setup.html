@@ -122,7 +122,7 @@
       </div>
       <div class="step disabled" data-step="3" onclick="irPaso(3)"><span class="num">3</span>Tramos horarios</div>
       <div class="step disabled" data-step="4" onclick="irPaso(4)"><span class="num">4</span>Grupos</div>
-      <div class="step disabled" data-step="5"><span class="num">5</span>Docentes</div>
+      <div class="step disabled" data-step="5" onclick="irPaso(5)"><span class="num">5</span>Docentes</div>
       <div class="step disabled" data-step="6"><span class="num">6</span>Tutorías</div>
       <div class="step disabled" data-step="7"><span class="num">7</span>Localizaciones</div>
       <div class="step disabled" data-step="8"><span class="num">8</span>Materias</div>
@@ -178,6 +178,20 @@
         .grupos-tabla .col-nivel { width: 120px; }
         .grupos-tabla .col-acc { width: 80px; text-align: center; white-space: nowrap; }
         .grupos-tabla tbody tr:hover { background: #f8f9fa; }
+        .docentes-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .docentes-tabla th { font-size: 12px; color: #5f6368; font-weight: 500; padding: 6px; text-align: left; }
+        .docentes-tabla td { padding: 4px; vertical-align: middle; }
+        .docentes-tabla input[type=text], .docentes-tabla input[type=email] {
+          padding: 6px 8px; font-size: 14px;
+        }
+        .docentes-tabla .col-orden { width: 50px; text-align: center; color: #5f6368; }
+        .docentes-tabla .col-corto { width: 140px; }
+        .docentes-tabla .col-completo { }
+        .docentes-tabla .col-puesto { }
+        .docentes-tabla .col-email { width: 200px; }
+        .docentes-tabla .col-activo { width: 70px; text-align: center; }
+        .docentes-tabla .col-acc { width: 80px; text-align: center; white-space: nowrap; }
+        .docentes-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
       <!-- PASO 2 -->
@@ -336,6 +350,45 @@
         <div id="resultado-4"></div>
       </div>
 
+      <!-- PASO 5 -->
+      <div class="panel" id="panel-5">
+        <h1>Paso 5: Docentes</h1>
+        <p class="subtitle">
+          Lista del claustro. El <strong>nombre corto</strong> es el que
+          aparecerá en sábanas, sustituciones y vistas; debe ser único.
+          El resto (nombre completo, puesto, email) es opcional.
+        </p>
+
+        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
+          <button type="button" class="secondary" onclick="anadirDocente()">
+            + Añadir docente
+          </button>
+        </div>
+
+        <table class="docentes-tabla">
+          <thead>
+            <tr>
+              <th class="col-orden">#</th>
+              <th class="col-corto">Nombre corto *</th>
+              <th class="col-completo">Nombre completo</th>
+              <th class="col-puesto">Puesto</th>
+              <th class="col-email">Email</th>
+              <th class="col-activo">Activo</th>
+              <th class="col-acc"></th>
+            </tr>
+          </thead>
+          <tbody id="docentes-body"></tbody>
+        </table>
+
+        <div class="actions">
+          <button type="button" class="secondary" onclick="irPaso(4)">← Atrás</button>
+          <button type="button" id="btn-guardar-docentes" onclick="enviarDocentes()">
+            Guardar y continuar
+          </button>
+        </div>
+        <div id="resultado-5"></div>
+      </div>
+
     </div>
   </div>
 
@@ -407,12 +460,28 @@
             renderGrupos();
             marcarPasoCompleto(4);
             habilitarPaso(4);
+            habilitarPaso(5);
           }
         })
         .withFailureHandler(function(err) {
           console.error('[precarga] listarGrupos FALLÓ:', err && (err.message || err));
         })
         .listarGrupos();
+
+      google.script.run
+        .withSuccessHandler(function(docentes) {
+          console.log('[precarga] listarDocentes →', docentes && docentes.length, 'docentes');
+          if (docentes && docentes.length > 0) {
+            docentesLocal = docentes.map(_mapearDocente);
+            renderDocentes();
+            marcarPasoCompleto(5);
+            habilitarPaso(5);
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.error('[precarga] listarDocentes FALLÓ:', err && (err.message || err));
+        })
+        .listarDocentes();
     }
 
     function irPaso(n) {
@@ -430,6 +499,7 @@
       if (n === 2) cargarCentro();
       if (n === 3) cargarTramos();
       if (n === 4) cargarGrupos();
+      if (n === 5) cargarDocentes();
     }
 
     function marcarPasoCompleto(n) {
@@ -890,7 +960,9 @@
           document.getElementById('resultado-4').innerHTML =
             '<div class="result ok">✓ Guardados ' + res.total + ' grupos.</div>';
           marcarPasoCompleto(4);
+          habilitarPaso(5);
           cargarGrupos();
+          setTimeout(function() { irPaso(5); }, 400);
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
@@ -899,6 +971,104 @@
             '<div class="result err">✗ ' + (err.message || err) + '</div>';
         })
         .guardarGrupos(gruposLocal);
+    }
+
+    // ---------- Paso 5: docentes ----------
+    let docentesLocal = [];
+
+    function _mapearDocente(d) {
+      return {
+        id: d.id || null,
+        nombre_corto: d.nombre_corto || '',
+        nombre_completo: d.nombre_completo || '',
+        puesto: d.puesto || '',
+        email: d.email || '',
+        activo: d.activo === false ? false : true,
+        color: d.color || ''
+      };
+    }
+
+    function cargarDocentes() {
+      google.script.run
+        .withSuccessHandler(function(docentes) {
+          if (docentes && docentes.length > 0) {
+            docentesLocal = docentes.map(_mapearDocente);
+            marcarPasoCompleto(5);
+          } else if (docentesLocal.length === 0) {
+            anadirDocente();
+            return;
+          }
+          renderDocentes();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .listarDocentes();
+    }
+
+    function anadirDocente() {
+      docentesLocal.push(_mapearDocente({}));
+      renderDocentes();
+    }
+
+    function eliminarDocente(idx) {
+      docentesLocal.splice(idx, 1);
+      renderDocentes();
+    }
+
+    function actualizarDocente(idx, campo, valor) {
+      docentesLocal[idx][campo] = valor;
+    }
+
+    function renderDocentes() {
+      const tbody = document.getElementById('docentes-body');
+      tbody.innerHTML = '';
+      docentesLocal.forEach(function(d, i) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="col-orden">' + (i + 1) + '</td>' +
+          '<td class="col-corto"><input type="text" value="' + _esc(d.nombre_corto) +
+            '" placeholder="Sebastián" oninput="actualizarDocente(' + i + ', \'nombre_corto\', this.value)"></td>' +
+          '<td class="col-completo"><input type="text" value="' + _esc(d.nombre_completo) +
+            '" placeholder="Sebastián García Rodríguez" oninput="actualizarDocente(' + i + ', \'nombre_completo\', this.value)"></td>' +
+          '<td class="col-puesto"><input type="text" value="' + _esc(d.puesto) +
+            '" placeholder="Primaria – Bilingüe Inglés" oninput="actualizarDocente(' + i + ', \'puesto\', this.value)"></td>' +
+          '<td class="col-email"><input type="email" value="' + _esc(d.email) +
+            '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ', \'email\', this.value)"></td>' +
+          '<td class="col-activo"><input type="checkbox"' + (d.activo ? ' checked' : '') +
+            ' onchange="actualizarDocente(' + i + ', \'activo\', this.checked)"></td>' +
+          '<td class="col-acc">' +
+            '<button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function enviarDocentes() {
+      if (docentesLocal.length === 0) {
+        document.getElementById('resultado-5').innerHTML =
+          '<div class="result err">Debes añadir al menos un docente.</div>';
+        return;
+      }
+      const btn = document.getElementById('btn-guardar-docentes');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Guardando…';
+      document.getElementById('resultado-5').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-5').innerHTML =
+            '<div class="result ok">✓ Guardados ' + res.total + ' docentes.</div>';
+          marcarPasoCompleto(5);
+          cargarDocentes();
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-5').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .guardarDocentes(docentesLocal);
     }
 
     // ---------- Modal de confirmación ----------
