@@ -63,16 +63,25 @@ function guardarTramos(tramos) {
  * Plantilla típica de CEIP andaluz: jornada 9:00-14:00 con recreo central.
  * 6 sesiones lectivas + 1 recreo = 7 tramos.
  */
-function plantillaTramosAndaluza() {
-  return [
-    { orden: 1, hora_inicio: '09:00', hora_fin: '09:45', es_recreo: false, etiqueta: '' },
-    { orden: 2, hora_inicio: '09:45', hora_fin: '10:30', es_recreo: false, etiqueta: '' },
-    { orden: 3, hora_inicio: '10:30', hora_fin: '11:15', es_recreo: false, etiqueta: '' },
-    { orden: 4, hora_inicio: '11:15', hora_fin: '11:45', es_recreo: true,  etiqueta: 'Recreo' },
-    { orden: 5, hora_inicio: '11:45', hora_fin: '12:30', es_recreo: false, etiqueta: '' },
-    { orden: 6, hora_inicio: '12:30', hora_fin: '13:15', es_recreo: false, etiqueta: '' },
-    { orden: 7, hora_inicio: '13:15', hora_fin: '14:00', es_recreo: false, etiqueta: '' }
+function plantillaTramos() {
+  const base = [
+    { hora_inicio: '09:00', hora_fin: '09:45', es_recreo: false },
+    { hora_inicio: '09:45', hora_fin: '10:30', es_recreo: false },
+    { hora_inicio: '10:30', hora_fin: '11:15', es_recreo: false },
+    { hora_inicio: '11:15', hora_fin: '11:45', es_recreo: true  },
+    { hora_inicio: '11:45', hora_fin: '12:30', es_recreo: false },
+    { hora_inicio: '12:30', hora_fin: '13:15', es_recreo: false },
+    { hora_inicio: '13:15', hora_fin: '14:00', es_recreo: false }
   ];
+  return base.map(function(t, i) {
+    return {
+      orden: i + 1,
+      hora_inicio: t.hora_inicio,
+      hora_fin: t.hora_fin,
+      es_recreo: t.es_recreo,
+      etiqueta: 'TR' + String(i + 1).padStart(2, '0')
+    };
+  });
 }
 
 function _minutos(hhmm) {

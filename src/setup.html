@@ -96,6 +96,18 @@
       display: flex; align-items: center; gap: 6px;
       margin: 0; color: #202124; cursor: pointer;
     }
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(32, 33, 36, 0.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 8px; padding: 24px 28px;
+      max-width: 420px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+    }
+    .modal-box p { margin: 0 0 20px; font-size: 14px; color: #202124; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
   </style>
 </head>
 <body>
@@ -242,7 +254,7 @@
 
         <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
           <button type="button" class="secondary" onclick="cargarPlantillaTramos()">
-            Cargar plantilla típica andaluza
+            Cargar plantilla
           </button>
           <button type="button" class="secondary" onclick="anadirTramo()">
             + Añadir tramo vacío
@@ -272,6 +284,17 @@
         <div id="resultado-3"></div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- Modal de confirmación reutilizable -->
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal-box">
+      <p id="modal-confirm-msg"></p>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="modalConfirmResp(false)">Cancelar</button>
+        <button type="button" onclick="modalConfirmResp(true)">Aceptar</button>
+      </div>
     </div>
   </div>
 
@@ -530,26 +553,33 @@
     }
 
     function cargarPlantillaTramos() {
-      if (tramosLocal.length > 0 &&
-          !confirm('Esto reemplazará la lista actual. ¿Continuar?')) return;
-      google.script.run
-        .withSuccessHandler(function(plantilla) {
-          tramosLocal = plantilla.map(function(t) {
-            return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin,
-                     es_recreo: t.es_recreo, etiqueta: t.etiqueta };
-          });
-          renderTramos();
-        })
-        .withFailureHandler(mostrarErrorGenerico)
-        .plantillaTramosAndaluza();
+      const aplicar = function() {
+        google.script.run
+          .withSuccessHandler(function(plantilla) {
+            tramosLocal = plantilla.map(function(t) {
+              return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin,
+                       es_recreo: t.es_recreo, etiqueta: t.etiqueta };
+            });
+            renderTramos();
+          })
+          .withFailureHandler(mostrarErrorGenerico)
+          .plantillaTramos();
+      };
+      if (tramosLocal.length > 0) {
+        confirmar('Esto reemplazará la lista actual de tramos. ¿Continuar?', aplicar);
+      } else {
+        aplicar();
+      }
     }
 
     function anadirTramo() {
       const ult = tramosLocal[tramosLocal.length - 1];
       const inicio = ult ? ult.hora_fin : '09:00';
+      const numero = tramosLocal.length + 1;
       tramosLocal.push({
         id: null, hora_inicio: inicio, hora_fin: _sumarMinutos(inicio, 45),
-        es_recreo: false, etiqueta: ''
+        es_recreo: false,
+        etiqueta: 'TR' + String(numero).padStart(2, '0')
       });
       renderTramos();
     }
@@ -634,6 +664,20 @@
     function mostrarErrorGenerico(err) {
       console.error(err);
       alert('Error: ' + (err.message || err));
+    }
+
+    // ---------- Modal de confirmación ----------
+    let _confirmCallback = null;
+    function confirmar(mensaje, onAceptar) {
+      document.getElementById('modal-confirm-msg').textContent = mensaje;
+      document.getElementById('modal-confirm').classList.add('show');
+      _confirmCallback = onAceptar;
+    }
+    function modalConfirmResp(ok) {
+      document.getElementById('modal-confirm').classList.remove('show');
+      const cb = _confirmCallback;
+      _confirmCallback = null;
+      if (ok && cb) cb();
     }
   </script>
 </body>
