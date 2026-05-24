@@ -124,7 +124,7 @@
       <div class="step disabled" data-step="4" onclick="irPaso(4)"><span class="num">4</span>Grupos</div>
       <div class="step disabled" data-step="5" onclick="irPaso(5)"><span class="num">5</span>Docentes</div>
       <div class="step disabled" data-step="6" onclick="irPaso(6)"><span class="num">6</span>Tutorías</div>
-      <div class="step disabled" data-step="7"><span class="num">7</span>Localizaciones</div>
+      <div class="step disabled" data-step="7" onclick="irPaso(7)"><span class="num">7</span>Localizaciones</div>
       <div class="step disabled" data-step="8"><span class="num">8</span>Materias</div>
       <div class="step disabled" data-step="9"><span class="num">9</span>Cargos y roles</div>
     </div>
@@ -201,6 +201,15 @@
         .tutorias-tabla .col-nivel { width: 160px; color: #5f6368; font-size: 13px; }
         .tutorias-tabla .col-tutor { width: auto; }
         .tutorias-tabla tbody tr:hover { background: #f8f9fa; }
+        .locs-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .locs-tabla th { font-size: 12px; color: #5f6368; font-weight: 500; padding: 6px; text-align: left; }
+        .locs-tabla td { padding: 4px; vertical-align: middle; }
+        .locs-tabla input[type=text] { padding: 6px 8px; font-size: 14px; }
+        .locs-tabla .col-orden { width: 40px; text-align: center; color: #5f6368; }
+        .locs-tabla .col-codigo { width: 220px; }
+        .locs-tabla .col-desc { width: auto; }
+        .locs-tabla .col-acc { width: 40px; text-align: center; }
+        .locs-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
       <!-- PASO 2 -->
@@ -430,6 +439,45 @@
         <div id="resultado-6"></div>
       </div>
 
+      <!-- PASO 7 -->
+      <div class="panel" id="panel-7">
+        <h1>Paso 7: Localizaciones</h1>
+        <p class="subtitle">
+          Espacios físicos del centro donde pueden ocurrir actividades: aulas
+          de los grupos, biblioteca, gimnasio, aulas de PT/AL, patios… Se usan
+          en refuerzos, apoyos y guardias.
+        </p>
+
+        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
+          <button type="button" class="secondary" onclick="cargarPlantillaLocalizaciones()">
+            Generar plantilla (un aula por grupo + comunes)
+          </button>
+          <button type="button" class="secondary" onclick="anadirLocalizacion()">
+            + Añadir localización
+          </button>
+        </div>
+
+        <table class="locs-tabla">
+          <thead>
+            <tr>
+              <th class="col-orden">#</th>
+              <th class="col-codigo">Código *</th>
+              <th class="col-desc">Descripción (opcional)</th>
+              <th class="col-acc"></th>
+            </tr>
+          </thead>
+          <tbody id="locs-body"></tbody>
+        </table>
+
+        <div class="actions">
+          <button type="button" class="secondary" onclick="irPaso(6)">← Atrás</button>
+          <button type="button" id="btn-guardar-locs" onclick="enviarLocalizaciones()">
+            Guardar y continuar
+          </button>
+        </div>
+        <div id="resultado-7"></div>
+      </div>
+
     </div>
   </div>
 
@@ -525,6 +573,8 @@
           console.error('[precarga] listarDocentes FALLÓ:', err && (err.message || err));
         })
         .listarDocentes();
+
+      precargarLocalizaciones();
     }
 
     /**
@@ -535,10 +585,27 @@
         .withSuccessHandler(function(grupos) {
           if (!grupos || grupos.length === 0) return;
           const todos = grupos.every(function(g) { return !!g.tutor_id; });
-          if (todos) marcarPasoCompleto(6);
+          if (todos) {
+            marcarPasoCompleto(6);
+            habilitarPaso(7);
+          }
         })
         .withFailureHandler(function() {})
         .listarGrupos();
+    }
+
+    function precargarLocalizaciones() {
+      google.script.run
+        .withSuccessHandler(function(locs) {
+          console.log('[precarga] listarLocalizaciones →', locs && locs.length);
+          if (locs && locs.length > 0) {
+            locsLocal = locs.map(_mapearLocalizacion);
+            marcarPasoCompleto(7);
+            habilitarPaso(7);
+          }
+        })
+        .withFailureHandler(function() {})
+        .listarLocalizaciones();
     }
 
     function irPaso(n) {
@@ -558,6 +625,7 @@
       if (n === 4) cargarGrupos();
       if (n === 5) cargarDocentes();
       if (n === 6) cargarTutorias();
+      if (n === 7) cargarLocalizaciones();
     }
 
     function marcarPasoCompleto(n) {
@@ -1201,6 +1269,8 @@
           document.getElementById('resultado-6').innerHTML =
             '<div class="result ok">✓ Actualizadas ' + res.total + ' tutorías.</div>';
           comprobarTutoriasCompletas();
+          habilitarPaso(7);
+          setTimeout(function() { irPaso(7); }, 400);
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
@@ -1209,6 +1279,109 @@
             '<div class="result err">✗ ' + (err.message || err) + '</div>';
         })
         .guardarTutorias(tutoriasAsignacion);
+    }
+
+    // ---------- Paso 7: localizaciones ----------
+    let locsLocal = [];
+
+    function _mapearLocalizacion(l) {
+      return {
+        id: l.id || null,
+        codigo: l.codigo || '',
+        descripcion: l.descripcion || ''
+      };
+    }
+
+    function cargarLocalizaciones() {
+      google.script.run
+        .withSuccessHandler(function(locs) {
+          if (locs && locs.length > 0) {
+            locsLocal = locs.map(_mapearLocalizacion);
+            marcarPasoCompleto(7);
+          } else if (locsLocal.length === 0) {
+            cargarPlantillaLocalizaciones();
+            return;
+          }
+          renderLocalizaciones();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .listarLocalizaciones();
+    }
+
+    function cargarPlantillaLocalizaciones() {
+      const aplicar = function() {
+        google.script.run
+          .withSuccessHandler(function(plantilla) {
+            locsLocal = (plantilla || []).map(_mapearLocalizacion);
+            renderLocalizaciones();
+          })
+          .withFailureHandler(mostrarErrorGenerico)
+          .plantillaLocalizaciones();
+      };
+      if (locsLocal.length > 0) {
+        confirmar('Esto reemplazará la lista actual de localizaciones. ¿Continuar?', aplicar);
+      } else {
+        aplicar();
+      }
+    }
+
+    function anadirLocalizacion() {
+      locsLocal.push(_mapearLocalizacion({}));
+      renderLocalizaciones();
+    }
+
+    function eliminarLocalizacion(idx) {
+      locsLocal.splice(idx, 1);
+      renderLocalizaciones();
+    }
+
+    function actualizarLocalizacion(idx, campo, valor) {
+      locsLocal[idx][campo] = valor;
+    }
+
+    function renderLocalizaciones() {
+      const tbody = document.getElementById('locs-body');
+      tbody.innerHTML = '';
+      locsLocal.forEach(function(l, i) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="col-orden">' + (i + 1) + '</td>' +
+          '<td class="col-codigo"><input type="text" value="' + _esc(l.codigo) +
+            '" placeholder="Aula PT, Biblioteca…" oninput="actualizarLocalizacion(' + i + ', \'codigo\', this.value)"></td>' +
+          '<td class="col-desc"><input type="text" value="' + _esc(l.descripcion) +
+            '" placeholder="(opcional)" oninput="actualizarLocalizacion(' + i + ', \'descripcion\', this.value)"></td>' +
+          '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarLocalizacion(' + i + ')">×</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function enviarLocalizaciones() {
+      if (locsLocal.length === 0) {
+        document.getElementById('resultado-7').innerHTML =
+          '<div class="result err">Debes definir al menos una localización.</div>';
+        return;
+      }
+      const btn = document.getElementById('btn-guardar-locs');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Guardando…';
+      document.getElementById('resultado-7').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-7').innerHTML =
+            '<div class="result ok">✓ Guardadas ' + res.total + ' localizaciones.</div>';
+          marcarPasoCompleto(7);
+          cargarLocalizaciones();
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-7').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .guardarLocalizaciones(locsLocal);
     }
 
     // ---------- Modal de confirmación ----------
