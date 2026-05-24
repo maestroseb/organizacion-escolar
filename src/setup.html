@@ -125,7 +125,7 @@
       <div class="step disabled" data-step="5" onclick="irPaso(5)"><span class="num">5</span>Docentes</div>
       <div class="step disabled" data-step="6" onclick="irPaso(6)"><span class="num">6</span>Tutorías</div>
       <div class="step disabled" data-step="7" onclick="irPaso(7)"><span class="num">7</span>Localizaciones</div>
-      <div class="step disabled" data-step="8"><span class="num">8</span>Materias</div>
+      <div class="step disabled" data-step="8" onclick="irPaso(8)"><span class="num">8</span>Materias</div>
       <div class="step disabled" data-step="9"><span class="num">9</span>Cargos y roles</div>
     </div>
 
@@ -210,6 +210,16 @@
         .locs-tabla .col-desc { width: auto; }
         .locs-tabla .col-acc { width: 40px; text-align: center; }
         .locs-tabla tbody tr:hover { background: #f8f9fa; }
+        .materias-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .materias-tabla th { font-size: 12px; color: #5f6368; font-weight: 500; padding: 6px; text-align: left; }
+        .materias-tabla td { padding: 4px; vertical-align: middle; }
+        .materias-tabla input[type=text] { padding: 6px 8px; font-size: 14px; }
+        .materias-tabla .col-orden { width: 40px; text-align: center; color: #5f6368; }
+        .materias-tabla .col-nombre { width: auto; }
+        .materias-tabla .col-abrev { width: 120px; }
+        .materias-tabla .col-recreo { width: 70px; text-align: center; }
+        .materias-tabla .col-acc { width: 40px; text-align: center; }
+        .materias-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
       <!-- PASO 2 -->
@@ -478,6 +488,46 @@
         <div id="resultado-7"></div>
       </div>
 
+      <!-- PASO 8 -->
+      <div class="panel" id="panel-8">
+        <h1>Paso 8: Materias</h1>
+        <p class="subtitle">
+          Asignaturas que se imparten en el centro. La plantilla se genera
+          según las etapas y bilingüismo del paso 2. Los recreos se incluyen
+          como materia con el flag correspondiente.
+        </p>
+
+        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
+          <button type="button" class="secondary" onclick="cargarPlantillaMaterias()">
+            Generar plantilla
+          </button>
+          <button type="button" class="secondary" onclick="anadirMateria()">
+            + Añadir materia
+          </button>
+        </div>
+
+        <table class="materias-tabla">
+          <thead>
+            <tr>
+              <th class="col-orden">#</th>
+              <th class="col-nombre">Nombre *</th>
+              <th class="col-abrev">Abreviatura</th>
+              <th class="col-recreo">Recreo</th>
+              <th class="col-acc"></th>
+            </tr>
+          </thead>
+          <tbody id="materias-body"></tbody>
+        </table>
+
+        <div class="actions">
+          <button type="button" class="secondary" onclick="irPaso(7)">← Atrás</button>
+          <button type="button" id="btn-guardar-materias" onclick="enviarMaterias()">
+            Guardar y continuar
+          </button>
+        </div>
+        <div id="resultado-8"></div>
+      </div>
+
     </div>
   </div>
 
@@ -576,6 +626,7 @@
         .listarDocentes();
 
       precargarLocalizaciones();
+      precargarMaterias();
     }
 
     /**
@@ -603,10 +654,25 @@
             locsLocal = locs.map(_mapearLocalizacion);
             marcarPasoCompleto(7);
             habilitarPaso(7);
+            habilitarPaso(8);
           }
         })
         .withFailureHandler(function() {})
         .listarLocalizaciones();
+    }
+
+    function precargarMaterias() {
+      google.script.run
+        .withSuccessHandler(function(materias) {
+          console.log('[precarga] listarMaterias →', materias && materias.length);
+          if (materias && materias.length > 0) {
+            materiasLocal = materias.map(_mapearMateria);
+            marcarPasoCompleto(8);
+            habilitarPaso(8);
+          }
+        })
+        .withFailureHandler(function() {})
+        .listarMaterias();
     }
 
     function irPaso(n) {
@@ -627,6 +693,7 @@
       if (n === 5) cargarDocentes();
       if (n === 6) cargarTutorias();
       if (n === 7) cargarLocalizaciones();
+      if (n === 8) cargarMaterias();
     }
 
     function marcarPasoCompleto(n) {
@@ -1385,7 +1452,9 @@
           document.getElementById('resultado-7').innerHTML =
             '<div class="result ok">✓ Guardadas ' + res.total + ' localizaciones.</div>';
           marcarPasoCompleto(7);
+          habilitarPaso(8);
           cargarLocalizaciones();
+          setTimeout(function() { irPaso(8); }, 400);
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
@@ -1394,6 +1463,113 @@
             '<div class="result err">✗ ' + (err.message || err) + '</div>';
         })
         .guardarLocalizaciones(locsLocal);
+    }
+
+    // ---------- Paso 8: materias ----------
+    let materiasLocal = [];
+
+    function _mapearMateria(m) {
+      return {
+        id: m.id || null,
+        nombre: m.nombre || '',
+        abreviatura: m.abreviatura || '',
+        es_recreo: !!m.es_recreo,
+        color: m.color || ''
+      };
+    }
+
+    function cargarMaterias() {
+      google.script.run
+        .withSuccessHandler(function(materias) {
+          if (materias && materias.length > 0) {
+            materiasLocal = materias.map(_mapearMateria);
+            marcarPasoCompleto(8);
+          } else if (materiasLocal.length === 0) {
+            cargarPlantillaMaterias();
+            return;
+          }
+          renderMaterias();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .listarMaterias();
+    }
+
+    function cargarPlantillaMaterias() {
+      const aplicar = function() {
+        google.script.run
+          .withSuccessHandler(function(plantilla) {
+            materiasLocal = (plantilla || []).map(_mapearMateria);
+            renderMaterias();
+          })
+          .withFailureHandler(mostrarErrorGenerico)
+          .plantillaMaterias();
+      };
+      if (materiasLocal.length > 0) {
+        confirmar('Esto reemplazará la lista actual de materias. ¿Continuar?', aplicar);
+      } else {
+        aplicar();
+      }
+    }
+
+    function anadirMateria() {
+      materiasLocal.push(_mapearMateria({}));
+      renderMaterias();
+    }
+
+    function eliminarMateria(idx) {
+      materiasLocal.splice(idx, 1);
+      renderMaterias();
+    }
+
+    function actualizarMateria(idx, campo, valor) {
+      materiasLocal[idx][campo] = valor;
+    }
+
+    function renderMaterias() {
+      const tbody = document.getElementById('materias-body');
+      tbody.innerHTML = '';
+      materiasLocal.forEach(function(m, i) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="col-orden">' + (i + 1) + '</td>' +
+          '<td class="col-nombre"><input type="text" value="' + _esc(m.nombre) +
+            '" placeholder="Lengua, Matemáticas…" oninput="actualizarMateria(' + i + ', \'nombre\', this.value)"></td>' +
+          '<td class="col-abrev"><input type="text" value="' + _esc(m.abreviatura) +
+            '" placeholder="LCL" oninput="actualizarMateria(' + i + ', \'abreviatura\', this.value)"></td>' +
+          '<td class="col-recreo"><input type="checkbox"' + (m.es_recreo ? ' checked' : '') +
+            ' onchange="actualizarMateria(' + i + ', \'es_recreo\', this.checked)"></td>' +
+          '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarMateria(' + i + ')">×</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function enviarMaterias() {
+      if (materiasLocal.length === 0) {
+        document.getElementById('resultado-8').innerHTML =
+          '<div class="result err">Debes definir al menos una materia.</div>';
+        return;
+      }
+      const btn = document.getElementById('btn-guardar-materias');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Guardando…';
+      document.getElementById('resultado-8').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-8').innerHTML =
+            '<div class="result ok">✓ Guardadas ' + res.total + ' materias.</div>';
+          marcarPasoCompleto(8);
+          cargarMaterias();
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-8').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .guardarMaterias(materiasLocal);
     }
 
     // ---------- Modal de confirmación ----------
