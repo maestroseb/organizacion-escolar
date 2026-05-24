@@ -126,7 +126,7 @@
       <div class="step disabled" data-step="6" onclick="irPaso(6)"><span class="num">6</span>Tutorías</div>
       <div class="step disabled" data-step="7" onclick="irPaso(7)"><span class="num">7</span>Localizaciones</div>
       <div class="step disabled" data-step="8" onclick="irPaso(8)"><span class="num">8</span>Materias</div>
-      <div class="step disabled" data-step="9"><span class="num">9</span>Cargos y roles</div>
+      <div class="step disabled" data-step="9" onclick="irPaso(9)"><span class="num">9</span>Cargos y roles</div>
     </div>
 
     <div class="content">
@@ -220,6 +220,15 @@
         .materias-tabla .col-recreo { width: 70px; text-align: center; }
         .materias-tabla .col-acc { width: 40px; text-align: center; }
         .materias-tabla tbody tr:hover { background: #f8f9fa; }
+        .roles-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .roles-tabla th { font-size: 12px; color: #5f6368; font-weight: 500; padding: 6px; text-align: left; }
+        .roles-tabla td { padding: 4px; vertical-align: middle; }
+        .roles-tabla input[type=text] { padding: 6px 8px; font-size: 14px; }
+        .roles-tabla .col-orden { width: 40px; text-align: center; color: #5f6368; }
+        .roles-tabla .col-corto { width: 140px; }
+        .roles-tabla .col-largo { width: auto; }
+        .roles-tabla .col-acc { width: 40px; text-align: center; }
+        .roles-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
       <!-- PASO 2 -->
@@ -528,6 +537,45 @@
         <div id="resultado-8"></div>
       </div>
 
+      <!-- PASO 9 -->
+      <div class="panel" id="panel-9">
+        <h1>Paso 9: Cargos y roles especiales</h1>
+        <p class="subtitle">
+          Cargos directivos, coordinaciones y perfiles de apoyo (PT, AL,
+          Refuerzo, ATEDU…) y guardias. Se usan en las ocupaciones que no
+          van pegadas a un grupo (DIR, JE, TDE, recreo de guardia…).
+        </p>
+
+        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
+          <button type="button" class="secondary" onclick="cargarPlantillaRoles()">
+            Generar plantilla
+          </button>
+          <button type="button" class="secondary" onclick="anadirRol()">
+            + Añadir rol
+          </button>
+        </div>
+
+        <table class="roles-tabla">
+          <thead>
+            <tr>
+              <th class="col-orden">#</th>
+              <th class="col-corto">Nombre corto *</th>
+              <th class="col-largo">Nombre largo</th>
+              <th class="col-acc"></th>
+            </tr>
+          </thead>
+          <tbody id="roles-body"></tbody>
+        </table>
+
+        <div class="actions">
+          <button type="button" class="secondary" onclick="irPaso(8)">← Atrás</button>
+          <button type="button" id="btn-guardar-roles" onclick="enviarRoles()">
+            Guardar y finalizar
+          </button>
+        </div>
+        <div id="resultado-9"></div>
+      </div>
+
     </div>
   </div>
 
@@ -627,6 +675,7 @@
 
       precargarLocalizaciones();
       precargarMaterias();
+      precargarRoles();
     }
 
     /**
@@ -669,10 +718,25 @@
             materiasLocal = materias.map(_mapearMateria);
             marcarPasoCompleto(8);
             habilitarPaso(8);
+            habilitarPaso(9);
           }
         })
         .withFailureHandler(function() {})
         .listarMaterias();
+    }
+
+    function precargarRoles() {
+      google.script.run
+        .withSuccessHandler(function(roles) {
+          console.log('[precarga] listarRoles →', roles && roles.length);
+          if (roles && roles.length > 0) {
+            rolesLocal = roles.map(_mapearRol);
+            marcarPasoCompleto(9);
+            habilitarPaso(9);
+          }
+        })
+        .withFailureHandler(function() {})
+        .listarRoles();
     }
 
     function irPaso(n) {
@@ -694,6 +758,7 @@
       if (n === 6) cargarTutorias();
       if (n === 7) cargarLocalizaciones();
       if (n === 8) cargarMaterias();
+      if (n === 9) cargarRoles();
     }
 
     function marcarPasoCompleto(n) {
@@ -1561,7 +1626,9 @@
           document.getElementById('resultado-8').innerHTML =
             '<div class="result ok">✓ Guardadas ' + res.total + ' materias.</div>';
           marcarPasoCompleto(8);
+          habilitarPaso(9);
           cargarMaterias();
+          setTimeout(function() { irPaso(9); }, 400);
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
@@ -1570,6 +1637,111 @@
             '<div class="result err">✗ ' + (err.message || err) + '</div>';
         })
         .guardarMaterias(materiasLocal);
+    }
+
+    // ---------- Paso 9: roles ----------
+    let rolesLocal = [];
+
+    function _mapearRol(r) {
+      return {
+        id: r.id || null,
+        nombre: r.nombre || '',
+        nombre_largo: r.nombre_largo || '',
+        color: r.color || ''
+      };
+    }
+
+    function cargarRoles() {
+      google.script.run
+        .withSuccessHandler(function(roles) {
+          if (roles && roles.length > 0) {
+            rolesLocal = roles.map(_mapearRol);
+            marcarPasoCompleto(9);
+          } else if (rolesLocal.length === 0) {
+            cargarPlantillaRoles();
+            return;
+          }
+          renderRoles();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .listarRoles();
+    }
+
+    function cargarPlantillaRoles() {
+      const aplicar = function() {
+        google.script.run
+          .withSuccessHandler(function(plantilla) {
+            rolesLocal = (plantilla || []).map(_mapearRol);
+            renderRoles();
+          })
+          .withFailureHandler(mostrarErrorGenerico)
+          .plantillaRoles();
+      };
+      if (rolesLocal.length > 0) {
+        confirmar('Esto reemplazará la lista actual de roles. ¿Continuar?', aplicar);
+      } else {
+        aplicar();
+      }
+    }
+
+    function anadirRol() {
+      rolesLocal.push(_mapearRol({}));
+      renderRoles();
+    }
+
+    function eliminarRol(idx) {
+      rolesLocal.splice(idx, 1);
+      renderRoles();
+    }
+
+    function actualizarRol(idx, campo, valor) {
+      rolesLocal[idx][campo] = valor;
+    }
+
+    function renderRoles() {
+      const tbody = document.getElementById('roles-body');
+      tbody.innerHTML = '';
+      rolesLocal.forEach(function(r, i) {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="col-orden">' + (i + 1) + '</td>' +
+          '<td class="col-corto"><input type="text" value="' + _esc(r.nombre) +
+            '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ', \'nombre\', this.value)"></td>' +
+          '<td class="col-largo"><input type="text" value="' + _esc(r.nombre_largo) +
+            '" placeholder="Dirección" oninput="actualizarRol(' + i + ', \'nombre_largo\', this.value)"></td>' +
+          '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarRol(' + i + ')">×</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function enviarRoles() {
+      if (rolesLocal.length === 0) {
+        document.getElementById('resultado-9').innerHTML =
+          '<div class="result err">Debes definir al menos un rol.</div>';
+        return;
+      }
+      const btn = document.getElementById('btn-guardar-roles');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Guardando…';
+      document.getElementById('resultado-9').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y finalizar';
+          document.getElementById('resultado-9').innerHTML =
+            '<div class="result ok">✓ Guardados ' + res.total + ' roles. ' +
+            '<strong>Configuración inicial completada.</strong></div>';
+          marcarPasoCompleto(9);
+          cargarRoles();
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y finalizar';
+          document.getElementById('resultado-9').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .guardarRoles(rolesLocal);
     }
 
     // ---------- Modal de confirmación ----------
