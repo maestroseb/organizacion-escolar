@@ -123,7 +123,7 @@
       <div class="step disabled" data-step="3" onclick="irPaso(3)"><span class="num">3</span>Tramos horarios</div>
       <div class="step disabled" data-step="4" onclick="irPaso(4)"><span class="num">4</span>Grupos</div>
       <div class="step disabled" data-step="5" onclick="irPaso(5)"><span class="num">5</span>Docentes</div>
-      <div class="step disabled" data-step="6"><span class="num">6</span>Tutorías</div>
+      <div class="step disabled" data-step="6" onclick="irPaso(6)"><span class="num">6</span>Tutorías</div>
       <div class="step disabled" data-step="7"><span class="num">7</span>Localizaciones</div>
       <div class="step disabled" data-step="8"><span class="num">8</span>Materias</div>
       <div class="step disabled" data-step="9"><span class="num">9</span>Cargos y roles</div>
@@ -192,6 +192,15 @@
         .docentes-tabla .col-activo { width: 55px; text-align: center; }
         .docentes-tabla .col-acc { width: 40px; text-align: center; }
         .docentes-tabla tbody tr:hover { background: #f8f9fa; }
+        .tutorias-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; max-width: 720px; }
+        .tutorias-tabla th { font-size: 12px; color: #5f6368; font-weight: 500; padding: 6px; text-align: left; }
+        .tutorias-tabla td { padding: 6px; vertical-align: middle; }
+        .tutorias-tabla select { padding: 6px 8px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        .tutorias-tabla .col-orden { width: 40px; text-align: center; color: #5f6368; }
+        .tutorias-tabla .col-grupo { width: 200px; font-weight: 500; }
+        .tutorias-tabla .col-nivel { width: 160px; color: #5f6368; font-size: 13px; }
+        .tutorias-tabla .col-tutor { width: auto; }
+        .tutorias-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
       <!-- PASO 2 -->
@@ -389,6 +398,38 @@
         <div id="resultado-5"></div>
       </div>
 
+      <!-- PASO 6 -->
+      <div class="panel" id="panel-6">
+        <h1>Paso 6: Tutorías</h1>
+        <p class="subtitle">
+          Asigna un tutor a cada grupo escogiendo entre los docentes del paso
+          anterior. Es opcional: si un grupo no tiene tutor todavía, déjalo
+          como <em>— sin asignar —</em>.
+        </p>
+
+        <div id="tutorias-aviso"></div>
+
+        <table class="tutorias-tabla">
+          <thead>
+            <tr>
+              <th class="col-orden">#</th>
+              <th class="col-grupo">Grupo</th>
+              <th class="col-nivel">Nivel</th>
+              <th class="col-tutor">Tutor</th>
+            </tr>
+          </thead>
+          <tbody id="tutorias-body"></tbody>
+        </table>
+
+        <div class="actions">
+          <button type="button" class="secondary" onclick="irPaso(5)">← Atrás</button>
+          <button type="button" id="btn-guardar-tutorias" onclick="enviarTutorias()">
+            Guardar y continuar
+          </button>
+        </div>
+        <div id="resultado-6"></div>
+      </div>
+
     </div>
   </div>
 
@@ -476,12 +517,28 @@
             renderDocentes();
             marcarPasoCompleto(5);
             habilitarPaso(5);
+            habilitarPaso(6);
+            comprobarTutoriasCompletas();
           }
         })
         .withFailureHandler(function(err) {
           console.error('[precarga] listarDocentes FALLÓ:', err && (err.message || err));
         })
         .listarDocentes();
+    }
+
+    /**
+     * Marca el paso 6 como completo si todos los grupos tienen tutor asignado.
+     */
+    function comprobarTutoriasCompletas() {
+      google.script.run
+        .withSuccessHandler(function(grupos) {
+          if (!grupos || grupos.length === 0) return;
+          const todos = grupos.every(function(g) { return !!g.tutor_id; });
+          if (todos) marcarPasoCompleto(6);
+        })
+        .withFailureHandler(function() {})
+        .listarGrupos();
     }
 
     function irPaso(n) {
@@ -500,6 +557,7 @@
       if (n === 3) cargarTramos();
       if (n === 4) cargarGrupos();
       if (n === 5) cargarDocentes();
+      if (n === 6) cargarTutorias();
     }
 
     function marcarPasoCompleto(n) {
@@ -1060,7 +1118,9 @@
           document.getElementById('resultado-5').innerHTML =
             '<div class="result ok">✓ Guardados ' + res.total + ' docentes.</div>';
           marcarPasoCompleto(5);
+          habilitarPaso(6);
           cargarDocentes();
+          setTimeout(function() { irPaso(6); }, 400);
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
@@ -1069,6 +1129,86 @@
             '<div class="result err">✗ ' + (err.message || err) + '</div>';
         })
         .guardarDocentes(docentesLocal);
+    }
+
+    // ---------- Paso 6: tutorías ----------
+    let tutoriasGrupos = [];
+    let tutoriasDocentes = [];
+    let tutoriasAsignacion = {}; // grupo_id -> tutor_id
+
+    function cargarTutorias() {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          tutoriasGrupos = res.grupos || [];
+          tutoriasDocentes = res.docentes || [];
+          tutoriasAsignacion = {};
+          tutoriasGrupos.forEach(function(g) {
+            tutoriasAsignacion[g.id] = g.tutor_id || '';
+          });
+          renderTutorias();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .datosTutorias();
+    }
+
+    function actualizarTutoria(grupoId, tutorId) {
+      tutoriasAsignacion[grupoId] = tutorId;
+    }
+
+    function renderTutorias() {
+      const tbody = document.getElementById('tutorias-body');
+      const aviso = document.getElementById('tutorias-aviso');
+      tbody.innerHTML = '';
+
+      if (tutoriasDocentes.length === 0) {
+        aviso.innerHTML = '<div class="result err">No hay docentes activos. Vuelve al paso 5 para añadirlos.</div>';
+        return;
+      }
+      if (tutoriasGrupos.length === 0) {
+        aviso.innerHTML = '<div class="result err">No hay grupos. Vuelve al paso 4 para crearlos.</div>';
+        return;
+      }
+      aviso.innerHTML = '';
+
+      tutoriasGrupos.forEach(function(g, i) {
+        let opts = '<option value="">— sin asignar —</option>';
+        tutoriasDocentes.forEach(function(d) {
+          opts += '<option value="' + d.id + '"' +
+                  (tutoriasAsignacion[g.id] === d.id ? ' selected' : '') +
+                  '>' + _esc(d.nombre_corto) + '</option>';
+        });
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          '<td class="col-orden">' + (i + 1) + '</td>' +
+          '<td class="col-grupo">' + _esc(g.nombre_corto) + '</td>' +
+          '<td class="col-nivel">' + _esc(g.nombre_largo || g.nivel || '') + '</td>' +
+          '<td class="col-tutor"><select onchange="actualizarTutoria(\'' + g.id +
+            '\', this.value)">' + opts + '</select></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function enviarTutorias() {
+      const btn = document.getElementById('btn-guardar-tutorias');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Guardando…';
+      document.getElementById('resultado-6').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-6').innerHTML =
+            '<div class="result ok">✓ Actualizadas ' + res.total + ' tutorías.</div>';
+          comprobarTutoriasCompletas();
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-6').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .guardarTutorias(tutoriasAsignacion);
     }
 
     // ---------- Modal de confirmación ----------
