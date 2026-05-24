@@ -1221,6 +1221,7 @@
 
     function actualizarTutoria(grupoId, tutorId) {
       tutoriasAsignacion[grupoId] = tutorId;
+      renderTutorias();
     }
 
     function renderTutorias() {
@@ -1238,11 +1239,21 @@
       }
       aviso.innerHTML = '';
 
+      // Conjunto de tutores ya asignados (en cualquier grupo).
+      const asignados = {};
+      Object.keys(tutoriasAsignacion).forEach(function(gid) {
+        const tid = tutoriasAsignacion[gid];
+        if (tid) asignados[tid] = gid;
+      });
+
       tutoriasGrupos.forEach(function(g, i) {
+        const actual = tutoriasAsignacion[g.id] || '';
         let opts = '<option value="">— sin asignar —</option>';
         tutoriasDocentes.forEach(function(d) {
+          const ocupadoPorOtro = asignados[d.id] && asignados[d.id] !== g.id;
+          if (ocupadoPorOtro) return;
           opts += '<option value="' + d.id + '"' +
-                  (tutoriasAsignacion[g.id] === d.id ? ' selected' : '') +
+                  (actual === d.id ? ' selected' : '') +
                   '>' + _esc(d.nombre_corto) + '</option>';
         });
         const tr = document.createElement('tr');
