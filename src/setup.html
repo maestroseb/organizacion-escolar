@@ -121,7 +121,7 @@
         <span class="num">2</span>Datos del centro
       </div>
       <div class="step disabled" data-step="3" onclick="irPaso(3)"><span class="num">3</span>Tramos horarios</div>
-      <div class="step disabled" data-step="4"><span class="num">4</span>Grupos</div>
+      <div class="step disabled" data-step="4" onclick="irPaso(4)"><span class="num">4</span>Grupos</div>
       <div class="step disabled" data-step="5"><span class="num">5</span>Docentes</div>
       <div class="step disabled" data-step="6"><span class="num">6</span>Tutorías</div>
       <div class="step disabled" data-step="7"><span class="num">7</span>Localizaciones</div>
@@ -166,6 +166,18 @@
           padding: 4px 8px; cursor: pointer; font-size: 18px; line-height: 1;
         }
         .btn-icon:hover { color: #d93025; }
+        .grupos-tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .grupos-tabla th { font-size: 12px; color: #5f6368; font-weight: 500; padding: 6px; text-align: left; }
+        .grupos-tabla td { padding: 4px; vertical-align: middle; }
+        .grupos-tabla input[type=text], .grupos-tabla select {
+          padding: 6px 8px; font-size: 14px;
+        }
+        .grupos-tabla .col-orden { width: 50px; text-align: center; color: #5f6368; }
+        .grupos-tabla .col-nombre { width: 160px; }
+        .grupos-tabla .col-largo { }
+        .grupos-tabla .col-nivel { width: 120px; }
+        .grupos-tabla .col-acc { width: 40px; text-align: center; }
+        .grupos-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
       <!-- PASO 2 -->
@@ -284,6 +296,46 @@
         <div id="resultado-3"></div>
       </div>
 
+      <!-- PASO 4 -->
+      <div class="panel" id="panel-4">
+        <h1>Paso 4: Grupos</h1>
+        <p class="subtitle">
+          Cada grupo es una clase del centro (INF 3, INF 4, INF 5, 1º, 2º…
+          con letra de línea si las hay). Puedes generar una plantilla
+          basada en las etapas y líneas elegidas en el paso 2, y luego editarla.
+        </p>
+
+        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
+          <button type="button" class="secondary" onclick="cargarPlantillaGrupos()">
+            Generar plantilla según etapas/líneas
+          </button>
+          <button type="button" class="secondary" onclick="anadirGrupo()">
+            + Añadir grupo vacío
+          </button>
+        </div>
+
+        <table class="grupos-tabla">
+          <thead>
+            <tr>
+              <th class="col-orden">#</th>
+              <th class="col-nombre">Nombre corto</th>
+              <th class="col-largo">Nombre largo (opcional)</th>
+              <th class="col-nivel">Nivel</th>
+              <th class="col-acc"></th>
+            </tr>
+          </thead>
+          <tbody id="grupos-body"></tbody>
+        </table>
+
+        <div class="actions">
+          <button type="button" class="secondary" onclick="irPaso(3)">← Atrás</button>
+          <button type="button" id="btn-guardar-grupos" onclick="enviarGrupos()">
+            Guardar y continuar
+          </button>
+        </div>
+        <div id="resultado-4"></div>
+      </div>
+
     </div>
   </div>
 
@@ -345,6 +397,21 @@
           console.error('[precarga] listarTramos FALLÓ:', err && (err.message || err));
         })
         .listarTramos();
+
+      google.script.run
+        .withSuccessHandler(function(grupos) {
+          console.log('[precarga] listarGrupos →', grupos && grupos.length, 'grupos');
+          if (grupos && grupos.length > 0) {
+            gruposLocal = grupos.map(_mapearGrupo);
+            renderGrupos();
+            marcarPasoCompleto(4);
+            habilitarPaso(4);
+          }
+        })
+        .withFailureHandler(function(err) {
+          console.error('[precarga] listarGrupos FALLÓ:', err && (err.message || err));
+        })
+        .listarGrupos();
     }
 
     function irPaso(n) {
@@ -361,6 +428,7 @@
 
       if (n === 2) cargarCentro();
       if (n === 3) cargarTramos();
+      if (n === 4) cargarGrupos();
     }
 
     function marcarPasoCompleto(n) {
@@ -631,7 +699,9 @@
           document.getElementById('resultado-3').innerHTML =
             '<div class="result ok">✓ Guardados ' + res.total + ' tramos.</div>';
           marcarPasoCompleto(3);
+          habilitarPaso(4);
           cargarTramos();
+          setTimeout(function() { irPaso(4); }, 400);
         })
         .withFailureHandler(function(err) {
           btn.disabled = false;
@@ -664,6 +734,135 @@
     function mostrarErrorGenerico(err) {
       console.error(err);
       alert('Error: ' + (err.message || err));
+    }
+
+    // ---------- Paso 4: grupos ----------
+    let gruposLocal = [];
+    const NIVELES = [
+      { v: 'INF3', t: 'Infantil 3 años' },
+      { v: 'INF4', t: 'Infantil 4 años' },
+      { v: 'INF5', t: 'Infantil 5 años' },
+      { v: '1P',   t: '1º de Primaria' },
+      { v: '2P',   t: '2º de Primaria' },
+      { v: '3P',   t: '3º de Primaria' },
+      { v: '4P',   t: '4º de Primaria' },
+      { v: '5P',   t: '5º de Primaria' },
+      { v: '6P',   t: '6º de Primaria' }
+    ];
+
+    function _mapearGrupo(g) {
+      return {
+        id: g.id || null,
+        nombre_corto: g.nombre_corto || '',
+        nombre_largo: g.nombre_largo || '',
+        nivel: g.nivel || '',
+        tutor_id: g.tutor_id || '',
+        color: g.color || ''
+      };
+    }
+
+    function cargarGrupos() {
+      google.script.run
+        .withSuccessHandler(function(grupos) {
+          if (grupos && grupos.length > 0) {
+            gruposLocal = grupos.map(_mapearGrupo);
+            marcarPasoCompleto(4);
+          } else if (gruposLocal.length === 0) {
+            cargarPlantillaGrupos();
+            return;
+          }
+          renderGrupos();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .listarGrupos();
+    }
+
+    function cargarPlantillaGrupos() {
+      const aplicar = function() {
+        google.script.run
+          .withSuccessHandler(function(plantilla) {
+            gruposLocal = (plantilla || []).map(function(g) {
+              return _mapearGrupo({
+                id: null, nombre_corto: g.nombre_corto,
+                nombre_largo: g.nombre_largo, nivel: g.nivel
+              });
+            });
+            renderGrupos();
+          })
+          .withFailureHandler(mostrarErrorGenerico)
+          .plantillaGrupos();
+      };
+      if (gruposLocal.length > 0) {
+        confirmar('Esto reemplazará la lista actual de grupos. ¿Continuar?', aplicar);
+      } else {
+        aplicar();
+      }
+    }
+
+    function anadirGrupo() {
+      gruposLocal.push(_mapearGrupo({}));
+      renderGrupos();
+    }
+
+    function eliminarGrupo(idx) {
+      gruposLocal.splice(idx, 1);
+      renderGrupos();
+    }
+
+    function actualizarGrupo(idx, campo, valor) {
+      gruposLocal[idx][campo] = valor;
+    }
+
+    function renderGrupos() {
+      const tbody = document.getElementById('grupos-body');
+      tbody.innerHTML = '';
+      gruposLocal.forEach(function(g, i) {
+        const tr = document.createElement('tr');
+        let opts = '<option value="">—</option>';
+        NIVELES.forEach(function(n) {
+          opts += '<option value="' + n.v + '"' + (g.nivel === n.v ? ' selected' : '') +
+                  '>' + n.t + '</option>';
+        });
+        tr.innerHTML =
+          '<td class="col-orden">' + (i + 1) + '</td>' +
+          '<td class="col-nombre"><input type="text" value="' + _esc(g.nombre_corto) +
+            '" placeholder="1º A" oninput="actualizarGrupo(' + i + ', \'nombre_corto\', this.value)"></td>' +
+          '<td class="col-largo"><input type="text" value="' + _esc(g.nombre_largo) +
+            '" placeholder="1º de Primaria A" oninput="actualizarGrupo(' + i + ', \'nombre_largo\', this.value)"></td>' +
+          '<td class="col-nivel"><select onchange="actualizarGrupo(' + i + ', \'nivel\', this.value)">' +
+            opts + '</select></td>' +
+          '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarGrupo(' + i + ')">×</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    function enviarGrupos() {
+      if (gruposLocal.length === 0) {
+        document.getElementById('resultado-4').innerHTML =
+          '<div class="result err">Debes definir al menos un grupo.</div>';
+        return;
+      }
+      const btn = document.getElementById('btn-guardar-grupos');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>Guardando…';
+      document.getElementById('resultado-4').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-4').innerHTML =
+            '<div class="result ok">✓ Guardados ' + res.total + ' grupos.</div>';
+          marcarPasoCompleto(4);
+          cargarGrupos();
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Guardar y continuar';
+          document.getElementById('resultado-4').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .guardarGrupos(gruposLocal);
     }
 
     // ---------- Modal de confirmación ----------
