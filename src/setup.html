@@ -176,7 +176,7 @@
         .grupos-tabla .col-nombre { width: 160px; }
         .grupos-tabla .col-largo { }
         .grupos-tabla .col-nivel { width: 120px; }
-        .grupos-tabla .col-acc { width: 40px; text-align: center; }
+        .grupos-tabla .col-acc { width: 80px; text-align: center; white-space: nowrap; }
         .grupos-tabla tbody tr:hover { background: #f8f9fa; }
       </style>
 
@@ -810,6 +810,35 @@
       renderGrupos();
     }
 
+    function duplicarGrupo(idx) {
+      const orig = gruposLocal[idx];
+      const nuevo = {
+        id: null,
+        nombre_corto: _siguienteLinea(orig.nombre_corto),
+        nombre_largo: _siguienteLinea(orig.nombre_largo),
+        nivel: orig.nivel,
+        tutor_id: '',
+        color: orig.color || ''
+      };
+      gruposLocal.splice(idx + 1, 0, nuevo);
+      renderGrupos();
+    }
+
+    /**
+     * Si el texto acaba en " <letra>" o "(<letra>)", incrementa la letra.
+     * Si no, le añade " B" al final (asumiendo que el original es la línea A).
+     * Si está vacío, devuelve vacío.
+     */
+    function _siguienteLinea(texto) {
+      if (!texto) return '';
+      const finLetra = texto.match(/^(.*?)([\s(])([A-Z])(\)?)$/);
+      if (finLetra) {
+        const sig = String.fromCharCode(finLetra[3].charCodeAt(0) + 1);
+        return finLetra[1] + finLetra[2] + sig + finLetra[4];
+      }
+      return texto + ' B';
+    }
+
     function actualizarGrupo(idx, campo, valor) {
       gruposLocal[idx][campo] = valor;
     }
@@ -832,7 +861,10 @@
             '" placeholder="1º de Primaria A" oninput="actualizarGrupo(' + i + ', \'nombre_largo\', this.value)"></td>' +
           '<td class="col-nivel"><select onchange="actualizarGrupo(' + i + ', \'nivel\', this.value)">' +
             opts + '</select></td>' +
-          '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarGrupo(' + i + ')">×</button></td>';
+          '<td class="col-acc">' +
+            '<button class="btn-icon" title="Duplicar debajo" onclick="duplicarGrupo(' + i + ')">⎘</button>' +
+            '<button class="btn-icon" title="Eliminar" onclick="eliminarGrupo(' + i + ')">×</button>' +
+          '</td>';
         tbody.appendChild(tr);
       });
     }
