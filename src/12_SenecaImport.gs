@@ -289,20 +289,26 @@ function _parsearActividades(seccion) {
     /convivencia/i, /coeduca/i, /prl/i, /salud/i
   ];
   const items = [];
-  const vistas = {};
+  const vistasLargo = {};
+  const usadosCorto = {};
   _leerHijos(seccion).forEach(function(a) {
     const d = _leerDatos(a);
     const nom = (d.D_ACTIVIDAD || '').trim();
     if (!nom) return;
-    const ok = relevantes.some(function(r) { return r.test(nom); });
-    if (!ok) return;
-    const k = nom.toLowerCase();
-    if (vistas[k]) return;
-    vistas[k] = true;
-    items.push({
-      nombre: _siglaActividad(nom),
-      nombre_largo: nom
-    });
+    if (!relevantes.some(function(r) { return r.test(nom); })) return;
+    const kLargo = nom.toLowerCase();
+    if (vistasLargo[kLargo]) return;
+    vistasLargo[kLargo] = true;
+
+    let corto = _siglaActividad(nom);
+    if (usadosCorto[corto.toLowerCase()]) {
+      let n = 2;
+      while (usadosCorto[(corto + ' ' + n).toLowerCase()]) n++;
+      corto = corto + ' ' + n;
+    }
+    usadosCorto[corto.toLowerCase()] = true;
+
+    items.push({ nombre: corto, nombre_largo: nom });
   });
   return items;
 }
@@ -356,9 +362,14 @@ function _siglaActividad(nombre) {
     [/coeduca/i, 'COE'],
     [/convivencia/i, 'CON'],
     [/biblioteca/i, 'BIB'],
-    [/prl/i, 'PRL'],
+    [/prl|riesgos laborales/i, 'PRL'],
     [/salud/i, 'SAL'],
     [/ciclo/i, 'CIC'],
+    [/biling|plurilig/i, 'BIL'],
+    [/erasmus/i, 'ERA'],
+    [/tic|tecnolog/i, 'TIC'],
+    [/igualdad/i, 'IGU'],
+    [/paz/i, 'PAZ'],
     [/pedagog|^pt/i, 'PT'],
     [/audici|^al/i, 'AL'],
     [/refuerzo/i, 'Ref.'],
@@ -370,6 +381,13 @@ function _siglaActividad(nombre) {
   ];
   for (let i = 0; i < map.length; i++) {
     if (map[i][0].test(nombre)) return map[i][1];
+  }
+  // Para coordinaciones genéricas que no encajan en ningún regex,
+  // usamos "Coord." + la primera palabra significativa.
+  if (/coordin/i.test(nombre)) {
+    const m = nombre.match(/coordin\S*\s+(?:de\s+(?:la\s+|el\s+|los\s+|las\s+)?)?(\S+)/i);
+    if (m) return 'Coord. ' + m[1];
+    return 'Coord.';
   }
   return nombre.substring(0, 6);
 }
