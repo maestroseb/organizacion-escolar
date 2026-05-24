@@ -279,7 +279,42 @@
     window.addEventListener('load', function() {
       irPaso(1);
       comprobarEstadoEstructura();
+      precargarEstadoPasos();
     });
+
+    function precargarEstadoPasos() {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          if (res.centro) {
+            rellenarFormCentro(res.centro, res.prefs);
+            marcarPasoCompleto(2);
+            habilitarPaso(2);
+            habilitarPaso(3);
+          }
+        })
+        .withFailureHandler(function() {})
+        .obtenerCentro();
+
+      google.script.run
+        .withSuccessHandler(function(tramos) {
+          if (tramos && tramos.length > 0) {
+            tramosLocal = tramos.map(function(t) {
+              return {
+                id: t.id,
+                hora_inicio: _fmtHora(t.hora_inicio),
+                hora_fin: _fmtHora(t.hora_fin),
+                es_recreo: !!t.es_recreo,
+                etiqueta: t.etiqueta || ''
+              };
+            });
+            renderTramos();
+            marcarPasoCompleto(3);
+            habilitarPaso(3);
+          }
+        })
+        .withFailureHandler(function() {})
+        .listarTramos();
+    }
 
     function irPaso(n) {
       const el = document.querySelector('.step[data-step="' + n + '"]');
@@ -372,32 +407,38 @@
     function cargarCentro() {
       google.script.run
         .withSuccessHandler(function(res) {
-          const f = document.getElementById('form-centro');
           if (res.centro) {
-            ['nombre','codigo','localidad','provincia','comunidad',
-             'curso_academico','fecha_inicio','fecha_fin'].forEach(function(k) {
-              if (f[k] && res.centro[k] != null && res.centro[k] !== '') {
-                f[k].value = res.centro[k];
-              }
-            });
-            const etapas = String(res.centro.etapas || '').split(',');
-            f.etapa_inf.checked = etapas.indexOf('INFANTIL') !== -1;
-            f.etapa_pri.checked = etapas.indexOf('PRIMARIA') !== -1;
+            rellenarFormCentro(res.centro, res.prefs);
             marcarPasoCompleto(2);
             habilitarPaso(3);
-          }
-          const p = res.prefs || {};
-          if (p.lineas) {
-            const r = f.querySelector('input[name=lineas][value="' + p.lineas + '"]');
-            if (r) r.checked = true;
-          }
-          if (p.bilingue) {
-            const r = f.querySelector('input[name=bilingue][value="' + p.bilingue + '"]');
-            if (r) r.checked = true;
           }
         })
         .withFailureHandler(mostrarErrorGenerico)
         .obtenerCentro();
+    }
+
+    function rellenarFormCentro(centro, prefs) {
+      const f = document.getElementById('form-centro');
+      if (!f) return;
+      ['nombre','codigo','localidad','provincia','comunidad',
+       'curso_academico','fecha_inicio','fecha_fin'].forEach(function(k) {
+        if (f[k] && centro[k] != null && centro[k] !== '') {
+          f[k].value = centro[k];
+        }
+      });
+      const etapas = String(centro.etapas || '').split(',');
+      f.etapa_inf.checked = etapas.indexOf('INFANTIL') !== -1;
+      f.etapa_pri.checked = etapas.indexOf('PRIMARIA') !== -1;
+
+      const p = prefs || {};
+      if (p.lineas) {
+        const r = f.querySelector('input[name=lineas][value="' + p.lineas + '"]');
+        if (r) r.checked = true;
+      }
+      if (p.bilingue) {
+        const r = f.querySelector('input[name=bilingue][value="' + p.bilingue + '"]');
+        if (r) r.checked = true;
+      }
     }
 
     function enviarCentro(ev) {
