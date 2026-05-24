@@ -18,9 +18,17 @@ function parsearSeneca(xmlText) {
     throw new Error('El archivo XML está vacío.');
   }
 
+  // El cliente nos pasa la cadena ya decodificada en JS, así que la
+  // declaración encoding="ISO-8859-1" del XML hace que XmlService se
+  // confunda y emita mojibake (InglÃ©s en lugar de Inglés). La
+  // forzamos a UTF-8 (que es lo que ya tenemos en memoria).
+  const normalizado = String(xmlText)
+    .replace(/^﻿/, '')
+    .replace(/encoding\s*=\s*["'][^"']+["']/i, 'encoding="UTF-8"');
+
   let root;
   try {
-    root = XmlService.parse(xmlText).getRootElement();
+    root = XmlService.parse(normalizado).getRootElement();
   } catch (e) {
     throw new Error('No se pudo leer el XML: ' + e.message);
   }
