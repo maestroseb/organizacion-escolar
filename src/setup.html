@@ -108,12 +108,29 @@
     }
     .modal-box p { margin: 0 0 20px; font-size: 14px; color: #202124; }
     .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn-like {
+      background: #fff; color: #1a73e8; border: 1px solid #dadce0;
+      padding: 10px 20px; border-radius: 4px;
+      font-size: 14px; cursor: pointer; font-weight: 500;
+      display: inline-block; line-height: 1;
+    }
+    .btn-like:hover { background: #f8f9fa; }
+    .seneca-resumen { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+    .seneca-resumen th, .seneca-resumen td {
+      text-align: left; padding: 8px 10px; border-bottom: 1px solid #e0e0e0;
+    }
+    .seneca-resumen th { color: #5f6368; font-weight: 500; font-size: 12px; }
+    .seneca-resumen td.num { text-align: right; font-weight: 500; width: 80px; }
+    .seneca-resumen .muestra { color: #5f6368; font-size: 12px; }
   </style>
 </head>
 <body>
   <div class="layout">
     <div class="sidebar">
       <h2>Pasos</h2>
+      <div class="step" data-step="0" onclick="irPaso(0)">
+        <span class="num">0</span>Importar de Séneca
+      </div>
       <div class="step" data-step="1" onclick="irPaso(1)">
         <span class="num">1</span>Estructura del libro
       </div>
@@ -130,6 +147,27 @@
     </div>
 
     <div class="content">
+
+      <!-- PASO 0 -->
+      <div class="panel" id="panel-0">
+        <h1>Paso 0: Importar de Séneca (opcional)</h1>
+        <p class="subtitle">
+          Si tienes el archivo XML de exportación de horarios de Séneca,
+          súbelo aquí y pre-rellenamos automáticamente tramos, grupos,
+          docentes, localizaciones, materias y roles. Después podrás
+          revisarlo y editarlo en cada paso.
+        </p>
+
+        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
+          <label class="btn-like" for="file-seneca">Seleccionar archivo XML…</label>
+          <input type="file" id="file-seneca" accept=".xml,application/xml,text/xml"
+                 style="display:none;" onchange="leerArchivoSeneca(this)">
+          <span id="seneca-filename" style="color:#5f6368; align-self:center;"></span>
+        </div>
+
+        <div id="seneca-preview"></div>
+        <div id="resultado-0"></div>
+      </div>
 
       <!-- PASO 1 -->
       <div class="panel" id="panel-1">
@@ -592,7 +630,7 @@
 
   <script>
     window.addEventListener('load', function() {
-      irPaso(1);
+      irPaso(0);
       comprobarEstadoEstructura();
       precargarEstadoPasos();
     });
@@ -1742,6 +1780,119 @@
             '<div class="result err">✗ ' + (err.message || err) + '</div>';
         })
         .guardarRoles(rolesLocal);
+    }
+
+    // ---------- Paso 0: importar de Séneca ----------
+    let senecaPreview = null;
+
+    function leerArchivoSeneca(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      document.getElementById('seneca-filename').textContent = file.name;
+      document.getElementById('seneca-preview').innerHTML =
+        '<p style="color:#5f6368;"><span class="spinner" style="border-color:#5f6368;border-top-color:transparent;"></span>Leyendo y parseando…</p>';
+      document.getElementById('resultado-0').innerHTML = '';
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const xml = e.target.result;
+        google.script.run
+          .withSuccessHandler(function(preview) {
+            senecaPreview = preview;
+            mostrarPreviewSeneca(preview);
+          })
+          .withFailureHandler(function(err) {
+            document.getElementById('seneca-preview').innerHTML =
+              '<div class="result err">✗ ' + (err.message || err) + '</div>';
+          })
+          .parsearSeneca(xml);
+      };
+      reader.onerror = function() {
+        document.getElementById('seneca-preview').innerHTML =
+          '<div class="result err">No se pudo leer el archivo.</div>';
+      };
+      reader.readAsText(file, 'ISO-8859-1');
+    }
+
+    function mostrarPreviewSeneca(p) {
+      const filas = [
+        { k: 'centro',         t: 'Datos del centro', muestra: p.centro
+            ? (p.centro.curso_academico || '—') : '' },
+        { k: 'tramos',         t: 'Tramos horarios',  arr: p.tramos,
+            muestra: (p.tramos || []).slice(0, 3).map(function(x) {
+              return x.hora_inicio + '–' + x.hora_fin; }).join(', ') },
+        { k: 'unidades',       t: 'Grupos',           arr: p.unidades,
+            muestra: (p.unidades || []).slice(0, 5).map(function(x) { return x.nombre_corto; }).join(', ') },
+        { k: 'docentes',       t: 'Docentes',         arr: p.docentes,
+            muestra: (p.docentes || []).slice(0, 4).map(function(x) { return x.nombre_corto; }).join(', ') },
+        { k: 'localizaciones', t: 'Localizaciones',   arr: p.localizaciones,
+            muestra: (p.localizaciones || []).slice(0, 4).map(function(x) { return x.codigo; }).join(', ') },
+        { k: 'materias',       t: 'Materias',         arr: p.materias,
+            muestra: (p.materias || []).slice(0, 4).map(function(x) { return x.nombre; }).join(', ') },
+        { k: 'roles',          t: 'Roles especiales', arr: p.roles,
+            muestra: (p.roles || []).slice(0, 5).map(function(x) { return x.nombre; }).join(', ') }
+      ];
+
+      let html = '<table class="seneca-resumen"><thead><tr>' +
+                 '<th style="width:40px;">Incluir</th><th>Sección</th><th class="num">Items</th><th>Muestra</th>' +
+                 '</tr></thead><tbody>';
+      filas.forEach(function(f) {
+        const total = f.arr ? f.arr.length : (f.k === 'centro' && p.centro ? 1 : 0);
+        const dis = total === 0 ? ' disabled' : '';
+        const chk = total > 0 ? ' checked' : '';
+        html += '<tr>' +
+          '<td><input type="checkbox" id="chk-' + f.k + '"' + chk + dis + '></td>' +
+          '<td>' + f.t + '</td>' +
+          '<td class="num">' + total + '</td>' +
+          '<td class="muestra">' + _esc(f.muestra || '') + (total > 5 ? '…' : '') + '</td>' +
+        '</tr>';
+      });
+      html += '</tbody></table>';
+      html += '<div class="actions">' +
+        '<button onclick="aplicarSenecaImport()" id="btn-aplicar-seneca">Aplicar al libro</button>' +
+        '</div>';
+      document.getElementById('seneca-preview').innerHTML = html;
+    }
+
+    function aplicarSenecaImport() {
+      if (!senecaPreview) return;
+
+      const seleccion = {
+        centro:         document.getElementById('chk-centro')        .checked ? senecaPreview.centro         : null,
+        tramos:         document.getElementById('chk-tramos')        .checked ? senecaPreview.tramos         : [],
+        unidades:       document.getElementById('chk-unidades')      .checked ? senecaPreview.unidades       : [],
+        docentes:       document.getElementById('chk-docentes')      .checked ? senecaPreview.docentes       : [],
+        localizaciones: document.getElementById('chk-localizaciones').checked ? senecaPreview.localizaciones : [],
+        materias:       document.getElementById('chk-materias')      .checked ? senecaPreview.materias       : [],
+        roles:          document.getElementById('chk-roles')         .checked ? senecaPreview.roles          : []
+      };
+
+      const aplicar = function() {
+        const btn = document.getElementById('btn-aplicar-seneca');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Aplicando…';
+        document.getElementById('resultado-0').innerHTML = '';
+        google.script.run
+          .withSuccessHandler(function(res) {
+            btn.disabled = false;
+            btn.textContent = 'Aplicar al libro';
+            let txt = '✓ Importación aplicada.';
+            const r = res.resumen || {};
+            const lst = Object.keys(r).map(function(k) { return k + ': ' + r[k]; }).join(' · ');
+            if (lst) txt += ' ' + lst;
+            document.getElementById('resultado-0').innerHTML =
+              '<div class="result ok">' + txt + ' Los pasos siguientes ya están rellenos.</div>';
+            precargarEstadoPasos();
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.textContent = 'Aplicar al libro';
+            document.getElementById('resultado-0').innerHTML =
+              '<div class="result err">✗ ' + (err.message || err) + '</div>';
+          })
+          .aplicarSeneca(seleccion);
+      };
+      confirmar('Se sobrescribirán los datos actuales de las secciones marcadas. ¿Continuar?', aplicar);
     }
 
     // ---------- Modal de confirmación ----------
