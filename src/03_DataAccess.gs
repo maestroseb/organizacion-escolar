@@ -108,9 +108,28 @@ function _getSheet(sheetName) {
 function _rowToObject(row, headers) {
   const obj = {};
   for (let i = 0; i < headers.length; i++) {
-    obj[headers[i]] = row[i];
+    obj[headers[i]] = _normalizar(row[i]);
   }
   return obj;
+}
+
+/**
+ * Convierte valores a tipos JSON-serializables compatibles con
+ * google.script.run. Especialmente: Date → string.
+ * Si el Date está a medianoche, lo tratamos como fecha (YYYY-MM-DD).
+ * Si tiene hora distinta de 00:00, lo tratamos como hora (HH:MM).
+ */
+function _normalizar(v) {
+  if (!(v instanceof Date)) return v;
+  const tz = Session.getScriptTimeZone();
+  const h = v.getHours(), m = v.getMinutes(), s = v.getSeconds();
+  if (h === 0 && m === 0 && s === 0) {
+    return Utilities.formatDate(v, tz, 'yyyy-MM-dd');
+  }
+  if (v.getFullYear() < 1950) {
+    return Utilities.formatDate(v, tz, 'HH:mm');
+  }
+  return Utilities.formatDate(v, tz, 'yyyy-MM-dd');
 }
 
 function _findRowIndex(sheet, id) {
