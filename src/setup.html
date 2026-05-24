@@ -128,9 +128,6 @@
   <div class="layout">
     <div class="sidebar">
       <h2>Pasos</h2>
-      <div class="step" data-step="0" onclick="irPaso(0)">
-        <span class="num">0</span>Importar de Séneca
-      </div>
       <div class="step" data-step="1" onclick="irPaso(1)">
         <span class="num">1</span>Estructura del libro
       </div>
@@ -148,40 +145,38 @@
 
     <div class="content">
 
-      <!-- PASO 0 -->
-      <div class="panel" id="panel-0">
-        <h1>Paso 0: Importar de Séneca (opcional)</h1>
-        <p class="subtitle">
-          Si tienes el archivo XML de exportación de horarios de Séneca,
-          súbelo aquí y pre-rellenamos automáticamente tramos, grupos,
-          docentes, localizaciones, materias y roles. Después podrás
-          revisarlo y editarlo en cada paso.
-        </p>
-
-        <div class="actions" style="margin-top: 0; margin-bottom: 16px;">
-          <label class="btn-like" for="file-seneca">Seleccionar archivo XML…</label>
-          <input type="file" id="file-seneca" accept=".xml,application/xml,text/xml"
-                 style="display:none;" onchange="leerArchivoSeneca(this)">
-          <span id="seneca-filename" style="color:#5f6368; align-self:center;"></span>
-        </div>
-
-        <div id="seneca-preview"></div>
-        <div id="resultado-0"></div>
-      </div>
-
       <!-- PASO 1 -->
       <div class="panel" id="panel-1">
-        <h1>Paso 1: Estructura del libro</h1>
+        <h1>Paso 1: Estructura e importación</h1>
         <p class="subtitle">
-          Vamos a crear las 9 pestañas de datos que el sistema necesita
-          (todas con prefijo <code>_</code>) y sus cabeceras.
-          Esta operación es segura de repetir: no borra datos existentes.
+          Primero creamos las 9 pestañas de datos que el sistema necesita
+          (todas con prefijo <code>_</code>). Después, opcionalmente, puedes
+          importar un XML de exportación de horarios de Séneca para
+          pre-rellenar el resto de pasos.
         </p>
+
+        <h3 style="font-size:15px; margin:20px 0 6px;">1.1 — Estructura de pestañas</h3>
         <div id="estado-inicial"><p>Comprobando estado actual del libro…</p></div>
         <div class="actions" id="zona-accion-1" style="display:none;">
           <button id="btn-crear" onclick="crearEstructura()">Crear estructura de pestañas</button>
         </div>
         <div id="resultado-1"></div>
+
+        <h3 style="font-size:15px; margin:32px 0 6px;">1.2 — Importar de Séneca (opcional)</h3>
+        <p class="subtitle" style="margin-bottom:12px;">
+          Si tienes el XML de Séneca, súbelo y pre-rellenamos tramos,
+          grupos, docentes, localizaciones, materias y roles. Requiere
+          que la estructura de pestañas ya esté creada.
+        </p>
+        <div class="actions" id="zona-seneca" style="margin-top: 0; margin-bottom: 16px; opacity: 0.5; pointer-events: none;">
+          <label class="btn-like" for="file-seneca">Seleccionar archivo XML…</label>
+          <input type="file" id="file-seneca" accept=".xml,application/xml,text/xml"
+                 style="display:none;" onchange="leerArchivoSeneca(this)">
+          <span id="seneca-filename" style="color:#5f6368; align-self:center;"></span>
+        </div>
+        <div id="seneca-preview"></div>
+        <div id="resultado-0"></div>
+
         <div class="actions" id="zona-next-1" style="display:none;">
           <button onclick="irPaso(2)">Siguiente: datos del centro →</button>
         </div>
@@ -630,7 +625,7 @@
 
   <script>
     window.addEventListener('load', function() {
-      irPaso(0);
+      irPaso(1);
       comprobarEstadoEstructura();
       precargarEstadoPasos();
     });
@@ -824,6 +819,7 @@
             btn.textContent = 'Verificar / reparar cabeceras';
             marcarPasoCompleto(1);
             habilitarPaso(2);
+            habilitarSeneca();
             document.getElementById('zona-next-1').style.display = 'flex';
           } else {
             cont.innerHTML = '<p>Faltan <strong>' + estado.faltan.length + '</strong> de ' +
@@ -859,6 +855,7 @@
           document.getElementById('resultado-1').innerHTML = html;
           marcarPasoCompleto(1);
           habilitarPaso(2);
+          habilitarSeneca();
           document.getElementById('zona-next-1').style.display = 'flex';
         })
         .withFailureHandler(function(err) {
@@ -1782,8 +1779,13 @@
         .guardarRoles(rolesLocal);
     }
 
-    // ---------- Paso 0: importar de Séneca ----------
+    // ---------- Importación opcional de Séneca (dentro del paso 1) ----------
     let senecaPreview = null;
+
+    function habilitarSeneca() {
+      const z = document.getElementById('zona-seneca');
+      if (z) { z.style.opacity = '1'; z.style.pointerEvents = 'auto'; }
+    }
 
     function leerArchivoSeneca(input) {
       const file = input.files && input.files[0];
