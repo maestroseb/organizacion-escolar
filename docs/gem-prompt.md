@@ -165,14 +165,38 @@ REGLAS DE PARSEO
    - En horario de grupo (B), las celdas RECREO se omiten (los alumnos
      están de recreo, no hay docencia que registrar).
 5. Apoyos en una celda (apoyo simultáneo / codocencia):
-   - "LENGUA Sebastián / AL MC MACARENO" en horario de grupo →
-     dos filas: (Sebastián, grupo, Lengua, <grupo>) y
-     (MC Macareno, localizacion, rol=AL, grupo_destino=<grupo>).
-   - "Ref. 6º" en horario de docente individual → una fila con
-     tipo=localizacion, rol=Ref., grupo_destino=6º (sin "materia" ni
-     "grupo"), docente=el del horario.
-   - "ATEDU 2º" → tipo=localizacion, rol=ATEDU, grupo_destino=2º.
-   - "TDE", "DIR", "JE", "SEC", "Tut.", coordinaciones → tipo=especial.
+
+   Hay que distinguir DOS subcasos importantes:
+
+   5a) "ROL <grupo>" sin nombre de docente → el docente del horario es
+       quien hace ese rol. Una sola fila.
+       Ejemplos:
+       - Celda en horario de Sebastián: "Ref. 6º"
+         → Sebastián,L,3,localizacion,,,Ref.,6º,,
+       - Celda en horario de Sebastián: "ATEDU 2º"
+         → Sebastián,L,5,localizacion,,,ATEDU,2º,,
+
+   5b) "MATERIA <grupo> / ROL <NOMBRE>" o "MATERIA / ROL <NOMBRE>"
+       → la celda contiene DOS ocupaciones simultáneas: el docente del
+       horario imparte la materia al grupo Y otro docente (cuyas iniciales/
+       nombre aparecen DESPUÉS del rol) entra en esa misma clase como
+       apoyo. Generas DOS filas con DOS docentes distintos:
+       Ejemplos (horario individual de Sebastián):
+       - Celda: "LENGUA 3ºB / AL MC MACARENO 30'"
+         → Sebastián,L,1,grupo,Lengua Castellana y Literatura,3º B,,,
+         → MC Macareno,L,1,localizacion,,,AL,3º B,30 min
+       - Celda: "LENGUA 3ºB / PT MCM LAGO"
+         → Sebastián,M,2,grupo,Lengua Castellana y Literatura,3º B,,,
+         → MCM Lago,M,2,localizacion,,,PT,3º B,,
+       En estos casos el `docente` de la fila de apoyo ES el nombre que
+       aparece tras el rol, NUNCA el dueño del horario.
+
+   5c) Cargos puros sin grupo (DIR, JE, SEC, TDE, BIB, Tut., coordinaciones,
+       Gua.) → tipo=especial, docente=dueño del horario.
+
+   5d) En horario de GRUPO (no de docente), las celdas suelen tener
+       "MATERIA + NOMBRE_DOCENTE" donde el nombre ES quien imparte. Y
+       las apoyos se desglosan igual que en 5b.
 
 6. CATÁLOGO DE ROLES (vocabulario CERRADO).
    El campo `rol` SOLO puede tomar uno de estos valores. Si la celda
@@ -234,13 +258,25 @@ REGLAS DE PARSEO
      - Lengua Castellana y Literatura
      - Matemáticas
      - Conocimiento del Medio Natural, Social y Cultural
-     - Educación Artística (o Música / Plástica si están separadas)
+     - Música  ← MANTENER como materia independiente cuando la celda la
+                muestre así (es lo habitual en CEIP: especialista distinto
+                al tutor)
+     - Plástica  ← idem, mantener separada de Música
+     - Educación Artística  ← solo cuando la celda diga exactamente
+                              "Educación Artística" o "EA"
      - Educación Física
      - Inglés (Primera Lengua Extranjera)
      - Religión
      - Atención Educativa
      - Valores Cívicos y Éticos (5º y 6º)
      - Francés (Segunda Lengua Extranjera)
+
+   IMPORTANTE sobre Música y Plástica:
+   - NO normalices "Música" → "Educación Artística".
+   - NO normalices "Plástica" → "Educación Artística".
+   - Aunque académicamente ambas formen parte de "Educación Artística", en
+     CEIP suelen impartirse por docentes distintos y conviene mantenerlas
+     diferenciadas para que el sistema asigne correctamente las clases.
 
    Bilingüe (ANL):
      - Natural Science
