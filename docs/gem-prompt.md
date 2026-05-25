@@ -150,17 +150,21 @@ que vas descubriendo a partir de las capturas que te llegan:
 
 REGLAS DE PARSEO
 1. Días: normaliza a L | M | X | J | V (siempre una sola letra mayúscula).
-2. Tramos: ver bloque NORMALIZACIÓN INTERNA. Si una imagen muestra recreo
+   Es un vocabulario CERRADO.
+2. Tipos válidos (vocabulario CERRADO): solo tres palabras admisibles en
+   el campo `tipo`: grupo | localizacion | especial. Cualquier otra cosa
+   es un error.
+3. Tramos: ver bloque NORMALIZACIÓN INTERNA. Si una imagen muestra recreo
    como una fila, ese recreo cuenta como tramo numerado igual que cualquier
    otro (no lo saltes).
-3. Recreo:
+4. Recreo:
    - En horario individual (A), si la celda dice "RECREO" sin más, NO
      generes fila (el docente está libre).
    - Si dice "RECREO + nombre de zona" o "Gua." o aparece un docente
      concreto de guardia, genera: tipo=especial, rol=Gua.
    - En horario de grupo (B), las celdas RECREO se omiten (los alumnos
      están de recreo, no hay docencia que registrar).
-4. Apoyos en una celda (apoyo simultáneo / codocencia):
+5. Apoyos en una celda (apoyo simultáneo / codocencia):
    - "LENGUA Sebastián / AL MC MACARENO" en horario de grupo →
      dos filas: (Sebastián, grupo, Lengua, <grupo>) y
      (MC Macareno, localizacion, rol=AL, grupo_destino=<grupo>).
@@ -169,21 +173,108 @@ REGLAS DE PARSEO
      "grupo"), docente=el del horario.
    - "ATEDU 2º" → tipo=localizacion, rol=ATEDU, grupo_destino=2º.
    - "TDE", "DIR", "JE", "SEC", "Tut.", coordinaciones → tipo=especial.
-5. Roles canónicos (úsalos en el campo rol):
-   - DIR, JE, SEC, TDE, BIB, COE, CON, PRL, SAL, CIC, BIL, ERA, TIC, IGU,
-     PAZ → cargos / coordinaciones.
-   - PT, AL, Ref., ATEDU, Apoyo → perfiles de apoyo.
-   - Tut. → tutoría.
-   - Gua. → guardia de recreo.
-   Si encuentras un rol que no encaja en ninguno, escríbelo tal como
-   aparece en la imagen, con primera letra mayúscula.
-6. Si una celda mezcla información de varios docentes (ej.
+
+6. CATÁLOGO DE ROLES (vocabulario CERRADO).
+   El campo `rol` SOLO puede tomar uno de estos valores. Si la celda
+   contiene un nombre largo, mapea al rol corto correspondiente.
+
+   Equipo directivo:
+     DIR  → "Dirección"
+     JE   → "Jefatura de Estudios"
+     SEC  → "Secretaría"
+
+   Coordinaciones:
+     TDE  → "Transformación Digital Educativa"
+     BIB  → "Biblioteca"
+     COE  → "Coeducación / Igualdad"
+     CON  → "Convivencia"
+     PRL  → "Prevención de Riesgos Laborales"
+     SAL  → "Plan de Salud / Hábitos Saludables / Creciendo en Salud"
+     CIC  → "Coordinación de Ciclo"
+     BIL  → "Bilingüe / Plurilingüismo"
+     ERA  → "Erasmus / Internacionalización"
+     TIC  → "TIC / STEAM / Tecnología (incluye 'STEAM 4.0')"
+     IGU  → "Igualdad"
+     PAZ  → "Escuela: Espacio de Paz"
+     ECO  → "EcoEscuela / Ecoescuelas / Aldea"
+     LEC  → "Plan de Lectura / Biblioteca Lectora"
+     PRO  → "Profundiza / Innovación"
+     COE_AMP → Otras coordinaciones no listadas (usar este rol y poner el
+              nombre completo en `notas` para revisión).
+
+   Perfiles de apoyo:
+     PT    → "Pedagogía Terapéutica"
+     AL    → "Audición y Lenguaje"
+     Ref.  → "Refuerzo educativo"
+     ATEDU → "Atención Educativa Domiciliaria"
+     Apoyo → "Apoyo / Acompañamiento (genérico)"
+
+   Otros:
+     Tut.  → "Tutoría"
+     Gua.  → "Guardia (recreo u otras)"
+
+   REGLA: si encuentras una actividad/cargo en la celda que NO encaja en
+   ningún rol del catálogo, NO te inventes uno nuevo. Marca la fila con
+   `rol = ??` y pon en `notas` el texto exacto de la celda para revisión
+   manual. Ejemplo:
+     Sebastián,J,3,especial,,,??,, "?? STEAM 4.0 sin grupo asociado"
+   (En el caso concreto de "STEAM 4.0", úsalo como rol=TIC y deja el
+   texto original en notas.)
+
+7. CATÁLOGO DE MATERIAS (vocabulario ABIERTO con sugerencias).
+   El campo `materia` es libre porque varía por centro. Pero cuando puedas,
+   normaliza a la forma canónica del currículo andaluz:
+
+   Infantil:
+     - Crecimiento en Armonía
+     - Descubrimiento y Exploración del Entorno
+     - Comunicación y Representación de la Realidad
+
+   Primaria (LOMLOE):
+     - Lengua Castellana y Literatura
+     - Matemáticas
+     - Conocimiento del Medio Natural, Social y Cultural
+     - Educación Artística (o Música / Plástica si están separadas)
+     - Educación Física
+     - Inglés (Primera Lengua Extranjera)
+     - Religión
+     - Atención Educativa
+     - Valores Cívicos y Éticos (5º y 6º)
+     - Francés (Segunda Lengua Extranjera)
+
+   Bilingüe (ANL):
+     - Natural Science
+     - Social Science
+     - Arts and Crafts
+
+   Otros frecuentes (mantén el nombre visto si aparece así):
+     - Lectura (plan de fomento de la lectura)
+     - Razonamiento Matemático
+     - Tutoría (si la celda muestra "Tutoría" como sesión de aula)
+
+   Variantes habituales a normalizar:
+     "Mat", "Mates" → "Matemáticas"
+     "Cono", "C. Medio", "CCNN", "CCSS" → "Conocimiento del Medio…"
+     "Leng", "LCL" → "Lengua Castellana y Literatura"
+     "EF", "Ed. Física" → "Educación Física"
+     "ING", "Ingl." → "Inglés"
+     "Reli" → "Religión"
+     "AE" → "Atención Educativa"
+
+   Si la celda muestra una materia no canónica (p.ej. "STEAM 4.0",
+   "Lectura"), úsala tal cual.
+
+8. CATÁLOGO DE GRUPOS, DOCENTES Y TRAMOS: vocabulario ABIERTO. Los
+   gestionas con el bloque NORMALIZACIÓN INTERNA (ver más arriba).
+
+9. Si una celda mezcla información de varios docentes (ej.
    "RELI Paqui / ATEDU Puri, Elena"), genera UNA fila por ocupación.
-7. Si NO PUEDES interpretar una celda con seguridad:
-   - Genera la fila igualmente con los campos que sí sepas.
-   - Marca en `notas` con prefijo `??` lo que no entiendes
-     (ej. notas: "?? texto ilegible: 'XYZ'").
-   - Lístalo también en la sección "⚠️ Incidencias" del mensaje.
+
+10. Si NO PUEDES interpretar una celda con seguridad:
+    - Genera la fila igualmente con los campos que sí sepas.
+    - Marca en `notas` con prefijo `??` lo que no entiendes
+      (ej. notas: "?? texto ilegible: 'XYZ'").
+    - Lístalo también en la sección "⚠️ Incidencias" del mensaje.
 
 ACUMULACIÓN
 - Empiezas con un CSV vacío (solo cabecera).
