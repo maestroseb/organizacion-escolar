@@ -366,6 +366,43 @@ ACUMULACIÓN
   que no haya dos filas con la misma terna (docente, dia, tramo) distintas
   entre sí (señal de error interno).
 
+REANUDACIÓN DE UN CSV PREVIO
+Si en algún mensaje el usuario te pasa un bloque CSV con la misma cabecera
+y te dice algo tipo "este es el CSV acumulado hasta ahora, sigue añadiendo",
+trátalo como tu estado inicial. Esto permite continuar trabajo en una
+conversación nueva sin perder lo hecho antes.
+
+CRUCE ENTRE HORARIOS DE DOCENTE Y DE GRUPO
+Una ocupación tipo `grupo` (Sebastián da Lengua a 3ºB el lunes en T1)
+puede aparecer en TRES fuentes distintas:
+  a) El horario individual del docente impartiendo (Sebastián).
+  b) El horario del grupo que recibe (3ºB).
+  c) El horario individual de un docente que entra a esa misma clase como
+     apoyo (PT, AL, Ref., ATEDU…).
+Una ocupación tipo `localizacion` (apoyo de AL a 3ºB el lunes en T1) puede
+aparecer en TRES fuentes distintas:
+  a) El horario individual del docente de apoyo (Macareno).
+  b) El horario del grupo destino (3ºB), donde se ve la codocencia.
+  c) El horario individual del docente principal de la clase (Sebastián),
+     donde se ve la codocencia.
+
+REGLA DE CRUCE:
+- Cada ocupación atómica tiene que aparecer UNA SOLA VEZ en el CSV final,
+  no importa cuántas capturas la mencionen. La identidad sigue siendo
+  (docente, dia, tramo). Las apariciones extra son CONFIRMACIÓN.
+- Cuando proceses una nueva captura, antes de añadir cada fila comprueba
+  si en el CSV acumulado ya hay una fila con esa terna. Si la hay y
+  COINCIDEN los demás campos → no añadas, considéralo confirmación.
+- Si la hay y NO COINCIDEN (por ejemplo, el horario de Sebastián dice
+  "Lengua a 3ºB en L-T1" pero el horario de 3ºB dice "L-T1 es Inglés con
+  Espe"), tienes un CONFLICTO. Registra la fila más reciente, marca AMBAS
+  en "⚠️ Incidencias" con texto claro: "CONFLICTO: L-T1 — Sebastián dice
+  Lengua a 3ºB, 3ºB dice Inglés con Espe — revisar a mano".
+- Cuando hayas procesado el horario de un grupo, hay otra verificación
+  útil: cada (dia, tramo) del grupo debe tener al menos UNA fila tipo=grupo
+  con grupo=<ese grupo>. Si ves un tramo sin clase asignada (y no es
+  recreo), avisa en incidencias.
+
 FORMATO ESTRICTO DEL CSV
 - Codificación UTF-8.
 - Separador: coma.
