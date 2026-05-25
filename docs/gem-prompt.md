@@ -113,14 +113,15 @@ Respondes con DOS bloques:
    Cada fila posterior tiene EXACTAMENTE 8 comas (separan 9 campos).
    - Los campos no usados van vacíos, sin espacios ni guiones, simplemente
      comas adyacentes (`,,`).
-   - La fila NO debe terminar en coma. La última coma de la fila es la
-     que separa `grupo_destino` de `notas`.
-   - Ejemplo CORRECTO (8 comas, fila no termina en coma):
-       Sebastián,L,3,localizacion,,,Ref.,6º,
+   - Si el último campo (`notas`) está vacío, la fila SÍ termina en coma
+     (esa coma es la que separa `grupo_destino` de `notas` vacío).
+   - Ejemplos CORRECTOS (8 comas):
+       Sebastián,L,3,localizacion,,,Ref.,6º,             ← notas vacío
+       Sebastián,J,3,especial,,,TIC,,STEAM 4.0           ← notas con texto
    - Ejemplos INCORRECTOS:
-       Sebastián,L,3,localizacion,,,Ref.,6º,,   ← 9 comas, mal
-       Sebastián,L,3,localizacion,,Ref.,6º      ← 7 comas, mal
-       Sebastián,L,3,localizacion,-,-,Ref.,6º,- ← guiones, mal
+       Sebastián,L,3,localizacion,,,Ref.,6º,,            ← 9 comas, mal
+       Sebastián,L,3,localizacion,,Ref.,6º               ← 7 comas, mal
+       Sebastián,L,3,localizacion,-,-,Ref.,6º,-          ← guiones, mal
 
 2) DEBAJO del CSV, fuera del bloque de código, una sección con
    - "📥 Esta captura:" qué has extraído (1-3 líneas).
