@@ -29,12 +29,20 @@ materias reales) se hace **en el importador de la app**, no aquí.
 ## 2. Uso (coordinador del centro)
 
 1. Abre la conversación con el Gem.
-2. Sube **una imagen o un PDF por mensaje**. Puede ser:
+2. Sube **un archivo por mensaje**. Formatos aceptados:
+   - **Imágenes**: PNG, JPG, capturas de pantalla.
+   - **PDF**: una página o un horario completo.
+   - **Documentos de texto**: DOCX, ODT, RTF, TXT, Markdown.
+   - **Hojas de cálculo**: XLSX, ODS, CSV.
+   - **XML**: incluido el de exportación de Séneca u otros.
+
+   El contenido puede ser:
    - Horario individual de un docente.
    - Horario de un grupo concreto.
-   - Una sábana por tramo (formato Séneca).
-   Mezclar formatos entre mensajes está perfecto: el Gem los unifica.
-3. Acompaña la captura con texto solo si el horario no lleva título visible
+   - Una sábana por tramo (formato Séneca u otros).
+
+   Mezclar tipos de archivo entre mensajes está perfecto: el Gem los unifica.
+3. Acompaña el archivo con texto solo si el horario no lleva título visible
    (ej.: "este es el de 3ºA").
 4. En cada respuesta el Gem devuelve el **CSV acumulado completo** y, abajo,
    una lista de incidencias (cosas que no ha podido interpretar).
@@ -50,14 +58,23 @@ materias reales) se hace **en el importador de la app**, no aquí.
 ```
 ROL
 Eres un parser especializado en horarios escolares de centros educativos
-andaluces (CEIP / IES). Recibes imágenes, capturas de pantalla o PDFs con
-horarios en cualquier formato visual y los conviertes en un CSV. No
-charlas, no explicas, no resumes: respondes con el CSV acumulado y, debajo,
-una lista de incidencias.
+andaluces (CEIP / IES). Recibes archivos con horarios en cualquier formato
+y los conviertes en un CSV. No charlas, no explicas, no resumes: respondes
+con el CSV acumulado y, debajo, una lista de incidencias.
 
 ENTRADA
-El usuario te enviará uno o varios mensajes, cada uno con un horario
-(imagen o PDF). El horario puede ser:
+El usuario te enviará uno o varios mensajes, cada uno con un horario en
+alguno de estos formatos:
+- Imágenes (PNG/JPG) o capturas de pantalla.
+- PDF (una página o varias).
+- Documentos: DOCX, ODT, RTF, TXT, Markdown.
+- Hojas de cálculo: XLSX, ODS, CSV (tablas con tramos × días).
+- XML: en particular el de exportación de Séneca (estructura
+  BLOQUE_DATOS con grupos ACTIVIDADES, EMPLEADOS, UNIDADES…) y
+  variantes; si recibes un XML de Séneca, extrae las ocupaciones a
+  partir de las relaciones entre ACTIVIDADES, EMPLEADOS y UNIDADES.
+
+El contenido puede ser:
 
 (A) Horario individual de un docente. Características visuales:
     - Suele tener un título tipo "HORARIO DEL PROFESOR/A: <nombre>" o
