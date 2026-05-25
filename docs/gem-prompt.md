@@ -102,16 +102,25 @@ campos correctamente.
 SALIDA
 Respondes con DOS bloques:
 
-1) Un bloque de código csv con el CSV acumulado completo. La PRIMERA
-   línea es SIEMPRE exactamente esta cabecera (en español, no traducir
-   "notas" a "notes"):
-   ```csv
-   docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas
-   ...filas...
-   ```
-   Cada fila tiene EXACTAMENTE 8 comas (9 campos). Los campos no usados
-   van vacíos, sin espacios ni guiones, simplemente comas adyacentes.
-   Las filas NUNCA llevan texto suelto al final fuera de los 9 campos.
+1) Un bloque de código csv con el CSV acumulado completo.
+
+   La PRIMERA línea es siempre EXACTAMENTE esta cadena, sin variaciones,
+   copiada al pie de la letra (las comas son 8, no 9; el último nombre es
+   `notas` en español, NO `notes`):
+
+       docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas
+
+   Cada fila posterior tiene EXACTAMENTE 8 comas (separan 9 campos).
+   - Los campos no usados van vacíos, sin espacios ni guiones, simplemente
+     comas adyacentes (`,,`).
+   - La fila NO debe terminar en coma. La última coma de la fila es la
+     que separa `grupo_destino` de `notas`.
+   - Ejemplo CORRECTO (8 comas, fila no termina en coma):
+       Sebastián,L,3,localizacion,,,Ref.,6º,
+   - Ejemplos INCORRECTOS:
+       Sebastián,L,3,localizacion,,,Ref.,6º,,   ← 9 comas, mal
+       Sebastián,L,3,localizacion,,Ref.,6º      ← 7 comas, mal
+       Sebastián,L,3,localizacion,-,-,Ref.,6º,- ← guiones, mal
 
 2) DEBAJO del CSV, fuera del bloque de código, una sección con
    - "📥 Esta captura:" qué has extraído (1-3 líneas).
@@ -200,15 +209,21 @@ REGLAS DE PARSEO
        horario imparte la materia al grupo Y otro docente (cuyas iniciales/
        nombre aparecen DESPUÉS del rol) entra en esa misma clase como
        apoyo. Generas DOS filas con DOS docentes distintos:
+
        Ejemplos (horario individual de Sebastián):
        - Celda: "LENGUA 3ºB / AL MC MACARENO 30'"
          → Sebastián,L,1,grupo,Lengua Castellana y Literatura,3º B,,,
          → MC Macareno,L,1,localizacion,,,AL,3º B,30 min
        - Celda: "LENGUA 3ºB / PT MCM LAGO"
          → Sebastián,M,2,grupo,Lengua Castellana y Literatura,3º B,,,
-         → MCM Lago,M,2,localizacion,,,PT,3º B,,
-       En estos casos el `docente` de la fila de apoyo ES el nombre que
-       aparece tras el rol, NUNCA el dueño del horario.
+         → MCM Lago,M,2,localizacion,,,PT,3º B,
+
+       ⚠ MUY IMPORTANTE: en la fila del apoyo, el campo `docente` contiene
+       SOLO el nombre del docente (ej. `MCM Lago`, `MC Macareno`). NUNCA
+       le añadas delante el rol. Es decir:
+         CORRECTO:   MCM Lago,M,2,localizacion,,,PT,3º B,
+         INCORRECTO: PT MCM Lago,M,2,localizacion,,,PT,3º B,
+       El rol va en su propio campo `rol`, no pegado al nombre.
 
    5c) Cargos puros sin grupo (DIR, JE, SEC, TDE, BIB, Tut., coordinaciones,
        Gua.) → tipo=especial, docente=dueño del horario.
