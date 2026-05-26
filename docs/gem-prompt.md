@@ -252,14 +252,22 @@ REGLAS DE PARSEO
      CIC  → "Coordinación de Ciclo"
      BIL  → "Bilingüe / Plurilingüismo"
      ERA  → "Erasmus / Internacionalización"
-     TIC  → "TIC / STEAM / Tecnología (incluye 'STEAM 4.0')"  ← OJO:
-              TIC y TDE son cosas DISTINTAS, no las confundas:
-              - TDE = Transformación Digital Educativa (cargo de coordi
-                de digitalización, suele aparecer simplemente como "TDE").
-              - TIC = Coordinación TIC o cualquier proyecto tipo "STEAM
-                4.0", "Tecnología", "Robótica".
-              Si la celda dice literalmente "TDE", el rol es TDE.
-              Si dice "STEAM 4.0", "TIC" o similar, el rol es TIC.
+     TIC  → Coordinación TIC / proyectos digitales / STEAM. Úsalo cuando
+              la celda diga "TIC", "STEAM", "STEAM 4.0", "Robótica",
+              "Tecnología", "Programación" o similar.
+     TDE  → Transformación Digital Educativa (DISTINTO de TIC). Úsalo
+              EXCLUSIVAMENTE cuando la celda diga literalmente "TDE",
+              "Transformación Digital" o "Coord. TDE".
+
+     TABLA DE DESEMPATE entre TIC y TDE (memorízala):
+       Celda en la imagen → rol en el CSV → notas en el CSV
+       "TDE"               → TDE  →  (vacío)
+       "Coord. TDE"        → TDE  →  (vacío)
+       "TIC"               → TIC  →  (vacío)
+       "STEAM 4.0"         → TIC  →  STEAM 4.0
+       "Robótica"          → TIC  →  Robótica
+       "Tecnología"        → TIC  →  Tecnología
+     NUNCA inviertas esta tabla. NUNCA pongas TIC cuando la celda dice TDE.
      IGU  → "Igualdad"
      PAZ  → "Escuela: Espacio de Paz"
      ECO  → "EcoEscuela / Ecoescuelas / Aldea"
@@ -314,11 +322,16 @@ REGLAS DE PARSEO
    Primaria (LOMLOE):
      - Lengua Castellana y Literatura
      - Matemáticas
-     - Conocimiento del Medio  ← nombre canónico CORTO; el nombre oficial
-                                 LOMLOE es "Conocimiento del Medio Natural,
-                                 Social y Cultural" pero NUNCA lo uses así
-                                 porque las comas rompen el CSV. Usa siempre
-                                 la forma corta.
+     - Conocimiento del Medio  ← OBLIGATORIO usar exactamente este nombre.
+                                 NUNCA lo escribas como "Conocimiento del
+                                 Medio Natural, Social y Cultural" (con
+                                 comas) porque destruye el CSV. La forma
+                                 oficial LOMLOE tiene comas, pero aquí
+                                 usamos la forma corta SIEMPRE.
+                                 Si la celda en la imagen muestra "Cono",
+                                 "C. Medio", "CCNN", "CCSS", "C. Natural",
+                                 "C. Social" o el nombre largo completo,
+                                 normaliza TODOS a "Conocimiento del Medio".
      - Música  ← MANTENER como materia independiente cuando la celda la
                 muestre así (es lo habitual en CEIP: especialista distinto
                 al tutor)
@@ -419,15 +432,42 @@ REGLA DE CRUCE:
 - Cuando proceses una nueva captura, antes de añadir cada fila comprueba
   si en el CSV acumulado ya hay una fila con esa terna. Si la hay y
   COINCIDEN los demás campos → no añadas, considéralo confirmación.
-- Si la hay y NO COINCIDEN (por ejemplo, el horario de Sebastián dice
-  "Lengua a 3ºB en L-T1" pero el horario de 3ºB dice "L-T1 es Inglés con
-  Espe"), tienes un CONFLICTO. Registra la fila más reciente, marca AMBAS
-  en "⚠️ Incidencias" con texto claro: "CONFLICTO: L-T1 — Sebastián dice
-  Lengua a 3ºB, 3ºB dice Inglés con Espe — revisar a mano".
-- Cuando hayas procesado el horario de un grupo, hay otra verificación
-  útil: cada (dia, tramo) del grupo debe tener al menos UNA fila tipo=grupo
-  con grupo=<ese grupo>. Si ves un tramo sin clase asignada (y no es
-  recreo), avisa en incidencias.
+
+QUÉ ES Y QUÉ NO ES UN CONFLICTO (¡importante!)
+Un conflicto SOLO existe cuando dos capturas distintas describen LA MISMA
+celda atómica (mismo docente Y mismo dia Y mismo tramo) con datos
+contradictorios. Antes de marcar nada como CONFLICTO, comprueba que se
+cumplan las TRES condiciones simultáneamente:
+
+  1. Mismo (docente, dia, tramo).
+  2. Tipos compatibles (no comparas un `grupo` con un `especial`).
+  3. Otros campos (materia, grupo, rol…) son distintos entre fuentes.
+
+Ejemplos:
+- ✅ ES CONFLICTO: El horario individual de Sebastián dice
+  "L-T1 → Lengua a 3ºB" pero el horario de 3ºB dice
+  "L-T1 → Inglés con Espe". Ambas fuentes hablan de Sebastián O del mismo
+  grupo en el mismo slot pero con datos discrepantes. Marca CONFLICTO.
+
+- ❌ NO ES CONFLICTO: El horario individual de Sebastián dice
+  "M-T6 → Música a 2ºB" y el horario de 3ºB dice
+  "M-T6 → E.F. con Ana Belén". Esto NO es contradicción: Sebastián está en
+  un aula (2ºB), 3ºB está en otra (con Ana Belén). Son ocupaciones
+  paralelas legítimas que ocurren a la misma hora en sitios distintos.
+  Ambas filas se añaden al CSV. NO emitas incidencia.
+
+- ❌ NO ES CONFLICTO: El horario de Sebastián dice
+  "L-T2 → Lengua a 3ºB" y el horario de 3ºB dice
+  "L-T2 → Lengua con Sebastián / REF Mª Jesús". Esto es CONFIRMACIÓN +
+  un dato extra (apoyo de Mª Jesús). Mantén la fila de Sebastián y añade
+  una nueva fila para Mª Jesús (tipo=localizacion, rol=Ref.). NO emitas
+  incidencia.
+
+VERIFICACIÓN DE COBERTURA
+- Cuando hayas procesado el horario de un grupo, comprueba que cada
+  (dia, tramo) lectivo del grupo tenga al menos UNA fila tipo=grupo con
+  grupo=<ese grupo>. Si ves un tramo sin clase asignada (y no es recreo),
+  avisa en incidencias.
 
 FORMATO ESTRICTO DEL CSV
 - Codificación UTF-8.
