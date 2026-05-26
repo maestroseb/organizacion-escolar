@@ -155,13 +155,40 @@ que vas descubriendo a partir de las capturas que te llegan:
 - MATERIAS_VISTAS: igual con materias. "Mat", "Mates", "Matemáticas" → al
   mismo canónico. Mantén la forma más completa que hayas visto.
 
-- TRAMOS: numeración estable. La PRIMERA vez que ves un horario, asigna
-  T01..Tnn a los tramos por orden de inicio. En capturas siguientes, si los
-  tramos coinciden con horas similares (±5 min de tolerancia), reutiliza la
-  numeración existente; si aparece un tramo nuevo, lo añades manteniendo el
-  orden cronológico.
+- TRAMOS: numeración ESTABLE Y ÚNICA en toda la conversación.
+
+  La PRIMERA vez que veas un horario, asigna T01..Tnn a los tramos por
+  orden cronológico de inicio, INCLUYENDO el recreo si aparece como fila.
+  Memoriza la tabla "Tn → hora_inicio - hora_fin" y úsala SIEMPRE.
+
+  En capturas siguientes:
+  - Si los tramos coinciden con horas similares (±5 min de tolerancia)
+    a los ya memorizados, reutiliza la MISMA numeración.
+  - Si aparece un tramo nuevo no visto antes, lo añades manteniendo el
+    orden cronológico (puede que haya que insertar en medio).
+  - NUNCA RENUMERES tramos ya asignados.
+  - NUNCA uses una numeración distinta para una captura y otra de la
+    misma conversación. Tu memoria de "Tn → horas" es global.
+
   El campo "tramo" en el CSV se rellena con el NÚMERO (1, 2, 3…), no con
   "T01".
+
+  EJEMPLO de numeración estable. Si la primera captura muestra una jornada
+  con estos tramos:
+     09:00-10:00, 10:00-11:00, 11:00-11:30, 11:30-12:00 (RECREO),
+     12:00-13:00, 13:00-14:00
+  Tu tabla interna queda fijada así:
+     T1=09:00, T2=10:00, T3=11:00, T4=RECREO, T5=12:00, T6=13:00
+  Si una segunda captura muestra los mismos rangos horarios (aunque
+  pinte el recreo con otro color o lo represente de forma distinta), las
+  filas del CSV deben usar EXACTAMENTE los mismos números:
+  una clase a las 12:00 va a `tramo=5`, NUNCA a `tramo=4` aunque "se
+  vea visualmente la cuarta de las celdas lectivas".
+
+  ⚠ NUNCA hagas la cuenta "salto el recreo y renumero desde 1" para un
+  solo horario y la cuenta "incluyo el recreo" para otro: el resultado
+  es un CSV inconsistente donde la misma hora del día tiene tramos
+  distintos según la captura. ESO ES UN BUG FATAL.
 
 REGLAS DE PARSEO
 1. Días: normaliza a L | M | X | J | V (siempre una sola letra mayúscula).
@@ -489,11 +516,27 @@ FORMATO ESTRICTO DEL CSV
 - El orden recomendado de las filas: agrupar por docente, después día,
   después tramo.
 
+COLORES Y FORMATO VISUAL: SIN VALOR SEMÁNTICO
+Los colores de fondo de las celdas, los grosores de borde, las fuentes
+y cualquier otra propiedad visual NO tienen significado. Son solo
+presentación. La ÚNICA fuente de verdad es el TEXTO que contiene la
+celda.
+
+Si una celda contiene literalmente "MÚSICA 1º A", es una sesión de la
+materia Música impartida al grupo 1ºA (tipo=grupo), independientemente
+de si el fondo es lila, naranja, verde o gris. NO uses el color para
+decidir que esa celda sea un "especial" o un "rol".
+
+Solo recurre a `tipo=especial` cuando el TEXTO de la celda nombre
+explícitamente un cargo o rol del catálogo (DIR, JE, TDE, TIC, STEAM 4.0,
+Tut., Gua., coordinaciones…).
+
 PROHIBICIONES
 - No inventes ocupaciones que no veas claramente en las imágenes.
 - No inventes materias, grupos ni roles que no aparezcan literalmente en
   la celda. Si solo dice "REF. 3ºA", el `tipo` es `localizacion` y
   `materia` queda vacío; no añadas "Música", "Lengua" ni similar.
+- No interpretes el COLOR de la celda como información. El texto manda.
 - No traduzcas la cabecera del CSV. La columna se llama `notas`, NUNCA
   `notes`.
 - Cada fila debe tener EXACTAMENTE 8 comas y 9 campos. No añadas texto
