@@ -252,7 +252,14 @@ REGLAS DE PARSEO
      CIC  → "Coordinación de Ciclo"
      BIL  → "Bilingüe / Plurilingüismo"
      ERA  → "Erasmus / Internacionalización"
-     TIC  → "TIC / STEAM / Tecnología (incluye 'STEAM 4.0')"
+     TIC  → "TIC / STEAM / Tecnología (incluye 'STEAM 4.0')"  ← OJO:
+              TIC y TDE son cosas DISTINTAS, no las confundas:
+              - TDE = Transformación Digital Educativa (cargo de coordi
+                de digitalización, suele aparecer simplemente como "TDE").
+              - TIC = Coordinación TIC o cualquier proyecto tipo "STEAM
+                4.0", "Tecnología", "Robótica".
+              Si la celda dice literalmente "TDE", el rol es TDE.
+              Si dice "STEAM 4.0", "TIC" o similar, el rol es TIC.
      IGU  → "Igualdad"
      PAZ  → "Escuela: Espacio de Paz"
      ECO  → "EcoEscuela / Ecoescuelas / Aldea"
@@ -265,7 +272,22 @@ REGLAS DE PARSEO
      PT    → "Pedagogía Terapéutica"
      AL    → "Audición y Lenguaje"
      Ref.  → "Refuerzo educativo"
-     ATEDU → "Atención Educativa Domiciliaria"
+     ATEDU → "Atención Educativa Domiciliaria"  ← ATENCIÓN AMBIGÜEDAD:
+              "Atención Educativa" tiene DOS significados que se nombran
+              parecido en CEIP:
+              (a) la MATERIA "Atención Educativa" (lectivo alternativo a
+                  Religión, currículo LOMLOE). En horario de un grupo se
+                  ve como materia normal: tipo=grupo, materia=Atención
+                  Educativa, grupo=<grupo>.
+              (b) el ROL ATEDU "Atención Educativa Domiciliaria" (apoyo a
+                  un alumno que no puede asistir). En horario de un
+                  docente, "ATEDU 2º" significa esto: tipo=localizacion,
+                  rol=ATEDU, grupo_destino=2º.
+              Regla práctica: si la celda está en un horario de GRUPO y
+              dice "ATEDU" o "Atención Educativa" como materia paralela a
+              "Religión", es la materia (caso a). Si está en un horario
+              individual de docente con un grupo como sufijo ("ATEDU 2º"),
+              es el rol (caso b).
      Apoyo → "Apoyo / Acompañamiento (genérico)"
 
    Otros:
@@ -292,7 +314,11 @@ REGLAS DE PARSEO
    Primaria (LOMLOE):
      - Lengua Castellana y Literatura
      - Matemáticas
-     - Conocimiento del Medio Natural, Social y Cultural
+     - Conocimiento del Medio  ← nombre canónico CORTO; el nombre oficial
+                                 LOMLOE es "Conocimiento del Medio Natural,
+                                 Social y Cultural" pero NUNCA lo uses así
+                                 porque las comas rompen el CSV. Usa siempre
+                                 la forma corta.
      - Música  ← MANTENER como materia independiente cuando la celda la
                 muestre así (es lo habitual en CEIP: especialista distinto
                 al tutor)
@@ -406,9 +432,17 @@ REGLA DE CRUCE:
 FORMATO ESTRICTO DEL CSV
 - Codificación UTF-8.
 - Separador: coma.
-- Si un campo contiene comas (poco habitual en notas), envuélvelo entre
-  comillas dobles ("…"). Si no, sin comillas.
+- Ningún campo (ni materia, ni grupo, ni notas) puede contener comas.
+  - Si la materia canónica tiene comas (ej. "Conocimiento del Medio Natural,
+    Social y Cultural"), usa la versión corta sin comas
+    ("Conocimiento del Medio").
+  - Si una nota libre tendría comas, sustituye las comas por punto y coma.
 - Campos vacíos: nada entre comas, no escribas "vacío" ni "-".
+- El campo `notas` contiene EXCLUSIVAMENTE el texto que aparece literalmente
+  en la celda y no encaja en ningún otro campo (ej. duración "30 min", o el
+  nombre de un programa como "STEAM 4.0"). NUNCA escribas en notas
+  comentarios tuyos ni interpretaciones ("sin grupo asociado", "revisar",
+  "ambiguo"…). Los comentarios van en la sección "⚠️ Incidencias".
 - Una fila por ocupación atómica.
 - Sin comentarios DENTRO del CSV (los comentarios van fuera del bloque,
   en "⚠️ Incidencias").
