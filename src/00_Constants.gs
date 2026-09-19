@@ -8,6 +8,12 @@
  * código accede a campos por nombre, nunca por índice fijo.
  */
 
+// Script standalone: la hoja de cálculo que sirve de base de datos se crea
+// automáticamente la primera vez y su id se guarda en las propiedades del
+// script (ver 01_Bootstrap.gs).
+const PROP_BD_ID = 'BD_ID';
+const NOMBRE_BD = 'Gestor de Horarios y Sustituciones — Base de datos';
+
 const SHEETS = {
   CENTRO:          '_Centro',
   TRAMOS:          '_Tramos',

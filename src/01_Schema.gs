@@ -5,16 +5,13 @@
  * Es idempotente: si una pestaña ya existe, no la borra; añade columnas
  * que falten al final y avisa de las que sobran.
  *
- * Se invoca desde el wizard HTML (ver src/ui/setup.html) vía google.script.run.
+ * Se invoca desde el wizard HTML (src/setup.html) vía google.script.run.
  * Devuelve un objeto con el resumen para que el wizard lo muestre.
+ * Opera sobre la base de datos del script (getBd()).
  */
 
 function inicializarLibro() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  if (!ss) {
-    throw new Error('No hay hoja de cálculo activa. Vincula este script a un Sheets.');
-  }
-
+  const ss = getBd();
   const detalle = [];
 
   SHEET_ORDER.forEach(function(nombre) {
@@ -39,7 +36,7 @@ function inicializarLibro() {
  * Lo usa el wizard para marcar el paso 1 como completado al reabrir.
  */
 function estadoEstructura() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getBd();
   const faltan = SHEET_ORDER.filter(function(n) { return !ss.getSheetByName(n); });
   return {
     completo: faltan.length === 0,

@@ -148,7 +148,7 @@ function remove(sheetName, id) {
 // ---------- Internos ----------
 
 function _getSheet(sheetName) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getBd();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error('Pestaña no encontrada: ' + sheetName);
   return sheet;
