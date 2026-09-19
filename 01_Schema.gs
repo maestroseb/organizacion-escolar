@@ -5,7 +5,7 @@
  * Es idempotente: si una pestaña ya existe, no la borra; añade columnas
  * que falten al final y avisa de las que sobran.
  *
- * Se invoca desde el wizard HTML (src/setup.html) vía google.script.run.
+ * Se invoca desde el wizard HTML (setup.html) vía google.script.run.
  * Devuelve un objeto con el resumen para que el wizard lo muestre.
  * Opera sobre la base de datos del script (getBd()).
  */

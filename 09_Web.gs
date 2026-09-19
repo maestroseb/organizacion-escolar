@@ -5,15 +5,15 @@
  * Antes de servir nada, garantiza que la base de datos existe e inicializada.
  *
  * Páginas:
- *   (sin page) / inicio → src/app.html   (portada + navegación)
- *   setup              → src/setup.html  (asistente de configuración)
- *   importar           → src/csv.html    (importador de horarios CSV)
+ *   (sin page) / inicio → app.html   (portada + navegación)
+ *   setup              → setup.html  (asistente de configuración)
+ *   importar           → csv.html    (importador de horarios CSV)
  */
 
 const PAGINAS = {
-  inicio:   'src/app',
-  setup:    'src/setup',
-  importar: 'src/csv'
+  inicio:   'app',
+  setup:    'setup',
+  importar: 'csv'
 };
 
 function doGet(e) {
