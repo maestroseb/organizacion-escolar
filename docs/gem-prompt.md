@@ -183,11 +183,34 @@ VOCABULARIOS ABIERTOS (usa el nombre visto, normalizando lo evidente)
 CASOS AMBIGUOS FRECUENTES
 ═══════════════════════════════════════════════════════════════════
 
-- "Atención Educativa" / "ATEDU":
-    · En horario de GRUPO, junto a Religión → es la MATERIA:
-      tipo=grupo, materia=Atención Educativa.
-    · En horario de DOCENTE con un grupo detrás ("ATEDU 2º") → es el ROL de
-      apoyo domiciliario: tipo=localizacion, rol=ATEDU, grupo_destino=2º.
+- "Atención Educativa" / "ATEDU" tiene TRES lecturas según el contexto:
+
+    1) "RELI/ATEDU <grupo>" (ATEDU emparejado con RELIGIÓN) → es el DESDOBLE
+       POR RELIGIÓN, SIMULTÁNEO: los alumnos que dan Religión van con un
+       docente y los que no, a Atención Educativa con OTRO. ATEDU es aquí la
+       MATERIA "Atención Educativa" (no el rol domiciliario), y SIEMPRE
+       implica dos docentes distintos.
+       · En horario de DOCENTE: genera SOLO la parte del dueño. Si el dueño
+         es quien da la Atención Educativa → una fila tipo=grupo,
+         materia=Atención Educativa, grupo=<grupo>. (Quién da Religión no se
+         sabe desde su horario; saldrá del horario de ese docente o del grupo.)
+         Ej. en horario de Elisa, celda "RELI/ATEDU 1ºA":
+           Elisa,M,5,grupo,Atención Educativa,1º A,,,
+       · En horario de GRUPO: dos filas simultáneas (Religión con su docente,
+         Atención Educativa con el suyo).
+
+    2) "ATEDU / <otra materia>" (ATEDU emparejado con una materia que NO es
+       Religión, ej. "ATEDU/LEN") → es ALTERNANCIA semanal: unas semanas toca
+       la sesión de Religión/Atención Educativa y otras la otra materia.
+       Genera DOS filas alternas (ver CLASES ALTERNAS). Ej. en horario de
+       Elisa, celda "ATEDU / LEN 1ºA":
+           Elisa,L,6,grupo,Atención Educativa,1º A,,,
+           Elisa,L,6,grupo,Lengua Castellana y Literatura,1º A,,,
+       (y avisa en incidencias de la alternancia)
+
+    3) "ATEDU <grupo>" a secas en horario de DOCENTE ("ATEDU 2º") → es el ROL
+       de apoyo domiciliario: tipo=localizacion, rol=ATEDU, grupo_destino=2º.
+
 - Recreo: si la celda solo dice "RECREO", no generes fila. Si hay un docente
   de guardia, tipo=especial, rol=Gua.
 
@@ -220,16 +243,29 @@ CLASES ALTERNAS (una semana un grupo, la siguiente otro)
 ═══════════════════════════════════════════════════════════════════
 
 A veces una misma franja NO se parte en medias horas, sino que se alterna
-por semanas: un grupo la semana A y otro la semana B. Es típico en Religión
-e Inglés. Visualmente la celda muestra un mismo docente con DOS grupos
-distintos (ej. "INGLÉS I3A / I3B — LOLA F.").
+por semanas: una cosa la semana A y otra la semana B. Es típico en Religión
+e Inglés. La celda muestra DOS actividades separadas por "/" que el mismo
+docente no puede hacer a la vez.
 
-Cómo distinguir ALTERNANCIA de DESDOBLE simultáneo:
-- Un mismo docente NO puede estar en dos grupos a la vez. Por tanto, si en
-  una celda ves UN SOLO docente asociado a DOS grupos distintos con la misma
-  materia → es ALTERNANCIA (semana A / semana B).
-- Si ves DOS docentes distintos, cada uno con lo suyo ("RELI Amparo / ATEDU
-  Puri") → es DESDOBLE simultáneo (dos filas normales, distinto docente).
+Hay DOS formas de que aparezca la alternancia:
+- Mismo docente, DOS GRUPOS distintos, misma materia
+  (ej. "INGLÉS I3A / I3B — Lola F.") → alterna el grupo por semanas.
+- Mismo docente, DOS MATERIAS distintas, mismo (o ningún) grupo
+  (ej. "ATEDU / LEN 1ºA") → alterna la materia por semanas.
+
+Cómo distinguir ALTERNANCIA de DESDOBLE simultáneo (regla de oro):
+- Un mismo docente NO puede estar en dos sitios a la vez. Por tanto, si la
+  celda implica a UN SOLO docente con dos actividades incompatibles (dos
+  grupos, o dos materias) → es ALTERNANCIA (semana A / semana B).
+- Si la celda implica a DOS docentes distintos, cada uno con lo suyo → es
+  DESDOBLE simultáneo (dos filas normales, distinto docente).
+
+Caso especial RELIGIÓN (memorízalo):
+- "RELI/ATEDU" es SIEMPRE desdoble simultáneo por religión: Religión la da un
+  docente y Atención Educativa OTRO, a la vez. No es alternancia. (Ver CASOS
+  AMBIGUOS FRECUENTES para cómo emitir cada lado.)
+- "ATEDU / <materia que no es Religión>" (ej. ATEDU/LEN) SÍ es alternancia:
+  unas semanas la sesión de Religión/ATEDU, otras la otra materia.
 
 Para la alternancia, genera DOS filas con el MISMO tramo y docente, distinto
 grupo. La semana NO se codifica en el CSV (el sistema la ancla al calendario
