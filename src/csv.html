@@ -66,6 +66,7 @@
 </head>
 <body>
   <div class="wrap">
+    <a id="volver-inicio" href="#" style="display:inline-block;margin-bottom:12px;font-size:13px;color:#1a73e8;text-decoration:none;">← Inicio</a>
     <h1>Importar horarios (CSV)</h1>
     <p class="subtitle">
       Pega el CSV generado por el Gem o sube el archivo. Revisa las
@@ -124,6 +125,13 @@
   <script>
     let CAT = null;      // catálogo
     let FILAS = [];      // filas analizadas
+
+    window.addEventListener('load', function() {
+      google.script.run.withSuccessHandler(function(url) {
+        const a = document.getElementById('volver-inicio');
+        if (a && url) a.href = url;
+      }).urlApp();
+    });
 
     function cargarArchivo(input) {
       const file = input.files && input.files[0];

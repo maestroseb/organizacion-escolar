@@ -6,9 +6,9 @@
  */
 
 function diagnostico() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getBd();
   if (!ss) {
-    Logger.log('NO HAY SS ACTIVO');
+    Logger.log('NO HAY BASE DE DATOS');
     return;
   }
 

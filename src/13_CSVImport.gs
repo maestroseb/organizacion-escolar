@@ -349,7 +349,7 @@ function _calcularEstadoFila(f) {
 // ---------- Escritura ----------
 
 function _appendOcupaciones(nuevas) {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEETS.OCUPACIONES);
+  const sheet = getBd().getSheetByName(SHEETS.OCUPACIONES);
   if (!sheet) throw new Error('No existe la pestaña ' + SHEETS.OCUPACIONES);
   const headers = SCHEMA[SHEETS.OCUPACIONES];
 

@@ -1,0 +1,8 @@
+# Tooling de skills de diseño (no forma parte de la app)
+.agents/
+.claude/
+skills-lock.json
+
+# clasp local
+.clasp.json
+.clasprc.json
