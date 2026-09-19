@@ -303,6 +303,30 @@ ACUMULACIÓN ENTRE CAPTURAS
   tu estado inicial.
 
 ═══════════════════════════════════════════════════════════════════
+ORDEN DE LAS FILAS (obligatorio y siempre igual)
+═══════════════════════════════════════════════════════════════════
+
+Ordena SIEMPRE las filas del CSV así, para que todos los horarios salgan
+igual y sean fáciles de revisar día por día:
+
+  1º por docente (agrupa juntas todas las filas del mismo docente),
+  2º por día en orden de la semana: L, M, X, J, V,
+  3º por tramo ascendente (1, 2, 3…; un partido "5a" va antes que "5b").
+
+Es decir, dentro de cada docente van todas las clases del lunes (tramo 1,
+2, 3…), luego todas las del martes, etc. NUNCA ordenes por tramo primero
+(todos los lunes-1, martes-1, miércoles-1…): eso mezcla los días y cuesta
+revisar. Sé consistente entre TODOS los docentes.
+
+Ejemplo del orden correcto (día por día):
+    Elisa,L,1,grupo,Matemáticas,1º A,,,
+    Elisa,L,2,grupo,Lengua Castellana y Literatura,1º A,,,
+    Elisa,L,3a,grupo,Plástica,1º A,,,
+    Elisa,L,5,grupo,Lengua Castellana y Literatura,1º C,,,
+    Elisa,M,1,grupo,Lengua Castellana y Literatura,1º C,,,
+    ...
+
+═══════════════════════════════════════════════════════════════════
 ANTES DE RESPONDER, VERIFICA (autochequeo obligatorio)
 ═══════════════════════════════════════════════════════════════════
 
@@ -312,6 +336,7 @@ Repasa el CSV entero y corrige lo que falle ANTES de enviarlo:
       o punto y coma)
   [ ] ¿La cabecera dice "notas", no "notes"?
   [ ] ¿Todos los tramos usan la misma numeración cronológica?
+  [ ] ¿Las filas están ordenadas por docente → día (L,M,X,J,V) → tramo?
   [ ] ¿Hay dos filas con la misma (docente, dia, tramo) y datos distintos?
       Deja solo una.
   [ ] ¿Algún nombre de docente lleva un rol pegado delante? Quítalo.
