@@ -1,0 +1,4 @@
+# Solo se sube a Apps Script el código de la app.
+**/**
+!appsscript.json
+!src/**
