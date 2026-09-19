@@ -85,6 +85,9 @@ LOS 4 PRINCIPIOS (mandan sobre todo lo demás)
    captura las 12:00 son el tramo 5, son el 5 en TODAS las capturas. Nunca
    renumeres ni uses una cuenta distinta para dos horarios de la misma
    conversación.
+   Excepción: si una celda está partida en dos medias horas, sus dos filas
+   usan el mismo número con sufijo a/b (5a, 5b). Ver TRAMOS PARTIDOS Y
+   UNIFICADOS.
 
 4. EL CSV TIENE 9 COLUMNAS, 8 COMAS, NI UNA MÁS.
    Cabecera exacta (cópiala tal cual; la última columna es "notas" en
@@ -189,6 +192,30 @@ CASOS AMBIGUOS FRECUENTES
   de guardia, tipo=especial, rol=Gua.
 
 ═══════════════════════════════════════════════════════════════════
+TRAMOS PARTIDOS Y UNIFICADOS
+═══════════════════════════════════════════════════════════════════
+
+Un tramo normal ocupa una celda de una fila. Pero a veces la tabla muestra:
+
+- UNIFICADO: una celda ALTA que abarca varios tramos consecutivos (ej.
+  "LENGUA 3ºA" ocupando de 12:00 a 14:00 = dos tramos de 1h). No es un caso
+  especial: genera una fila NORMAL por CADA tramo que cubre, repitiendo el
+  mismo contenido.
+    Sara,J,5,grupo,Lengua Castellana y Literatura,3º A,,,
+    Sara,J,6,grupo,Lengua Castellana y Literatura,3º A,,,
+
+- PARTIDO: una celda de UN tramo dividida en dos medias horas (ej. dentro
+  del tramo 5, "INGLÉS 3ºA" de 12:00 a 12:30 y "PLÁSTICA 3ºA" de 12:30 a
+  13:00). Genera DOS filas para ese mismo tramo, marcando la mitad con el
+  sufijo "a" (primera media hora) y "b" (segunda) en el campo `tramo`:
+    Sara,X,5a,grupo,Inglés,3º A,,,
+    Sara,X,5b,grupo,Plástica,3º A,,,
+
+  El sufijo a/b se usa EXCLUSIVAMENTE cuando la celda está realmente partida
+  en dos. Un tramo entero lleva solo el número (5), sin sufijo. La inmensa
+  mayoría de las celdas son enteras: no pongas sufijos "por si acaso".
+
+═══════════════════════════════════════════════════════════════════
 ACUMULACIÓN ENTRE CAPTURAS
 ═══════════════════════════════════════════════════════════════════
 
@@ -255,6 +282,20 @@ Puri,J,2,grupo,Atención Educativa,3º B,,,
 Sebastián,X,2,especial,,,TDE,,
 ```
 
+**Tramo partido** (media hora + media hora en el mismo tramo 5), con sufijo
+`a`/`b`; y **tramo unificado** (una clase sobre dos tramos), repitiendo fila:
+
+```csv
+docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas
+Sara,X,5a,grupo,Inglés,3º A,,,
+Sara,X,5b,grupo,Plástica,3º A,,,
+Sara,J,5,grupo,Lengua Castellana y Literatura,3º A,,,
+Sara,J,6,grupo,Lengua Castellana y Literatura,3º A,,,
+```
+
+En la app, `tramo=5a`/`5b` se traduce al tramo 5 con el campo `mitad` a 1/2;
+`tramo=5` (sin sufijo) es el tramo completo (`mitad` vacío).
+
 ---
 
 ## 5. Cómo lo importará la app
@@ -270,7 +311,9 @@ El importador CSV (en la app, Fase 2) hará:
 3. **Pantalla de revisión visual**: rejilla editable donde el coordi ve lo
    que el CSV propone y corrige a mano lo que el Gem no acertó. El LLM aporta
    el 70-80%; el humano da el 20% de precisión.
-4. **Aplicar**: genera filas en `_Ocupaciones` con los IDs correctos. Las
+4. **Decodificar el tramo**: `tramo=5a`/`5b` → tramo 5 con `mitad` a 1/2;
+   `tramo=5` (sin sufijo) → tramo completo (`mitad` vacío).
+5. **Aplicar**: genera filas en `_Ocupaciones` con los IDs correctos. Las
    filas con `??` o campos críticos vacíos quedan marcadas y no se importan
    automáticamente.
 

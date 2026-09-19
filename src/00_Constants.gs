@@ -49,7 +49,7 @@ const SCHEMA = {
     'id', 'docente_id', 'dia', 'tramo_id', 'tipo',
     'grupo_id', 'materia_id',
     'localizacion_id', 'rol_loc_id', 'grupo_destino_id',
-    'rol_especial_id', 'notas'
+    'rol_especial_id', 'notas', 'mitad'
   ],
   [SHEETS.SUSTITUCIONES]: [
     'id', 'fecha', 'docente_ausente_id', 'docente_sustituto_id',
