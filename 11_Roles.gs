@@ -47,7 +47,7 @@ function plantillaRoles() {
   });
 }
 
-function guardarRoles(roles) {
+function guardarRoles(roles, modo) {
   if (!Array.isArray(roles)) throw new Error('Formato inválido.');
 
   roles.forEach(function(r, i) {
@@ -74,6 +74,6 @@ function guardarRoles(roles) {
       color: r.color || ''
     };
   });
-  bulkReplace(SHEETS.ROLES, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }

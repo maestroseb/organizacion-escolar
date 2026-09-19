@@ -136,6 +136,77 @@ function bulkReplace(sheetName, objects) {
   return objects;
 }
 
+/**
+ * Fusiona una lista de objetos con lo que ya hay en la pestaña, según el modo:
+ *
+ *   - 'reemplazar': descarta lo existente y deja solo `objects` (= bulkReplace).
+ *   - 'combinar'  : para cada objeto, si su clave natural coincide con una fila
+ *                   existente, la actualiza (conservando su id); si no, la añade.
+ *   - 'anadir'    : solo añade los objetos cuya clave natural NO exista ya; los
+ *                   que coinciden se ignoran (no se duplican ni se tocan).
+ *
+ * `keyFields` es un array de nombres de columna que forman la clave natural
+ * (p.ej. ['nombre_corto'] para docentes, ['hora_inicio','hora_fin'] para tramos).
+ * La comparación es tolerante: se normaliza (trim + minúsculas + espacios).
+ *
+ * Devuelve un resumen { total, nuevos, actualizados, ignorados }.
+ */
+function bulkMerge(sheetName, objects, keyFields, modo) {
+  objects = objects || [];
+  modo = modo || 'combinar';
+  keyFields = (keyFields && keyFields.length) ? keyFields : ['id'];
+
+  if (modo === 'reemplazar') {
+    bulkReplace(sheetName, objects);
+    return { total: objects.length, nuevos: objects.length, actualizados: 0, ignorados: 0 };
+  }
+
+  const claveDe = function(o) {
+    return keyFields.map(function(k) { return _keyNorm(o[k]); }).join('|');
+  };
+
+  const existentes = getAll(sheetName);
+  const indice = {};
+  existentes.forEach(function(o) { indice[claveDe(o)] = o; });
+
+  let nuevos = 0, actualizados = 0, ignorados = 0;
+  const resultado = existentes.slice();
+
+  objects.forEach(function(nuevo) {
+    const k = claveDe(nuevo);
+    const previo = indice[k];
+    if (previo) {
+      if (modo === 'combinar') {
+        // Solo sobrescribe con los campos no vacíos del objeto entrante, para
+        // no borrar datos ya presentes (p.ej. el tutor de un grupo) al
+        // recombinar una importación que no trae ese campo.
+        Object.keys(nuevo).forEach(function(campo) {
+          if (campo === 'id') return;
+          const val = nuevo[campo];
+          if (val !== undefined && val !== null && val !== '') previo[campo] = val;
+        });
+        actualizados++;
+      } else {
+        ignorados++;
+      }
+    } else {
+      const copia = Object.assign({}, nuevo);
+      delete copia.id; // que bulkReplace le asigne id nuevo continuando la secuencia
+      resultado.push(copia);
+      indice[k] = copia;
+      nuevos++;
+    }
+  });
+
+  bulkReplace(sheetName, resultado);
+  return { total: resultado.length, nuevos: nuevos, actualizados: actualizados, ignorados: ignorados };
+}
+
+/** Normaliza un valor para comparar claves naturales (trim + minúsculas). */
+function _keyNorm(v) {
+  return String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 /** Borra una fila por id. */
 function remove(sheetName, id) {
   const sheet = _getSheet(sheetName);

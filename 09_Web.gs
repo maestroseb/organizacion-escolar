@@ -1,38 +1,43 @@
 /**
  * Punto de entrada de la Web App (script standalone).
  *
- * doGet enruta por el parámetro ?page= y sirve la página correspondiente.
- * Antes de servir nada, garantiza que la base de datos existe e inicializada.
+ * La app es ahora una SPA: doGet sirve SIEMPRE el mismo shell (app.html),
+ * evaluado como plantilla de HtmlService para poder componerlo con parciales
+ * mediante include(). El shell decide en el cliente entre el alta guiada
+ * (si el centro no está configurado) y el espacio de trabajo con pestañas.
  *
- * Páginas:
- *   (sin page) / inicio → app.html   (portada + navegación)
- *   setup              → setup.html  (asistente de configuración)
- *   importar           → csv.html    (importador de horarios CSV)
+ * El parámetro ?page= (o el hash #pestaña) se conserva solo como enlace
+ * profundo: no cambia de página, únicamente selecciona la pestaña inicial.
  */
-
-const PAGINAS = {
-  inicio:   'app',
-  setup:    'setup',
-  importar: 'csv'
-};
 
 function doGet(e) {
   asegurarBaseDatos();
 
-  const page = (e && e.parameter && e.parameter.page) || 'inicio';
-  const archivo = PAGINAS[page] || PAGINAS.inicio;
+  const page = (e && e.parameter && e.parameter.page) || '';
 
-  return HtmlService.createHtmlOutputFromFile(archivo)
+  const t = HtmlService.createTemplateFromFile('app');
+  t.pestanaInicial = page;
+
+  return t.evaluate()
     .setTitle('Gestor de Horarios y Sustituciones')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 /**
- * Permite componer URLs internas hacia otras páginas de la web app,
- * usable desde el HTML: google.script.run … enlaceA('setup').
+ * Incluye el contenido de otro archivo HTML dentro del shell.
+ * Uso en las plantillas:  <?!= include('partial_estilos') ?>
+ */
+function include(nombre) {
+  return HtmlService.createHtmlOutputFromFile(nombre).getContent();
+}
+
+/**
+ * Permite componer URLs internas de la web app, usable desde el HTML.
+ * Ahora todas las secciones viven en la misma página, así que el enlace
+ * apunta a la raíz y, opcionalmente, a una pestaña vía hash.
  */
 function enlaceA(page) {
   const base = ScriptApp.getService().getUrl();
-  return base + (page && page !== 'inicio' ? ('?page=' + encodeURIComponent(page)) : '');
+  return base + (page && page !== 'inicio' ? ('#' + encodeURIComponent(page)) : '');
 }

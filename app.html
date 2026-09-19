@@ -4,196 +4,363 @@
   <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    :root {
-      --bg: #f7f7f8;
-      --surface: #ffffff;
-      --surface-2: #fbfbfc;
-      --border: #e6e6ea;
-      --border-strong: #d5d5dc;
-      --text: #1b1b23;
-      --muted: #6a6a76;
-      --faint: #9a9aa5;
-      --accent: #2f54eb;
-      --accent-weak: #eaefff;
-      --accent-text: #1c3fc4;
-      --ok: #17915b;
-      --shadow: 0 1px 2px rgba(20,20,30,.04), 0 4px 16px rgba(20,20,30,.05);
-      --radius: 14px;
-      --gap: 20px;
-    }
-    :root:not([data-theme="light"]) {
-      @media (prefers-color-scheme: dark) {
-        --bg: #111114; --surface: #191920; --surface-2: #15151b;
-        --border: #2a2a33; --border-strong: #363641;
-        --text: #ececf1; --muted: #a2a2ad; --faint: #6f6f7a;
-        --accent: #6c8cff; --accent-weak: #1b2340; --accent-text: #aec2ff;
-        --ok: #4bd08a; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
-      }
-    }
-    :root[data-theme="dark"] {
-      --bg: #111114; --surface: #191920; --surface-2: #15151b;
-      --border: #2a2a33; --border-strong: #363641;
-      --text: #ececf1; --muted: #a2a2ad; --faint: #6f6f7a;
-      --accent: #6c8cff; --accent-weak: #1b2340; --accent-text: #aec2ff;
-      --ok: #4bd08a; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.35);
-    }
-
-    * { box-sizing: border-box; }
-    html, body { margin: 0; background: var(--bg); }
-    body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      color: var(--text);
-      line-height: 1.5;
-      -webkit-font-smoothing: antialiased;
-    }
-    .shell { max-width: 940px; margin: 0 auto; padding: 48px 24px 64px; }
-
-    header.top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    .brand h1 {
-      font-size: clamp(24px, 3.4vw, 32px); font-weight: 640; letter-spacing: -0.02em;
-      margin: 0;
-    }
-    .brand p { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
-    .status {
-      display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
-      background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-      padding: 6px 12px; white-space: nowrap;
-    }
-    .status .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
-    .status.lista .dot { background: var(--ok); }
-
-    .section-label {
-      font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint);
-      font-weight: 600; margin: 40px 0 14px;
-    }
-
-    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--gap); }
-
-    .card {
-      display: flex; flex-direction: column; gap: 10px;
-      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-      padding: 20px; text-decoration: none; color: inherit;
-      transition: border-color .15s ease, transform .15s ease, box-shadow .15s ease;
-      position: relative;
-    }
-    .card.enabled { cursor: pointer; }
-    .card.enabled:hover { border-color: var(--border-strong); transform: translateY(-2px); box-shadow: var(--shadow); }
-    .card.soon { opacity: .62; }
-    .card .ico {
-      width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
-      background: var(--accent-weak); color: var(--accent-text);
-    }
-    .card .ico svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.8; }
-    .card h3 { margin: 4px 0 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
-    .card p { margin: 0; font-size: 13.5px; color: var(--muted); }
-    .card .go {
-      margin-top: auto; font-size: 13px; font-weight: 600; color: var(--accent-text);
-      display: inline-flex; align-items: center; gap: 6px;
-    }
-    .card.enabled:hover .go .arw { transform: translateX(3px); }
-    .card .go .arw { transition: transform .15s ease; }
-    .badge-soon {
-      position: absolute; top: 16px; right: 16px; font-size: 11px; font-weight: 600;
-      color: var(--faint); background: var(--surface-2); border: 1px solid var(--border);
-      border-radius: 999px; padding: 2px 9px;
-    }
-
-    footer.ft { margin-top: 48px; color: var(--faint); font-size: 12.5px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-    footer.ft a { color: var(--muted); text-decoration: none; }
-    footer.ft a:hover { color: var(--accent-text); }
-  </style>
+  <?!= include('partial_estilos') ?>
 </head>
 <body>
-  <div class="shell">
-    <header class="top">
-      <div class="brand">
-        <h1>Gestor de Horarios y Sustituciones</h1>
-        <p>Configura tu centro, importa los horarios y consúltalos desde cualquier sitio.</p>
+
+  <!-- ============ Alta guiada (primer arranque) ============ -->
+  <div id="onboarding" style="display:none;">
+    <?!= include('partial_onboarding') ?>
+  </div>
+
+  <!-- ============ Espacio de trabajo (con pestañas) ============ -->
+  <div id="workspace" style="display:none;">
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brandrow">
+          <div class="brand">
+            <div class="logo" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M3 5h18v16H3zM3 9h18M8 3v4M16 3v4"/></svg>
+            </div>
+            <div class="titles">
+              <h1 id="brand-nombre">Gestor de Horarios</h1>
+              <div class="sub" id="brand-sub">Horarios y sustituciones</div>
+            </div>
+          </div>
+          <button class="ghost" id="btn-tema" title="Cambiar tema" onclick="alternarTema()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
+          </button>
+        </div>
+        <nav class="tabs" id="tabs"></nav>
       </div>
-      <span class="status" id="status"><span class="dot"></span><span id="status-txt">Comprobando base de datos…</span></span>
     </header>
 
-    <div class="section-label">Gestión</div>
-    <div class="grid">
-      <a class="card enabled" data-page="setup">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
-        <h3>Configuración inicial</h3>
-        <p>Datos del centro, tramos, grupos, docentes, tutorías, materias y roles. Con importación opcional de Séneca.</p>
-        <span class="go">Abrir asistente <span class="arw">→</span></span>
-      </a>
+    <main class="shell">
+      <!-- Resumen -->
+      <section class="view" id="view-resumen">
+        <div class="page-head">
+          <h2>Resumen</h2>
+          <p>Estado general de la configuración de tu centro.</p>
+        </div>
+        <div id="resumen-body"></div>
+      </section>
 
-      <a class="card enabled" data-page="importar">
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></div>
-        <h3>Importar horarios</h3>
-        <p>Pega o sube el CSV generado por el Gem, revisa las coincidencias y vuelca las ocupaciones.</p>
-        <span class="go">Importar CSV <span class="arw">→</span></span>
-      </a>
-    </div>
+      <!-- Secciones de datos (centro, tramos, grupos, docentes, tutorías, localizaciones, materias, roles) -->
+      <?!= include('partial_secciones') ?>
 
-    <div class="section-label">Vistas y módulos (próximamente)</div>
-    <div class="grid">
-      <div class="card soon"><span class="badge-soon">pronto</span>
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M3 5h18v14H3zM3 10h18M9 10v9"/></svg></div>
-        <h3>Sábana por tramo</h3>
-        <p>La sábana clásica, generada desde los datos.</p>
-      </div>
-      <div class="card soon"><span class="badge-soon">pronto</span>
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0"/></svg></div>
-        <h3>Horario por docente</h3>
-        <p>El horario individual de cada maestro.</p>
-      </div>
-      <div class="card soon"><span class="badge-soon">pronto</span>
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M7 20a5 5 0 0110 0M9 8a3 3 0 106 0 3 3 0 00-6 0M2 20a4 4 0 015-3.9M22 20a4 4 0 00-5-3.9"/></svg></div>
-        <h3>Horario por grupo</h3>
-        <p>El horario de cada clase.</p>
-      </div>
-      <div class="card soon"><span class="badge-soon">pronto</span>
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 7v5l3 2M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>
-        <h3>Ahora</h3>
-        <p>Qué está pasando en este momento. Público.</p>
-      </div>
-      <div class="card soon"><span class="badge-soon">pronto</span>
-        <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4v6h6M20 20v-6h-6M20 9A8 8 0 006 5M4 15a8 8 0 0014 4"/></svg></div>
-        <h3>Sustituciones</h3>
-        <p>Plan de sustituciones del día.</p>
+      <!-- Importar -->
+      <section class="view" id="view-importar">
+        <?!= include('partial_importar') ?>
+      </section>
+
+      <!-- Configuración -->
+      <section class="view" id="view-config">
+        <?!= include('partial_config') ?>
+      </section>
+    </main>
+  </div>
+
+  <!-- ============ Modal de confirmación reutilizable ============ -->
+  <div class="modal-overlay" id="modal-confirm">
+    <div class="modal-box">
+      <h3 id="modal-confirm-title">Confirmar</h3>
+      <p id="modal-confirm-msg"></p>
+      <div class="modal-actions">
+        <button type="button" class="secondary" onclick="modalConfirmResp(false)">Cancelar</button>
+        <button type="button" class="primary" id="modal-confirm-ok" onclick="modalConfirmResp(true)">Aceptar</button>
       </div>
     </div>
-
-    <footer class="ft">
-      <span id="bd-link"></span>
-    </footer>
   </div>
 
   <script>
-    let BASE = '';
+    // Pestaña inicial pasada por el servidor (deep-link ?page=).
+    var PESTANA_INICIAL = <?!= JSON.stringify(pestanaInicial || '') ?>;
+
+    // Definición de pestañas del espacio de trabajo.
+    var TABS = [
+      { key: 'resumen',        label: 'Resumen' },
+      { key: 'centro',         label: 'Centro' },
+      { key: 'tramos',         label: 'Tramos',        cont: 'tramos' },
+      { key: 'grupos',         label: 'Grupos',        cont: 'grupos' },
+      { key: 'docentes',       label: 'Docentes',      cont: 'docentes' },
+      { key: 'tutorias',       label: 'Tutorías',      cont: 'tutorias' },
+      { key: 'localizaciones', label: 'Localizaciones',cont: 'localizaciones' },
+      { key: 'materias',       label: 'Materias',      cont: 'materias' },
+      { key: 'roles',          label: 'Cargos',        cont: 'roles' },
+      { key: 'importar',       label: 'Importar' },
+      { key: 'config',         label: 'Configuración' },
+      { key: 'sabana',         label: 'Sábana',        soon: true },
+      { key: 'horario_doc',    label: 'Horario docente', soon: true },
+      { key: 'ahora',          label: 'Ahora',         soon: true },
+      { key: 'sustituciones',  label: 'Sustituciones', soon: true }
+    ];
+
+    var ESTADO = null;         // último estadoApp()
+    var GUIADO = false;        // modo alta guiada: avanza por pendientes
+    var PENDIENTES = [];       // claves de secciones pendientes (modo guiado)
 
     window.addEventListener('load', function() {
-      google.script.run.withSuccessHandler(function(url) {
-        BASE = url || '';
-        document.querySelectorAll('.card.enabled').forEach(function(c) {
-          const page = c.getAttribute('data-page');
-          c.setAttribute('href', BASE + '?page=' + encodeURIComponent(page));
-        });
-      }).urlApp();
-
-      google.script.run.withSuccessHandler(function(bd) {
-        const st = document.getElementById('status');
-        const txt = document.getElementById('status-txt');
-        if (bd && bd.creada) {
-          st.classList.add('lista');
-          txt.textContent = 'Base de datos lista';
-          if (bd.url) {
-            document.getElementById('bd-link').innerHTML =
-              'Base de datos: <a href="' + bd.url + '" target="_blank" rel="noopener">abrir la hoja de cálculo</a>';
-          }
-        } else {
-          txt.textContent = 'Base de datos no disponible';
-        }
-      }).withFailureHandler(function() {
-        document.getElementById('status-txt').textContent = 'Base de datos no disponible';
-      }).estadoBaseDatos();
+      aplicarTemaGuardado();
+      arrancar();
     });
+
+    function arrancar() {
+      google.script.run
+        .withSuccessHandler(function(estado) {
+          ESTADO = estado;
+          if (estado && estado.configurado) {
+            entrarWorkspace();
+          } else {
+            mostrarOnboarding();
+          }
+        })
+        .withFailureHandler(function(err) {
+          mostrarOnboarding();
+        })
+        .estadoApp();
+    }
+
+    // ---------- Workspace ----------
+    function entrarWorkspace(pestana) {
+      document.getElementById('onboarding').style.display = 'none';
+      document.getElementById('workspace').style.display = 'block';
+      pintarCabecera();
+      construirTabs();
+      const destino = pestana || _pestanaDesdeHash() || PESTANA_INICIAL || 'resumen';
+      irPestana(_tabValida(destino) ? destino : 'resumen');
+    }
+
+    function pintarCabecera() {
+      const c = ESTADO && ESTADO.centro;
+      if (c && c.nombre) document.getElementById('brand-nombre').textContent = c.nombre;
+      const sub = [];
+      if (c && c.codigo) sub.push('Cód. ' + c.codigo);
+      if (c && c.curso_academico) sub.push(c.curso_academico);
+      document.getElementById('brand-sub').textContent = sub.join(' · ') || 'Horarios y sustituciones';
+    }
+
+    function construirTabs() {
+      const cont = (ESTADO && ESTADO.contadores) || {};
+      const nav = document.getElementById('tabs');
+      nav.innerHTML = '';
+      TABS.forEach(function(t) {
+        const b = document.createElement('button');
+        b.className = 'tab';
+        b.id = 'tab-' + t.key;
+        b.type = 'button';
+        if (t.soon) {
+          b.disabled = true;
+          b.innerHTML = t.label + ' <span class="soon">pronto</span>';
+        } else {
+          let pill = '';
+          if (t.cont && cont[t.cont] != null) pill = ' <span class="pill" id="pill-' + t.key + '">' + cont[t.cont] + '</span>';
+          b.innerHTML = t.label + pill;
+          b.onclick = function() { irPestana(t.key); };
+        }
+        nav.appendChild(b);
+      });
+    }
+
+    function _tabValida(key) {
+      return TABS.some(function(t) { return t.key === key && !t.soon; });
+    }
+
+    function irPestana(key) {
+      if (!_tabValida(key)) key = 'resumen';
+      document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      const view = document.getElementById('view-' + key);
+      const tab = document.getElementById('tab-' + key);
+      if (view) view.classList.add('active');
+      if (tab) tab.classList.add('active');
+      try { history.replaceState(null, '', '#' + key); } catch (e) {}
+
+      // Cargar datos de la sección al mostrarla (funciones de los parciales).
+      const loaders = {
+        resumen: renderResumen, centro: cargarCentro, tramos: cargarTramos,
+        grupos: cargarGrupos, docentes: cargarDocentes, tutorias: cargarTutorias,
+        localizaciones: cargarLocalizaciones, materias: cargarMaterias, roles: cargarRoles,
+        importar: prepararImportar, config: renderConfig
+      };
+      const fn = loaders[key];
+      if (typeof fn === 'function') { try { fn(); } catch (e) { console.error(e); } }
+      window.scrollTo(0, 0);
+    }
+
+    function _pestanaDesdeHash() {
+      const h = (location.hash || '').replace('#', '');
+      return h || '';
+    }
+
+    // ---------- Estado / contadores ----------
+    function refrescarEstado(cb) {
+      google.script.run
+        .withSuccessHandler(function(estado) {
+          ESTADO = estado;
+          pintarCabecera();
+          actualizarPills();
+          if (cb) cb(estado);
+        })
+        .withFailureHandler(function() { if (cb) cb(null); })
+        .estadoApp();
+    }
+
+    function actualizarPills() {
+      const cont = (ESTADO && ESTADO.contadores) || {};
+      TABS.forEach(function(t) {
+        if (!t.cont) return;
+        const el = document.getElementById('pill-' + t.key);
+        if (el && cont[t.cont] != null) el.textContent = cont[t.cont];
+      });
+    }
+
+    // ---------- Modo guiado (tras el alta) ----------
+    function avanzarGuiado() {
+      if (!GUIADO) return;
+      google.script.run.withSuccessHandler(function(res) {
+        PENDIENTES = (res && res.pendientes) || [];
+        // Quitar la sección actual si ya está ok.
+        const activa = document.querySelector('.tab.active');
+        const actual = activa ? activa.id.replace('tab-', '') : '';
+        const siguiente = PENDIENTES.filter(function(k) { return k !== actual; })[0];
+        pintarBannerGuia();
+        if (siguiente) {
+          irPestana(siguiente);
+        } else {
+          GUIADO = false;
+          pintarBannerGuia();
+          irPestana('resumen');
+        }
+      }).analizarConfiguracion();
+    }
+
+    function pintarBannerGuia() {
+      // El banner vive en el Resumen y en cada sección lo omitimos por simplicidad;
+      // aquí solo refrescamos el resumen si está visible.
+      const rv = document.getElementById('view-resumen');
+      if (rv && rv.classList.contains('active')) renderResumen();
+    }
+
+    // ---------- Resumen ----------
+    function renderResumen() {
+      const cont = document.getElementById('resumen-body');
+      cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
+      google.script.run
+        .withSuccessHandler(function(an) {
+          refrescarEstado(function() { _pintarResumen(an); });
+        })
+        .withFailureHandler(function(err) {
+          cont.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .analizarConfiguracion();
+    }
+
+    function _pintarResumen(an) {
+      const cont = document.getElementById('resumen-body');
+      const c = (ESTADO && ESTADO.contadores) || {};
+      const secc = (an && an.secciones) || [];
+      const mapaCont = {
+        tramos: c.tramos, grupos: c.grupos, docentes: c.docentes, tutorias: c.tutorias,
+        localizaciones: c.localizaciones, materias: c.materias, roles: c.roles, centro: (secc[0] && secc[0].total) || 0
+      };
+
+      let html = '';
+      const pend = secc.filter(function(s) { return s.estado !== 'ok'; });
+      if (pend.length) {
+        html += '<div class="result info" style="margin-top:0;margin-bottom:20px;">' +
+          '<strong>Te quedan cosas por completar.</strong> ' +
+          pend.map(function(s) { return s.titulo.toLowerCase(); }).join(', ') + '. ' +
+          'Pulsa una tarjeta para ir a esa sección.</div>';
+      } else {
+        html += '<div class="result ok" style="margin-top:0;margin-bottom:20px;">✓ Configuración completa. Ya puedes usar todas las secciones.</div>';
+      }
+
+      html += '<div class="stats">';
+      secc.forEach(function(s) {
+        html += '<button class="stat" style="text-align:left;cursor:pointer;border-color:var(--border);" onclick="irPestana(\'' + s.clave + '\')">' +
+          '<div class="n">' + (mapaCont[s.clave] != null ? mapaCont[s.clave] : (s.total || 0)) + '</div>' +
+          '<div class="l">' + s.titulo + '</div>' +
+          '<div class="badge-estado"><span class="badge ' + s.estado + '">' +
+            (s.estado === 'ok' ? 'completo' : s.estado === 'incompleto' ? 'incompleto' : 'pendiente') +
+          '</span></div>' +
+          (s.aviso ? '<div class="l" style="margin-top:6px;color:var(--faint);">' + _esc(s.aviso) + '</div>' : '') +
+          '</button>';
+      });
+      html += '</div>';
+
+      html += '<div class="section-label">Atajos</div><div class="grid">';
+      html += _cardAtajo('importar', 'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14', 'Importar datos', 'Séneca, CSV o pegar horarios, con opción de sumar o reemplazar.');
+      html += _cardAtajo('config', 'M4 6h16M4 12h16M4 18h10', 'Configuración', 'Abrir la hoja de datos, reimportar o reiniciar el centro.');
+      html += '</div>';
+
+      cont.innerHTML = html;
+    }
+
+    function _cardAtajo(key, path, titulo, desc) {
+      return '<a class="card link" onclick="irPestana(\'' + key + '\')">' +
+        '<div class="ico"><svg viewBox="0 0 24 24"><path d="' + path + '"/></svg></div>' +
+        '<h3>' + titulo + '</h3><p>' + desc + '</p>' +
+        '<span class="go">Abrir <span class="arw">→</span></span></a>';
+    }
+
+    // ---------- Onboarding: mostrar ----------
+    function mostrarOnboarding() {
+      document.getElementById('workspace').style.display = 'none';
+      document.getElementById('onboarding').style.display = 'block';
+      if (typeof iniciarOnboarding === 'function') iniciarOnboarding();
+    }
+
+    // Llamada desde el onboarding al terminar: entra al workspace en modo guiado.
+    function finalizarOnboarding(pendientes) {
+      GUIADO = (pendientes && pendientes.length > 0);
+      PENDIENTES = pendientes || [];
+      refrescarEstado(function() {
+        entrarWorkspace(GUIADO ? (PENDIENTES[0] || 'resumen') : 'resumen');
+      });
+    }
+
+    // ---------- Tema ----------
+    function aplicarTemaGuardado() {
+      let t = null;
+      try { t = localStorage.getItem('tema'); } catch (e) {}
+      if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+    }
+    function alternarTema() {
+      const actual = document.documentElement.getAttribute('data-theme');
+      const oscuroActivo = actual === 'dark' ||
+        (!actual && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      const nuevo = oscuroActivo ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', nuevo);
+      try { localStorage.setItem('tema', nuevo); } catch (e) {}
+    }
+
+    // ---------- Helpers compartidos ----------
+    function _esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function mostrarErrorGenerico(err) {
+      console.error(err);
+      alert('Error: ' + (err.message || err));
+    }
+
+    // Modal de confirmación
+    var _confirmCallback = null;
+    function confirmar(mensaje, onAceptar, opciones) {
+      opciones = opciones || {};
+      document.getElementById('modal-confirm-title').textContent = opciones.titulo || 'Confirmar';
+      document.getElementById('modal-confirm-msg').textContent = mensaje;
+      const ok = document.getElementById('modal-confirm-ok');
+      ok.textContent = opciones.aceptar || 'Aceptar';
+      ok.className = opciones.peligro ? 'danger' : 'primary';
+      document.getElementById('modal-confirm').classList.add('show');
+      _confirmCallback = onAceptar;
+    }
+    function modalConfirmResp(ok) {
+      document.getElementById('modal-confirm').classList.remove('show');
+      const cb = _confirmCallback; _confirmCallback = null;
+      if (ok && cb) cb();
+    }
   </script>
 </body>
 </html>

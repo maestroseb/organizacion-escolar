@@ -53,7 +53,7 @@ function plantillaLocalizaciones() {
   });
 }
 
-function guardarLocalizaciones(locs) {
+function guardarLocalizaciones(locs, modo) {
   if (!Array.isArray(locs)) throw new Error('Formato inválido.');
 
   locs.forEach(function(l, i) {
@@ -80,6 +80,6 @@ function guardarLocalizaciones(locs) {
       orden: i + 1
     };
   });
-  bulkReplace(SHEETS.LOCALIZACIONES, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.LOCALIZACIONES, filas, ['codigo'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }

@@ -1,0 +1,254 @@
+<div class="ob-wrap">
+  <div class="ob-brand">
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 5h18v16H3zM3 9h18M8 3v4M16 3v4"/></svg></div>
+    <div><div style="font-weight:650;font-size:15px;">Gestor de Horarios</div><div class="hint">Configuración inicial</div></div>
+  </div>
+
+  <div class="ob-progress">
+    <div class="seg" id="ob-seg-1"></div>
+    <div class="seg" id="ob-seg-2"></div>
+    <div class="seg" id="ob-seg-3"></div>
+  </div>
+
+  <!-- Paso 1: código de centro -->
+  <div class="ob-step" id="ob-step-1">
+    <div class="ob-card">
+      <div class="ob-eyebrow">Antes que nada</div>
+      <h2>Queremos conocer tu centro mejor</h2>
+      <p class="lead">¿Cuál es el <strong>código</strong> de tu centro? Son 8 dígitos. Si no lo sabes, puedes buscarlo por el nombre.</p>
+
+      <label>Código de centro</label>
+      <input type="text" id="ob-codigo" inputmode="numeric" maxlength="8" placeholder="14000000" oninput="obCodigoInput(this.value)">
+      <div id="ob-codigo-estado"></div>
+
+      <details style="margin-top:16px;">
+        <summary class="hint" style="cursor:pointer;">No sé el código, buscar por nombre</summary>
+        <div style="margin-top:10px;">
+          <input type="text" id="ob-buscar-nombre" placeholder="Escribe parte del nombre del centro…" oninput="obBuscarNombre(this.value)">
+          <div class="ob-search-results" id="ob-resultados" style="display:none;"></div>
+        </div>
+      </details>
+
+      <div id="ob-manual" style="display:none;margin-top:16px;">
+        <label>Nombre del centro <span class="req">*</span></label>
+        <input type="text" id="ob-nombre-manual" placeholder="CEIP Carlos III" oninput="obCentro.nombre=this.value; obRefrescarPaso1();">
+      </div>
+
+      <div style="margin-top:18px;">
+        <label>Curso académico <span class="req">*</span></label>
+        <input type="text" id="ob-curso" placeholder="2025-2026" oninput="obRefrescarPaso1()">
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="ob-btn-1" onclick="obGuardarPaso1()" disabled>Continuar →</button>
+      </div>
+      <div id="ob-res-1"></div>
+    </div>
+  </div>
+
+  <!-- Paso 2: importar -->
+  <div class="ob-step" id="ob-step-2">
+    <div class="ob-card">
+      <div class="ob-eyebrow">Paso 2 de 3</div>
+      <h2>¿Quieres importar datos?</h2>
+      <p class="lead">Puedes traer tramos, grupos, docentes y horarios de una vez, o empezar de cero e ir rellenando. Siempre podrás importar más adelante.</p>
+
+      <div class="import-cards">
+        <button class="import-card" onclick="obEntrarImport('seneca')">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z M14 4v5h5"/></svg></div>
+          <div><h4>XML de Séneca</h4><p>La exportación de horarios de Séneca. Rellena casi todo automáticamente.</p></div>
+        </button>
+        <button class="import-card" onclick="obEntrarImport('csv')">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></div>
+          <div><h4>CSV del Gem</h4><p>El CSV de horarios que genera el Gem. Se revisa antes de aplicar.</p></div>
+        </button>
+        <button class="import-card" onclick="obEntrarImport('texto')">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+          <div><h4>Pegar texto</h4><p>Pega horarios en texto libre y los interpretamos (revisable).</p></div>
+        </button>
+        <button class="import-card" onclick="obIrRepaso()">
+          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+          <div><h4>Empezar de cero</h4><p>Lo iré rellenando a mano, sección por sección.</p></div>
+        </button>
+      </div>
+
+      <div class="actions">
+        <button class="secondary" onclick="obPaso(1)">← Atrás</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paso 3: repaso de lo que falta -->
+  <div class="ob-step" id="ob-step-3">
+    <div class="ob-card">
+      <div class="ob-eyebrow">Paso 3 de 3</div>
+      <h2>Repasemos lo que falta</h2>
+      <p class="lead">Esto es lo que tienes y lo que conviene completar. Te llevaré sección por sección, como un formulario.</p>
+      <div id="ob-gap-list" class="gap-list"></div>
+      <div class="actions">
+        <button class="secondary" onclick="obPaso(2)">← Atrás</button>
+        <button class="primary" id="ob-btn-3" onclick="obEmpezarCompletar()">Empezar a completar →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var obCentro = { codigo: '', nombre: '', provincia: '', encontrado: false };
+  var obPasoActual = 1;
+
+  function iniciarOnboarding() {
+    obCentro = { codigo: '', nombre: '', provincia: '', encontrado: false };
+    document.getElementById('ob-codigo').value = '';
+    document.getElementById('ob-codigo-estado').innerHTML = '';
+    document.getElementById('ob-manual').style.display = 'none';
+    document.getElementById('ob-buscar-nombre').value = '';
+    document.getElementById('ob-resultados').style.display = 'none';
+    document.getElementById('ob-curso').value = _cursoActual();
+    obPaso(1);
+    obRefrescarPaso1();
+  }
+
+  function obPaso(n) {
+    obPasoActual = n;
+    [1,2,3].forEach(function(i) {
+      document.getElementById('ob-step-' + i).classList.toggle('active', i === n);
+      document.getElementById('ob-seg-' + i).classList.toggle('done', i <= n);
+    });
+    if (n === 3) obRenderGap();
+    window.scrollTo(0, 0);
+  }
+
+  function _cursoActual() {
+    const hoy = new Date();
+    const y = hoy.getFullYear();
+    return (hoy.getMonth() >= 8 ? (y + '-' + (y + 1)) : ((y - 1) + '-' + y));
+  }
+
+  // ---------- Paso 1: código ----------
+  var _obDebounce = null;
+  function obCodigoInput(val) {
+    const cod = String(val || '').replace(/\D/g, '');
+    document.getElementById('ob-codigo').value = cod;
+    obCentro.codigo = cod;
+    document.getElementById('ob-codigo-estado').innerHTML = '';
+    document.getElementById('ob-manual').style.display = 'none';
+    obCentro.nombre = ''; obCentro.encontrado = false;
+    obRefrescarPaso1();
+    if (cod.length >= 8) {
+      clearTimeout(_obDebounce);
+      _obDebounce = setTimeout(function() { obLookupCodigo(cod); }, 300);
+    }
+  }
+  function obLookupCodigo(cod) {
+    const est = document.getElementById('ob-codigo-estado');
+    est.innerHTML = '<p class="hint" style="margin-top:10px;"><span class="spinner"></span> Buscando…</p>';
+    google.script.run
+      .withSuccessHandler(function(r) {
+        if (r && r.encontrado) {
+          obCentro = { codigo: r.codigo, nombre: r.nombre, provincia: r.provincia || '', encontrado: true };
+          est.innerHTML = '<div class="ob-found"><div><div class="name">' + _esc(r.nombre) + '</div>' +
+            '<div class="meta">Código ' + r.codigo + (r.provincia ? (' · ' + r.provincia) : '') + '</div></div></div>';
+          document.getElementById('ob-manual').style.display = 'none';
+        } else {
+          est.innerHTML = '<div class="result info" style="margin-top:10px;">No encontramos ese código en el catálogo. Puedes escribir el nombre a mano.</div>';
+          document.getElementById('ob-manual').style.display = 'block';
+          obCentro.encontrado = false;
+        }
+        obRefrescarPaso1();
+      })
+      .withFailureHandler(function() {
+        est.innerHTML = '<div class="result info" style="margin-top:10px;">No se pudo consultar el catálogo. Escribe el nombre a mano.</div>';
+        document.getElementById('ob-manual').style.display = 'block';
+        obRefrescarPaso1();
+      })
+      .buscarCentroPorCodigo(cod);
+  }
+
+  var _obDebounceN = null;
+  function obBuscarNombre(val) {
+    const cont = document.getElementById('ob-resultados');
+    if (!val || val.trim().length < 3) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
+    clearTimeout(_obDebounceN);
+    _obDebounceN = setTimeout(function() {
+      google.script.run.withSuccessHandler(function(r) {
+        const res = (r && r.resultados) || [];
+        if (!res.length) { cont.style.display = 'block'; cont.innerHTML = '<div style="padding:12px;" class="hint">Sin resultados.</div>'; return; }
+        cont.innerHTML = res.map(function(c) {
+          return '<button type="button" onclick="obElegir(\'' + c.codigo + '\',\'' + _esc(c.nombre).replace(/'/g,"\\'") + '\',\'' + _esc(c.provincia||'') + '\')">' +
+            '<div class="n">' + _esc(c.nombre) + '</div><div class="c">' + c.codigo + (c.provincia?(' · '+c.provincia):'') + '</div></button>';
+        }).join('') + (r.truncado ? '<div style="padding:8px 12px;" class="hint">Afina la búsqueda para ver más…</div>' : '');
+        cont.style.display = 'block';
+      }).buscarCentrosPorNombre(val, 20);
+    }, 350);
+  }
+  function obElegir(codigo, nombre, provincia) {
+    obCentro = { codigo: codigo, nombre: nombre, provincia: provincia || '', encontrado: true };
+    document.getElementById('ob-codigo').value = codigo;
+    document.getElementById('ob-resultados').style.display = 'none';
+    document.getElementById('ob-codigo-estado').innerHTML = '<div class="ob-found"><div><div class="name">' + _esc(nombre) + '</div>' +
+      '<div class="meta">Código ' + codigo + (provincia ? (' · ' + provincia) : '') + '</div></div></div>';
+    document.getElementById('ob-manual').style.display = 'none';
+    obRefrescarPaso1();
+  }
+
+  function obRefrescarPaso1() {
+    const curso = document.getElementById('ob-curso').value.trim();
+    const tieneNombre = obCentro.encontrado ? !!obCentro.nombre :
+      !!(document.getElementById('ob-nombre-manual') && document.getElementById('ob-nombre-manual').value.trim());
+    document.getElementById('ob-btn-1').disabled = !(tieneNombre && curso);
+  }
+
+  function obGuardarPaso1() {
+    const curso = document.getElementById('ob-curso').value.trim();
+    let nombre = obCentro.nombre;
+    if (!obCentro.encontrado) {
+      const nm = document.getElementById('ob-nombre-manual');
+      nombre = nm ? nm.value.trim() : '';
+    }
+    if (!nombre || !curso) { obRefrescarPaso1(); return; }
+    const btn = document.getElementById('ob-btn-1'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
+    google.script.run
+      .withSuccessHandler(function() { btn.disabled = false; btn.textContent = 'Continuar →'; obPaso(2); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Continuar →'; document.getElementById('ob-res-1').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .guardarCentroInicial({ codigo: obCentro.codigo, nombre: nombre, provincia: obCentro.provincia, curso_academico: curso });
+  }
+
+  // ---------- Paso 2: importar ----------
+  function obEntrarImport(fuente) {
+    // El centro ya está guardado: entramos al espacio de trabajo en Importar.
+    google.script.run.withSuccessHandler(function(an) {
+      GUIADO = !!(an && an.pendientes && an.pendientes.length);
+      PENDIENTES = (an && an.pendientes) || [];
+      refrescarEstado(function() {
+        entrarWorkspace('importar');
+        if (typeof setFuente === 'function') setFuente(fuente);
+      });
+    }).withFailureHandler(function(){ refrescarEstado(function(){ entrarWorkspace('importar'); }); })
+      .analizarConfiguracion();
+  }
+  function obIrRepaso() { obPaso(3); }
+
+  // ---------- Paso 3: repaso ----------
+  function obRenderGap() {
+    const cont = document.getElementById('ob-gap-list');
+    cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
+    google.script.run.withSuccessHandler(function(an) {
+      const secc = (an && an.secciones) || [];
+      cont.innerHTML = secc.map(function(s) {
+        const badge = s.estado === 'ok' ? '<span class="badge ok">listo</span>' :
+                      s.estado === 'incompleto' ? '<span class="badge incompleto">incompleto</span>' :
+                      '<span class="badge vacio">pendiente</span>';
+        return '<div class="gap-item"><div class="txt"><div class="t">' + _esc(s.titulo) + '</div>' +
+          '<div class="a">' + _esc(s.aviso || (s.estado==='ok' ? (s.total + ' registrado(s)') : '')) + '</div></div>' + badge + '</div>';
+      }).join('');
+      obDatosGap = an;
+    }).withFailureHandler(function(err) { cont.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .analizarConfiguracion();
+  }
+  var obDatosGap = null;
+  function obEmpezarCompletar() {
+    const pend = (obDatosGap && obDatosGap.pendientes) || [];
+    finalizarOnboarding(pend);
+  }
+</script>

@@ -16,7 +16,7 @@ function listarTramos() {
   return tramos;
 }
 
-function guardarTramos(tramos) {
+function guardarTramos(tramos, modo) {
   if (!Array.isArray(tramos)) throw new Error('Formato inválido.');
 
   tramos.forEach(function(t, i) {
@@ -46,8 +46,8 @@ function guardarTramos(tramos) {
       etiqueta: t.etiqueta || ''
     };
   });
-  bulkReplace(SHEETS.TRAMOS, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }
 
 /**

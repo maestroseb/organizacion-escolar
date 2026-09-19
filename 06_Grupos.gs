@@ -68,7 +68,7 @@ function plantillaGrupos() {
   return resultado;
 }
 
-function guardarGrupos(grupos) {
+function guardarGrupos(grupos, modo) {
   if (!Array.isArray(grupos)) throw new Error('Formato inválido.');
 
   grupos.forEach(function(g, i) {
@@ -103,8 +103,8 @@ function guardarGrupos(grupos) {
       color: g.color || ''
     };
   });
-  bulkReplace(SHEETS.GRUPOS, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.GRUPOS, filas, ['nombre_corto'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }
 
 function nivelesDisponibles() {

@@ -15,7 +15,7 @@ function listarDocentes() {
   return docentes;
 }
 
-function guardarDocentes(docentes) {
+function guardarDocentes(docentes, modo) {
   if (!Array.isArray(docentes)) throw new Error('Formato inválido.');
 
   docentes.forEach(function(d, i) {
@@ -46,6 +46,6 @@ function guardarDocentes(docentes) {
       color: d.color || ''
     };
   });
-  bulkReplace(SHEETS.DOCENTES, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }

@@ -56,3 +56,83 @@ function estadoBaseDatos() {
 function urlApp() {
   return ScriptApp.getService().getUrl();
 }
+
+/**
+ * Estado global de la app para decidir qué muestra el shell (onboarding vs
+ * espacio de trabajo con pestañas) y para pintar el panel Resumen.
+ *
+ * `configurado` es true cuando ya existe la fila del centro con, al menos,
+ * un nombre o un código: es la señal de que el alta guiada se completó.
+ */
+function estadoApp() {
+  asegurarBaseDatos();
+  const centro = findById(SHEETS.CENTRO, CENTRO_ID);
+  const configurado = !!(centro && (String(centro.nombre || '').trim() ||
+                                    String(centro.codigo || '').trim()));
+
+  const bd = estadoBaseDatos();
+
+  return {
+    configurado: configurado,
+    centro: centro || null,
+    estructuraCompleta: estadoEstructura().completo,
+    bdUrl: bd.creada ? bd.url : '',
+    contadores: {
+      tramos:         _contar(SHEETS.TRAMOS),
+      grupos:         _contar(SHEETS.GRUPOS),
+      docentes:       _contar(SHEETS.DOCENTES),
+      tutorias:       _contarConTutor(),
+      localizaciones: _contar(SHEETS.LOCALIZACIONES),
+      materias:       _contar(SHEETS.MATERIAS),
+      roles:          _contar(SHEETS.ROLES),
+      ocupaciones:    _contar(SHEETS.OCUPACIONES)
+    }
+  };
+}
+
+function _contar(sheetName) {
+  try { return getAll(sheetName).length; } catch (e) { return 0; }
+}
+
+function _contarConTutor() {
+  try {
+    return getAll(SHEETS.GRUPOS).filter(function(g) { return String(g.tutor_id || '').trim(); }).length;
+  } catch (e) { return 0; }
+}
+
+/**
+ * Vacía por completo una sección de datos (pestaña Configuración → zona
+ * peligrosa). `clave` es una de las claves de SECCIONES_VACIABLES.
+ */
+const SECCIONES_VACIABLES = {
+  tramos:         'TRAMOS',
+  grupos:         'GRUPOS',
+  docentes:       'DOCENTES',
+  localizaciones: 'LOCALIZACIONES',
+  materias:       'MATERIAS',
+  roles:          'ROLES',
+  ocupaciones:    'OCUPACIONES'
+};
+
+function vaciarSeccion(clave) {
+  const nombreConst = SECCIONES_VACIABLES[clave];
+  if (!nombreConst) throw new Error('Sección desconocida: ' + clave);
+  bulkReplace(SHEETS[nombreConst], []);
+  return { ok: true };
+}
+
+/**
+ * Reinicia el centro por completo: vacía todas las secciones de datos y la
+ * fila del centro, y borra las preferencias del wizard. Deja la base lista
+ * para un alta guiada desde cero (la estructura de pestañas se conserva).
+ */
+function reiniciarCentro() {
+  Object.keys(SECCIONES_VACIABLES).forEach(function(clave) {
+    bulkReplace(SHEETS[SECCIONES_VACIABLES[clave]], []);
+  });
+  bulkReplace(SHEETS.CENTRO, []);
+  try {
+    PropertiesService.getDocumentProperties().deleteProperty(PROP_KEY_WIZARD);
+  } catch (e) {}
+  return { ok: true };
+}

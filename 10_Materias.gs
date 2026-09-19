@@ -73,7 +73,7 @@ function plantillaMaterias() {
   return items;
 }
 
-function guardarMaterias(materias) {
+function guardarMaterias(materias, modo) {
   if (!Array.isArray(materias)) throw new Error('Formato inválido.');
 
   materias.forEach(function(m, i) {
@@ -101,6 +101,6 @@ function guardarMaterias(materias) {
       es_recreo: !!m.es_recreo
     };
   });
-  bulkReplace(SHEETS.MATERIAS, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.MATERIAS, filas, ['nombre'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }

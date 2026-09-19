@@ -1,0 +1,325 @@
+<div class="page-head">
+  <h2>Importar datos</h2>
+  <p>Trae datos desde Séneca (XML), desde el CSV del Gem o pegando horarios en texto libre. Si ya hay datos, elige cómo combinarlos.</p>
+</div>
+
+<!-- Modo de fusión -->
+<div class="panelbox" style="margin-bottom:20px;">
+  <label style="margin-bottom:8px;">¿Qué hacer con los datos que ya existen?</label>
+  <div class="segmented" id="modo-fusion" role="group">
+    <button type="button" data-modo="anadir" onclick="setModoFusion('anadir')">Añadir (sumar)</button>
+    <button type="button" data-modo="combinar" onclick="setModoFusion('combinar')">Combinar</button>
+    <button type="button" data-modo="reemplazar" onclick="setModoFusion('reemplazar')">Reemplazar</button>
+  </div>
+  <p class="hint" id="modo-fusion-desc" style="margin-top:10px;"></p>
+</div>
+
+<!-- Selector de fuente -->
+<div class="segmented" id="fuente-import" style="margin-bottom:18px;">
+  <button type="button" data-fuente="seneca" onclick="setFuente('seneca')">XML de Séneca</button>
+  <button type="button" data-fuente="csv" onclick="setFuente('csv')">CSV del Gem</button>
+  <button type="button" data-fuente="texto" onclick="setFuente('texto')">Pegar texto</button>
+</div>
+
+<!-- Fuente: Séneca -->
+<div class="panelbox src-panel" id="src-seneca">
+  <p class="hint" style="margin-top:0;">Sube el XML de <strong>Exportación de horarios</strong> de Séneca. Se pre-rellenan tramos, grupos, docentes, localizaciones, materias y roles.</p>
+  <div class="toolbar">
+    <label class="btn-like" for="file-seneca">Seleccionar archivo XML…</label>
+    <input type="file" id="file-seneca" accept=".xml,application/xml,text/xml" style="display:none;" onchange="leerArchivoSeneca(this)">
+    <span id="seneca-filename" class="hint"></span>
+  </div>
+  <div id="seneca-preview"></div>
+  <div id="res-seneca"></div>
+</div>
+
+<!-- Fuente: CSV -->
+<div class="panelbox src-panel" id="src-csv" style="display:none;">
+  <p class="hint" style="margin-top:0;">Pega el CSV generado por el Gem o sube el archivo. Cabecera: <code>docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas</code></p>
+  <textarea id="csv-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Sebastián,L,1,grupo,Lengua,3º B,,,"></textarea>
+  <div class="toolbar">
+    <label class="btn-like" for="csv-file">Subir .csv…</label>
+    <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none;" onchange="cargarArchivoCSV(this)">
+    <span id="csv-filename" class="hint"></span>
+    <button class="primary" id="btn-analizar-csv" onclick="analizarCSVUI()">Analizar</button>
+  </div>
+  <div id="res-csv"></div>
+</div>
+
+<!-- Fuente: Texto libre -->
+<div class="panelbox src-panel" id="src-texto" style="display:none;">
+  <p class="hint" style="margin-top:0;">Pega los horarios tal cual los tengas (una sesión por línea). La interpretación es aproximada: <strong>siempre podrás revisar y corregir</strong> antes de aplicar.</p>
+  <textarea id="texto-libre" placeholder="Sebastián  Lunes  1  Lengua 3ºB&#10;Ana, martes, 2, Matemáticas, 5º A&#10;..."></textarea>
+  <div class="toolbar">
+    <button class="primary" id="btn-analizar-texto" onclick="analizarTextoUI()">Interpretar</button>
+  </div>
+  <div id="res-texto"></div>
+</div>
+
+<!-- Revisión (compartida CSV + texto) -->
+<div id="fase-revision" style="display:none; margin-top:22px;">
+  <div class="page-head"><h2 style="font-size:19px;">Revisión</h2><p>Comprueba las coincidencias contra el catálogo del centro y corrige lo necesario.</p></div>
+  <div class="legend">
+    <span class="chip"><span class="dot ok"></span> Correcta</span>
+    <span class="chip"><span class="dot dudoso"></span> Dudosa</span>
+    <span class="chip"><span class="dot revisar"></span> Revisar</span>
+    <span class="chip"><span class="dot conflicto"></span> Conflicto</span>
+    <span class="chip"><span class="dot omitir"></span> Se omite</span>
+  </div>
+  <div id="rev-contador" class="hint" style="margin-bottom:8px;"></div>
+  <div class="rev-scroll">
+    <table class="rev">
+      <thead><tr>
+        <th style="width:40px">#</th><th>Estado</th><th>Día</th><th>Tramo</th><th>Tipo</th>
+        <th>Docente</th><th>Actividad</th><th>Avisos</th><th style="width:44px">Omitir</th>
+      </tr></thead>
+      <tbody id="rev-body"></tbody>
+    </table>
+  </div>
+  <div class="actions">
+    <button class="secondary" onclick="volverEntrada()">← Volver</button>
+    <button class="primary" id="btn-aplicar-import" onclick="aplicarImport()">Aplicar al horario</button>
+  </div>
+  <div id="res-revision"></div>
+</div>
+
+<script>
+  var IMP_MODO = 'combinar';
+  var IMP_FUENTE = 'seneca';
+  var IMP_CAT = null;
+  var IMP_FILAS = [];
+  var senecaPreview = null;
+
+  function prepararImportar() {
+    // Ajusta el modo por defecto según haya o no datos.
+    const c = (ESTADO && ESTADO.contadores) || {};
+    const hayDatos = (c.grupos || c.docentes || c.tramos || c.ocupaciones || c.materias);
+    IMP_MODO = hayDatos ? 'combinar' : 'reemplazar';
+    setModoFusion(IMP_MODO);
+    setFuente(IMP_FUENTE);
+    volverEntrada();
+  }
+
+  function setModoFusion(m) {
+    IMP_MODO = m;
+    document.querySelectorAll('#modo-fusion button').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-modo') === m);
+    });
+    const desc = {
+      anadir: 'Añade solo lo que no exista todavía. No modifica ni duplica lo que ya hay.',
+      combinar: 'Actualiza lo que coincida (por nombre/código) y añade lo nuevo. Conserva el resto.',
+      reemplazar: 'Sustituye por completo el contenido de las secciones importadas. Se pierde lo anterior.'
+    };
+    document.getElementById('modo-fusion-desc').textContent = desc[m] || '';
+  }
+
+  function setFuente(f) {
+    IMP_FUENTE = f;
+    document.querySelectorAll('#fuente-import button').forEach(function(b) {
+      b.classList.toggle('active', b.getAttribute('data-fuente') === f);
+    });
+    document.getElementById('src-seneca').style.display = f === 'seneca' ? 'block' : 'none';
+    document.getElementById('src-csv').style.display = f === 'csv' ? 'block' : 'none';
+    document.getElementById('src-texto').style.display = f === 'texto' ? 'block' : 'none';
+    volverEntrada();
+  }
+
+  // ---------- Séneca ----------
+  function leerArchivoSeneca(input) {
+    const file = input.files && input.files[0]; if (!file) return;
+    document.getElementById('seneca-filename').textContent = file.name;
+    document.getElementById('seneca-preview').innerHTML = '<p class="hint"><span class="spinner"></span> Leyendo y parseando…</p>';
+    document.getElementById('res-seneca').innerHTML = '';
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      google.script.run
+        .withSuccessHandler(function(p) { senecaPreview = p; mostrarPreviewSeneca(p); })
+        .withFailureHandler(function(err) { document.getElementById('seneca-preview').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .parsearSeneca(e.target.result);
+    };
+    reader.onerror = function() { document.getElementById('seneca-preview').innerHTML = '<div class="result err">No se pudo leer el archivo.</div>'; };
+    reader.readAsText(file, 'ISO-8859-1');
+  }
+
+  function mostrarPreviewSeneca(p) {
+    const filas = [
+      { k:'centro', t:'Datos del centro', muestra: p.centro ? (p.centro.curso_academico || '—') : '' },
+      { k:'tramos', t:'Tramos', arr:p.tramos, muestra:(p.tramos||[]).slice(0,3).map(function(x){return x.hora_inicio+'–'+x.hora_fin;}).join(', ') },
+      { k:'unidades', t:'Grupos', arr:p.unidades, muestra:(p.unidades||[]).slice(0,6).map(function(x){return x.nombre_corto;}).join(', ') },
+      { k:'docentes', t:'Docentes', arr:p.docentes, muestra:(p.docentes||[]).slice(0,5).map(function(x){return x.nombre_corto;}).join(', ') },
+      { k:'localizaciones', t:'Localizaciones', arr:p.localizaciones, muestra:(p.localizaciones||[]).slice(0,5).map(function(x){return x.codigo;}).join(', ') },
+      { k:'materias', t:'Materias', arr:p.materias, muestra:(p.materias||[]).slice(0,5).map(function(x){return x.nombre;}).join(', ') },
+      { k:'roles', t:'Roles', arr:p.roles, muestra:(p.roles||[]).slice(0,6).map(function(x){return x.nombre;}).join(', ') }
+    ];
+    let html = '<div class="seneca-cards">';
+    filas.forEach(function(f) {
+      const total = f.arr ? f.arr.length : (f.k==='centro' && p.centro ? 1 : 0);
+      const hay = total > 0;
+      html += '<label class="seneca-card' + (hay?' activa':' vacia') + '">' +
+        '<input type="checkbox" id="chk-' + f.k + '"' + (hay?' checked':'') + (hay?'':' disabled') +
+          ' onchange="this.closest(\'.seneca-card\').classList.toggle(\'activa\', this.checked)">' +
+        '<div class="body"><div class="titulo">' + f.t + '<span class="contador">' + total + '</span></div>' +
+        '<div class="muestra">' + _esc(f.muestra || (hay?'':'Sin datos')) + (total>6?'…':'') + '</div></div></label>';
+    });
+    html += '</div><div class="actions"><button class="primary" id="btn-aplicar-seneca" onclick="aplicarSenecaImport()">Aplicar al libro</button></div>';
+    document.getElementById('seneca-preview').innerHTML = html;
+  }
+
+  function aplicarSenecaImport() {
+    if (!senecaPreview) return;
+    const g = function(k) { const el = document.getElementById('chk-' + k); return el && el.checked; };
+    const seleccion = {
+      centro: g('centro') ? senecaPreview.centro : null,
+      tramos: g('tramos') ? senecaPreview.tramos : [],
+      unidades: g('unidades') ? senecaPreview.unidades : [],
+      docentes: g('docentes') ? senecaPreview.docentes : [],
+      localizaciones: g('localizaciones') ? senecaPreview.localizaciones : [],
+      materias: g('materias') ? senecaPreview.materias : [],
+      roles: g('roles') ? senecaPreview.roles : []
+    };
+    const aplicar = function() {
+      const btn = document.getElementById('btn-aplicar-seneca');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Aplicando…';
+      document.getElementById('res-seneca').innerHTML = '';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false; btn.textContent = 'Aplicar al libro';
+          const r = res.resumen || {};
+          const lst = Object.keys(r).map(function(k){return k+': '+r[k];}).join(' · ');
+          document.getElementById('res-seneca').innerHTML = '<div class="result ok">✓ Importación aplicada (' + IMP_MODO + '). ' + (lst||'') + '</div>';
+          refrescarEstado();
+        })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Aplicar al libro'; document.getElementById('res-seneca').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .aplicarSeneca(seleccion, IMP_MODO);
+    };
+    const aviso = IMP_MODO === 'reemplazar'
+      ? 'Se reemplazarán por completo los datos actuales de las secciones marcadas. ¿Continuar?'
+      : 'Se aplicará la importación en modo "' + IMP_MODO + '" sobre las secciones marcadas. ¿Continuar?';
+    confirmar(aviso, aplicar, { peligro: IMP_MODO === 'reemplazar' });
+  }
+
+  // ---------- CSV ----------
+  function cargarArchivoCSV(input) {
+    const file = input.files && input.files[0]; if (!file) return;
+    document.getElementById('csv-filename').textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = function(e) { document.getElementById('csv-texto').value = e.target.result; };
+    reader.readAsText(file, 'UTF-8');
+  }
+  function analizarCSVUI() {
+    const texto = document.getElementById('csv-texto').value;
+    if (!texto.trim()) { document.getElementById('res-csv').innerHTML = '<div class="result err">Pega el CSV o sube un archivo primero.</div>'; return; }
+    const btn = document.getElementById('btn-analizar-csv'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analizando…';
+    document.getElementById('res-csv').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Analizar'; _entrarRevision(res); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Analizar'; document.getElementById('res-csv').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .analizarCSV(texto);
+  }
+
+  // ---------- Texto libre ----------
+  function analizarTextoUI() {
+    const texto = document.getElementById('texto-libre').value;
+    if (!texto.trim()) { document.getElementById('res-texto').innerHTML = '<div class="result err">Pega algún texto primero.</div>'; return; }
+    const btn = document.getElementById('btn-analizar-texto'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Interpretando…';
+    document.getElementById('res-texto').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Interpretar'; _entrarRevision(res); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Interpretar'; document.getElementById('res-texto').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .analizarTextoLibre(texto);
+  }
+
+  // ---------- Revisión (compartida) ----------
+  function _entrarRevision(res) {
+    IMP_CAT = res.catalogo; IMP_FILAS = res.filas;
+    renderRevision();
+    document.querySelectorAll('.src-panel').forEach(function(p){ p.style.display = 'none'; });
+    document.getElementById('fuente-import').style.display = 'none';
+    document.getElementById('fase-revision').style.display = 'block';
+  }
+  function volverEntrada() {
+    document.getElementById('fase-revision').style.display = 'none';
+    document.getElementById('fuente-import').style.display = 'inline-flex';
+    setFuenteVisible();
+  }
+  function setFuenteVisible() {
+    document.getElementById('src-seneca').style.display = IMP_FUENTE === 'seneca' ? 'block' : 'none';
+    document.getElementById('src-csv').style.display = IMP_FUENTE === 'csv' ? 'block' : 'none';
+    document.getElementById('src-texto').style.display = IMP_FUENTE === 'texto' ? 'block' : 'none';
+  }
+
+  function _opts(lista, selId) {
+    let h = '<option value="">—</option>';
+    lista.forEach(function(x) { h += '<option value="' + x.id + '"' + (x.id===selId?' selected':'') + '>' + _esc(x.nombre) + '</option>'; });
+    return h;
+  }
+  function _sel(fila, campo, lista, matchObj) {
+    const selId = matchObj ? matchObj.id : '';
+    const sin = selId ? '' : ' sin';
+    const title = matchObj && matchObj.texto ? ('Texto: "' + matchObj.texto + '"' + (matchObj.score ? ' · ' + Math.round(matchObj.score*100) + '%' : '')) : '';
+    return '<select class="' + sin.trim() + '" title="' + _esc(title) + '" onchange="setCampoRev(' + fila.n + ',\'' + campo + '\',this.value)">' + _opts(lista, selId) + '</select>';
+  }
+  function renderRevision() {
+    const tb = document.getElementById('rev-body'); tb.innerHTML = '';
+    IMP_FILAS.forEach(function(f) {
+      const tr = document.createElement('tr'); tr.className = 'f-' + f.estadoFila; tr.id = 'rev-fila-' + f.n;
+      let actividad = '';
+      if (f.tipo === 'grupo') actividad = _sel(f,'materia_id',IMP_CAT.materias,f.materia) + ' ' + _sel(f,'grupo_id',IMP_CAT.grupos,f.grupo);
+      else if (f.tipo === 'localizacion') actividad = _sel(f,'rol_id',IMP_CAT.roles,f.rol) + ' → ' + _sel(f,'grupo_destino_id',IMP_CAT.grupos,f.grupoDestino);
+      else if (f.tipo === 'especial') actividad = _sel(f,'rol_id',IMP_CAT.roles,f.rol);
+      else actividad = '<span class="avisos">tipo desconocido</span>';
+      const tramoTxt = (f.tramoOrden || '?') + (f.mitad==='1'?'a':f.mitad==='2'?'b':'') + (f.semana?(' · sem '+f.semana):'');
+      tr.innerHTML =
+        '<td class="col-num">' + f.n + '</td>' +
+        '<td><span class="badge ' + f.estadoFila + '">' + f.estadoFila + '</span></td>' +
+        '<td>' + _esc(f.dia) + '</td>' +
+        '<td>' + tramoTxt + '</td>' +
+        '<td>' + _esc(f.tipo) + '</td>' +
+        '<td>' + _sel(f,'docente_id',IMP_CAT.docentes,f.docente) + '</td>' +
+        '<td>' + actividad + '</td>' +
+        '<td class="avisos">' + _esc((f.avisos||[]).join(' · ')) + '</td>' +
+        '<td class="col-num"><input type="checkbox"' + (f.omitir?' checked':'') + ' onchange="setOmitirRev(' + f.n + ',this.checked)"></td>';
+      tb.appendChild(tr);
+    });
+    actualizarContadorRev();
+  }
+  function setCampoRev(n, campo, val) { const f = IMP_FILAS.find(function(x){return x.n===n;}); if (f) f[campo] = val; }
+  function setOmitirRev(n, val) { const f = IMP_FILAS.find(function(x){return x.n===n;}); if (f) f.omitir = val; const tr = document.getElementById('rev-fila-'+n); if (tr) tr.classList.toggle('f-omitir', val); actualizarContadorRev(); }
+  function actualizarContadorRev() {
+    const apl = IMP_FILAS.filter(function(f){return !f.omitir;}).length;
+    const conf = IMP_FILAS.filter(function(f){return !f.omitir && f.estadoFila==='conflicto';}).length;
+    document.getElementById('rev-contador').textContent = IMP_FILAS.length + ' filas · ' + apl + ' se aplicarán' + (conf?(' · '+conf+' con conflicto'):'') + ' · modo: ' + IMP_MODO;
+  }
+  function aplicarImport() {
+    const payload = IMP_FILAS.map(function(f) {
+      return { n:f.n, omitir:!!f.omitir, dia:f.dia, tramo_id:f.tramoId, mitad:f.mitad, semana:f.semana, tipo:f.tipo, notas:f.notas,
+        docente_id: f.docente_id || (f.docente && f.docente.id) || '',
+        materia_id: f.materia_id || (f.materia && f.materia.id) || '',
+        grupo_id: f.grupo_id || (f.grupo && f.grupo.id) || '',
+        rol_id: f.rol_id || (f.rol && f.rol.id) || '',
+        grupo_destino_id: f.grupo_destino_id || (f.grupoDestino && f.grupoDestino.id) || '' };
+    });
+    const aplicables = payload.filter(function(p){return !p.omitir;});
+    const faltan = aplicables.filter(function(p){return !p.docente_id || !p.tramo_id;});
+    if (faltan.length) { document.getElementById('res-revision').innerHTML = '<div class="result err">Hay ' + faltan.length + ' fila(s) sin docente o tramo resuelto. Corrígelas o márcalas para omitir.</div>'; return; }
+    const ejecutar = function() {
+      const btn = document.getElementById('btn-aplicar-import'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Aplicando…';
+      document.getElementById('res-revision').innerHTML = '';
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false; btn.textContent = 'Aplicar al horario';
+          const r = res.resumen || {};
+          const extra = r.actualizados != null ? (' (nuevas: ' + r.nuevos + ', actualizadas: ' + r.actualizados + ', ignoradas: ' + r.ignorados + ')') : '';
+          document.getElementById('res-revision').innerHTML = '<div class="result ok">✓ Importación aplicada en modo "' + IMP_MODO + '"' + extra + '.</div>';
+          refrescarEstado();
+        })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Aplicar al horario'; document.getElementById('res-revision').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .aplicarImportacionCSV(payload, IMP_MODO);
+    };
+    if (IMP_MODO === 'reemplazar') {
+      confirmar('El modo "reemplazar" borrará TODAS las ocupaciones actuales antes de aplicar estas. ¿Continuar?', ejecutar, { peligro: true, aceptar: 'Reemplazar' });
+    } else {
+      ejecutar();
+    }
+  }
+</script>

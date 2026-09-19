@@ -49,6 +49,37 @@ function guardarCentro(datos) {
   return { ok: true };
 }
 
+/**
+ * Guardado del PRIMER paso del alta guiada: crea (o actualiza) la fila del
+ * centro solo con lo mínimo (código, nombre, curso), sin exigir el resto de
+ * campos que sí pide guardarCentro() desde la pestaña Centro. El resto de
+ * campos que ya existieran se conservan.
+ */
+function guardarCentroInicial(datos) {
+  datos = datos || {};
+  const nombre = _str(datos.nombre);
+  const codigo = _str(datos.codigo);
+  if (!nombre && !codigo) {
+    throw new Error('Indica al menos el código o el nombre del centro.');
+  }
+
+  const previo = findById(SHEETS.CENTRO, CENTRO_ID) || {};
+  const fila = {
+    id: CENTRO_ID,
+    nombre: nombre || previo.nombre || 'Centro',
+    codigo: codigo || previo.codigo || '',
+    localidad: _str(datos.localidad) || previo.localidad || '',
+    provincia: _str(datos.provincia) || previo.provincia || '',
+    comunidad: _str(datos.comunidad) || previo.comunidad || 'Andalucía',
+    etapas: _str(datos.etapas) || previo.etapas || '',
+    curso_academico: _str(datos.curso_academico) || previo.curso_academico || '',
+    fecha_inicio: datos.fecha_inicio || previo.fecha_inicio || '',
+    fecha_fin: datos.fecha_fin || previo.fecha_fin || ''
+  };
+  upsert(SHEETS.CENTRO, fila);
+  return { ok: true, centro: fila };
+}
+
 function obtenerPreferenciasWizard() {
   const raw = PropertiesService.getDocumentProperties().getProperty(PROP_KEY_WIZARD);
   if (!raw) return { etapas: '', lineas: '', bilingue: '' };

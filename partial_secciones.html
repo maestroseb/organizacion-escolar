@@ -1,0 +1,599 @@
+<!-- ================= Vistas de las secciones de datos ================= -->
+
+<!-- Centro -->
+<section class="view" id="view-centro">
+  <div class="page-head">
+    <h2>Datos del centro</h2>
+    <p>Información general del centro y tres preguntas que afinan los valores por defecto de otras secciones (materias, grupos…).</p>
+  </div>
+  <div class="panelbox">
+    <form class="form" id="form-centro" onsubmit="enviarCentro(event)">
+      <div>
+        <label>Nombre del centro <span class="req">*</span></label>
+        <input type="text" name="nombre" required placeholder="CEIP Carlos III">
+      </div>
+      <div>
+        <label>Código Séneca</label>
+        <input type="text" name="codigo" placeholder="14000000">
+      </div>
+      <div>
+        <label>Localidad</label>
+        <input type="text" name="localidad" placeholder="La Carlota">
+      </div>
+      <div>
+        <label>Provincia</label>
+        <input type="text" name="provincia" placeholder="Córdoba">
+      </div>
+      <div>
+        <label>Comunidad</label>
+        <input type="text" name="comunidad" value="Andalucía">
+      </div>
+      <div>
+        <label>Curso académico <span class="req">*</span></label>
+        <input type="text" name="curso_academico" required placeholder="2025-2026">
+      </div>
+      <div>
+        <label>Fecha de inicio</label>
+        <input type="date" name="fecha_inicio">
+      </div>
+      <div>
+        <label>Fecha de fin</label>
+        <input type="date" name="fecha_fin">
+      </div>
+      <fieldset class="full">
+        <legend>Etapas educativas <span class="req">*</span></legend>
+        <div class="check-row">
+          <label><input type="checkbox" name="etapa_inf" value="INFANTIL"> Infantil</label>
+          <label><input type="checkbox" name="etapa_pri" value="PRIMARIA"> Primaria</label>
+        </div>
+      </fieldset>
+      <fieldset class="full">
+        <legend>Líneas por curso</legend>
+        <div class="radio-row">
+          <label><input type="radio" name="lineas" value="1"> Una línea (A)</label>
+          <label><input type="radio" name="lineas" value="2"> Dos líneas (A y B)</label>
+          <label><input type="radio" name="lineas" value="mixto"> Mixto</label>
+        </div>
+      </fieldset>
+      <fieldset class="full">
+        <legend>Bilingüismo</legend>
+        <div class="radio-row">
+          <label><input type="radio" name="bilingue" value="no" checked> No</label>
+          <label><input type="radio" name="bilingue" value="ingles"> Inglés</label>
+          <label><input type="radio" name="bilingue" value="frances"> Francés</label>
+        </div>
+      </fieldset>
+      <div class="full actions" style="margin-top:6px;">
+        <button type="submit" class="primary" id="btn-guardar-centro">Guardar cambios</button>
+      </div>
+    </form>
+    <div id="res-centro"></div>
+  </div>
+</section>
+
+<!-- Tramos -->
+<section class="view" id="view-tramos">
+  <div class="page-head">
+    <h2>Tramos horarios</h2>
+    <p>Los tramos en los que se divide la jornada, incluidos los recreos. El orden se calcula por la hora de inicio.</p>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" onclick="cargarPlantillaTramos()">Cargar plantilla</button>
+    <button class="secondary" onclick="anadirTramo()">+ Añadir tramo</button>
+  </div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th style="width:110px">Inicio</th><th style="width:110px">Fin</th>
+        <th class="col-center" style="width:80px">Recreo</th><th>Etiqueta</th><th class="col-acc"></th>
+      </tr></thead>
+      <tbody id="tramos-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar cambios</button></div>
+  <div id="res-tramos"></div>
+</section>
+
+<!-- Grupos -->
+<section class="view" id="view-grupos">
+  <div class="page-head">
+    <h2>Grupos</h2>
+    <p>Cada grupo es una clase del centro (INF 3, 1º, 2º…, con letra de línea si las hay).</p>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" onclick="cargarPlantillaGrupos()">Generar plantilla</button>
+    <button class="secondary" onclick="anadirGrupo()">+ Añadir grupo</button>
+  </div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th style="width:170px">Nombre corto</th><th>Nombre largo</th>
+        <th style="width:150px">Nivel</th><th class="col-acc"></th>
+      </tr></thead>
+      <tbody id="grupos-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-grupos" onclick="enviarGrupos()">Guardar cambios</button></div>
+  <div id="res-grupos"></div>
+</section>
+
+<!-- Docentes -->
+<section class="view" id="view-docentes">
+  <div class="page-head">
+    <h2>Docentes</h2>
+    <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
+  </div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button></div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th style="width:140px">Nombre corto *</th><th>Nombre completo</th>
+        <th>Puesto</th><th style="width:190px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-acc"></th>
+      </tr></thead>
+      <tbody id="docentes-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-docentes" onclick="enviarDocentes()">Guardar cambios</button></div>
+  <div id="res-docentes"></div>
+</section>
+
+<!-- Tutorías -->
+<section class="view" id="view-tutorias">
+  <div class="page-head">
+    <h2>Tutorías</h2>
+    <p>Asigna un tutor a cada grupo. Es opcional: deja <em>— sin asignar —</em> si aún no lo sabes.</p>
+  </div>
+  <div id="tutorias-aviso"></div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th style="width:200px">Grupo</th><th style="width:180px">Nivel</th><th>Tutor</th>
+      </tr></thead>
+      <tbody id="tutorias-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-tutorias" onclick="enviarTutorias()">Guardar cambios</button></div>
+  <div id="res-tutorias"></div>
+</section>
+
+<!-- Localizaciones -->
+<section class="view" id="view-localizaciones">
+  <div class="page-head">
+    <h2>Localizaciones</h2>
+    <p>Espacios del centro: aulas, biblioteca, gimnasio, aulas de PT/AL, patios… Se usan en refuerzos, apoyos y guardias.</p>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" onclick="cargarPlantillaLocalizaciones()">Generar plantilla</button>
+    <button class="secondary" onclick="anadirLocalizacion()">+ Añadir localización</button>
+  </div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th style="width:240px">Código *</th><th>Descripción</th><th class="col-acc"></th>
+      </tr></thead>
+      <tbody id="locs-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-locs" onclick="enviarLocalizaciones()">Guardar cambios</button></div>
+  <div id="res-localizaciones"></div>
+</section>
+
+<!-- Materias -->
+<section class="view" id="view-materias">
+  <div class="page-head">
+    <h2>Materias</h2>
+    <p>Asignaturas que se imparten. La plantilla se genera según las etapas y el bilingüismo. Los recreos también cuentan como materia.</p>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" onclick="cargarPlantillaMaterias()">Generar plantilla</button>
+    <button class="secondary" onclick="anadirMateria()">+ Añadir materia</button>
+  </div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th>Nombre *</th><th style="width:140px">Abreviatura</th>
+        <th class="col-center" style="width:80px">Recreo</th><th class="col-acc"></th>
+      </tr></thead>
+      <tbody id="materias-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-materias" onclick="enviarMaterias()">Guardar cambios</button></div>
+  <div id="res-materias"></div>
+</section>
+
+<!-- Cargos y roles -->
+<section class="view" id="view-roles">
+  <div class="page-head">
+    <h2>Cargos y roles especiales</h2>
+    <p>Cargos directivos, coordinaciones y perfiles de apoyo (PT, AL, Refuerzo, ATEDU…) y guardias.</p>
+  </div>
+  <div class="toolbar">
+    <button class="secondary" onclick="cargarPlantillaRoles()">Generar plantilla</button>
+    <button class="secondary" onclick="anadirRol()">+ Añadir rol</button>
+  </div>
+  <div class="tablewrap">
+    <table class="data">
+      <thead><tr>
+        <th class="col-num">#</th><th style="width:160px">Nombre corto *</th><th>Nombre largo</th><th class="col-acc"></th>
+      </tr></thead>
+      <tbody id="roles-body"></tbody>
+    </table>
+  </div>
+  <div class="actions"><button class="primary" id="btn-guardar-roles" onclick="enviarRoles()">Guardar cambios</button></div>
+  <div id="res-roles"></div>
+</section>
+
+<script>
+  // ---------- Helpers de resultado / botón ----------
+  function _res(key, tipo, msg) {
+    const el = document.getElementById('res-' + key);
+    if (el) el.innerHTML = '<div class="result ' + tipo + '">' + msg + '</div>';
+  }
+  function _cargando(btn, txt) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + txt; }
+  function _restaurar(btn, txt) { btn.disabled = false; btn.textContent = txt; }
+  // Tras guardar una sección: refresca contadores y, en modo guiado, avanza.
+  function _trasGuardar() {
+    refrescarEstado(function() { if (GUIADO) setTimeout(avanzarGuiado, 500); });
+  }
+  function _fmtHora(v) {
+    if (!v) return '';
+    if (v instanceof Date) return String(v.getHours()).padStart(2,'0') + ':' + String(v.getMinutes()).padStart(2,'0');
+    return String(v);
+  }
+  function _sumarMinutos(hhmm, mins) {
+    const p = String(hhmm).split(':');
+    const total = parseInt(p[0],10)*60 + parseInt(p[1],10) + mins;
+    return String(Math.floor(total/60)%24).padStart(2,'0') + ':' + String(total%60).padStart(2,'0');
+  }
+
+  // ================= Centro =================
+  function cargarCentro() {
+    google.script.run
+      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); })
+      .withFailureHandler(mostrarErrorGenerico)
+      .obtenerCentro();
+  }
+  function rellenarFormCentro(centro, prefs) {
+    const f = document.getElementById('form-centro'); if (!f) return;
+    ['nombre','codigo','localidad','provincia','comunidad','curso_academico','fecha_inicio','fecha_fin'].forEach(function(k) {
+      if (f[k] && centro[k] != null && centro[k] !== '') f[k].value = centro[k];
+    });
+    const etapas = String(centro.etapas || '').split(',');
+    f.etapa_inf.checked = etapas.indexOf('INFANTIL') !== -1;
+    f.etapa_pri.checked = etapas.indexOf('PRIMARIA') !== -1;
+    const p = prefs || {};
+    if (p.lineas) { const r = f.querySelector('input[name=lineas][value="' + p.lineas + '"]'); if (r) r.checked = true; }
+    if (p.bilingue) { const r = f.querySelector('input[name=bilingue][value="' + p.bilingue + '"]'); if (r) r.checked = true; }
+  }
+  function enviarCentro(ev) {
+    ev.preventDefault();
+    const f = document.getElementById('form-centro');
+    const btn = document.getElementById('btn-guardar-centro');
+    const etapas = [];
+    if (f.etapa_inf.checked) etapas.push('INFANTIL');
+    if (f.etapa_pri.checked) etapas.push('PRIMARIA');
+    if (etapas.length === 0) { _res('centro','err','Selecciona al menos una etapa.'); return; }
+    const lineasEl = f.querySelector('input[name=lineas]:checked');
+    const bilingueEl = f.querySelector('input[name=bilingue]:checked');
+    const datos = {
+      nombre: f.nombre.value, codigo: f.codigo.value, localidad: f.localidad.value,
+      provincia: f.provincia.value, comunidad: f.comunidad.value, curso_academico: f.curso_academico.value,
+      fecha_inicio: f.fecha_inicio.value, fecha_fin: f.fecha_fin.value,
+      etapas: etapas.join(','), lineas: lineasEl ? lineasEl.value : '', bilingue: bilingueEl ? bilingueEl.value : ''
+    };
+    _cargando(btn,'Guardando…'); document.getElementById('res-centro').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function() { _restaurar(btn,'Guardar cambios'); _res('centro','ok','✓ Datos del centro guardados.'); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('centro','err','✗ ' + (err.message || err)); })
+      .guardarCentro(datos);
+  }
+
+  // ================= Tramos =================
+  let tramosLocal = [];
+  function cargarTramos() {
+    google.script.run.withSuccessHandler(function(tramos) {
+      tramosLocal = (tramos || []).map(function(t) {
+        return { id: t.id, hora_inicio: _fmtHora(t.hora_inicio), hora_fin: _fmtHora(t.hora_fin), es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || '' };
+      });
+      if (tramosLocal.length === 0) anadirTramo(); else renderTramos();
+    }).withFailureHandler(mostrarErrorGenerico).listarTramos();
+  }
+  function cargarPlantillaTramos() {
+    const aplicar = function() {
+      google.script.run.withSuccessHandler(function(pl) {
+        tramosLocal = pl.map(function(t) { return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin, es_recreo: t.es_recreo, etiqueta: t.etiqueta }; });
+        renderTramos();
+      }).withFailureHandler(mostrarErrorGenerico).plantillaTramos();
+    };
+    if (tramosLocal.length > 0) confirmar('Esto reemplazará la lista actual de tramos. ¿Continuar?', aplicar); else aplicar();
+  }
+  function anadirTramo() {
+    const ult = tramosLocal[tramosLocal.length - 1];
+    const inicio = ult ? ult.hora_fin : '09:00';
+    tramosLocal.push({ id: null, hora_inicio: inicio, hora_fin: _sumarMinutos(inicio, 45), es_recreo: false, etiqueta: 'TR' + String(tramosLocal.length + 1).padStart(2,'0') });
+    renderTramos();
+  }
+  function eliminarTramo(i) { tramosLocal.splice(i,1); renderTramos(); }
+  function actualizarTramo(i, c, v) { tramosLocal[i][c] = v; }
+  function renderTramos() {
+    const tb = document.getElementById('tramos-body'); tb.innerHTML = '';
+    tramosLocal.forEach(function(t, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><input type="text" value="' + _esc(t.hora_inicio) + '" placeholder="09:00" oninput="actualizarTramo(' + i + ',\'hora_inicio\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(t.hora_fin) + '" placeholder="09:45" oninput="actualizarTramo(' + i + ',\'hora_fin\',this.value)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (t.es_recreo?' checked':'') + ' onchange="actualizarTramo(' + i + ',\'es_recreo\',this.checked)"></td>' +
+        '<td><input type="text" value="' + _esc(t.etiqueta) + '" placeholder="Recreo, Comedor…" oninput="actualizarTramo(' + i + ',\'etiqueta\',this.value)"></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarTramo(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarTramos() {
+    if (tramosLocal.length === 0) { _res('tramos','err','Debes definir al menos un tramo.'); return; }
+    const btn = document.getElementById('btn-guardar-tramos'); _cargando(btn,'Guardando…'); document.getElementById('res-tramos').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('tramos','ok','✓ Guardados ' + res.total + ' tramos.'); cargarTramos(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('tramos','err','✗ ' + (err.message || err)); })
+      .guardarTramos(tramosLocal);
+  }
+
+  // ================= Grupos =================
+  let gruposLocal = [];
+  const NIVELES = [
+    { v:'INF3', t:'Infantil 3 años' }, { v:'INF4', t:'Infantil 4 años' }, { v:'INF5', t:'Infantil 5 años' },
+    { v:'1P', t:'1º de Primaria' }, { v:'2P', t:'2º de Primaria' }, { v:'3P', t:'3º de Primaria' },
+    { v:'4P', t:'4º de Primaria' }, { v:'5P', t:'5º de Primaria' }, { v:'6P', t:'6º de Primaria' }
+  ];
+  function _mapearGrupo(g) { return { id: g.id || null, nombre_corto: g.nombre_corto || '', nombre_largo: g.nombre_largo || '', nivel: g.nivel || '', tutor_id: g.tutor_id || '', color: g.color || '' }; }
+  function cargarGrupos() {
+    google.script.run.withSuccessHandler(function(grupos) {
+      if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
+      else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
+    }).withFailureHandler(mostrarErrorGenerico).listarGrupos();
+  }
+  function cargarPlantillaGrupos() {
+    const aplicar = function() {
+      google.script.run.withSuccessHandler(function(pl) {
+        gruposLocal = (pl || []).map(function(g) { return _mapearGrupo({ id:null, nombre_corto:g.nombre_corto, nombre_largo:g.nombre_largo, nivel:g.nivel }); });
+        renderGrupos();
+      }).withFailureHandler(mostrarErrorGenerico).plantillaGrupos();
+    };
+    if (gruposLocal.length > 0) confirmar('Esto reemplazará la lista actual de grupos. ¿Continuar?', aplicar); else aplicar();
+  }
+  function anadirGrupo() { gruposLocal.push(_mapearGrupo({})); renderGrupos(); }
+  function eliminarGrupo(i) { gruposLocal.splice(i,1); renderGrupos(); }
+  function duplicarGrupo(i) {
+    const o = gruposLocal[i];
+    gruposLocal.splice(i+1, 0, { id:null, nombre_corto:_siguienteLinea(o.nombre_corto), nombre_largo:_siguienteLinea(o.nombre_largo), nivel:o.nivel, tutor_id:'', color:o.color || '' });
+    renderGrupos();
+  }
+  function _siguienteLinea(t) {
+    if (!t) return '';
+    const cp = t.match(/^(.*\()([A-Z])(\))\s*$/); if (cp) return cp[1] + String.fromCharCode(cp[2].charCodeAt(0)+1) + cp[3];
+    const fl = t.match(/^(.*?)([A-Z])\s*$/); if (fl) return fl[1] + String.fromCharCode(fl[2].charCodeAt(0)+1);
+    return t + ' B';
+  }
+  function actualizarGrupo(i, c, v) { gruposLocal[i][c] = v; }
+  function renderGrupos() {
+    const tb = document.getElementById('grupos-body'); tb.innerHTML = '';
+    gruposLocal.forEach(function(g, i) {
+      let opts = '<option value="">—</option>';
+      NIVELES.forEach(function(n) { opts += '<option value="' + n.v + '"' + (g.nivel===n.v?' selected':'') + '>' + n.t + '</option>'; });
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><input type="text" value="' + _esc(g.nombre_corto) + '" placeholder="1º A" oninput="actualizarGrupo(' + i + ',\'nombre_corto\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(g.nombre_largo) + '" placeholder="1º de Primaria A" oninput="actualizarGrupo(' + i + ',\'nombre_largo\',this.value)"></td>' +
+        '<td><select onchange="actualizarGrupo(' + i + ',\'nivel\',this.value)">' + opts + '</select></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Duplicar" onclick="duplicarGrupo(' + i + ')">⎘</button><button class="btn-icon" title="Eliminar" onclick="eliminarGrupo(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarGrupos() {
+    if (gruposLocal.length === 0) { _res('grupos','err','Debes definir al menos un grupo.'); return; }
+    const btn = document.getElementById('btn-guardar-grupos'); _cargando(btn,'Guardando…'); document.getElementById('res-grupos').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('grupos','ok','✓ Guardados ' + res.total + ' grupos.'); cargarGrupos(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('grupos','err','✗ ' + (err.message || err)); })
+      .guardarGrupos(gruposLocal);
+  }
+
+  // ================= Docentes =================
+  let docentesLocal = [];
+  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '' }; }
+  function cargarDocentes() {
+    google.script.run.withSuccessHandler(function(docs) {
+      if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); }
+      else if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
+    }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
+  }
+  function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
+  function eliminarDocente(i) { docentesLocal.splice(i,1); renderDocentes(); }
+  function actualizarDocente(i, c, v) { docentesLocal[i][c] = v; }
+  function renderDocentes() {
+    const tb = document.getElementById('docentes-body'); tb.innerHTML = '';
+    docentesLocal.forEach(function(d, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><input type="text" value="' + _esc(d.nombre_corto) + '" placeholder="Sebastián" oninput="actualizarDocente(' + i + ',\'nombre_corto\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(d.nombre_completo) + '" placeholder="Sebastián García Rodríguez" oninput="actualizarDocente(' + i + ',\'nombre_completo\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
+        '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarDocentes() {
+    if (docentesLocal.length === 0) { _res('docentes','err','Debes añadir al menos un docente.'); return; }
+    const btn = document.getElementById('btn-guardar-docentes'); _cargando(btn,'Guardando…'); document.getElementById('res-docentes').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('docentes','ok','✓ Guardados ' + res.total + ' docentes.'); cargarDocentes(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + (err.message || err)); })
+      .guardarDocentes(docentesLocal);
+  }
+
+  // ================= Tutorías =================
+  let tutoriasGrupos = [], tutoriasDocentes = [], tutoriasAsignacion = {};
+  function cargarTutorias() {
+    google.script.run.withSuccessHandler(function(res) {
+      tutoriasGrupos = res.grupos || []; tutoriasDocentes = res.docentes || []; tutoriasAsignacion = {};
+      tutoriasGrupos.forEach(function(g) { tutoriasAsignacion[g.id] = g.tutor_id || ''; });
+      renderTutorias();
+    }).withFailureHandler(mostrarErrorGenerico).datosTutorias();
+  }
+  function actualizarTutoria(gid, tid) { tutoriasAsignacion[gid] = tid; renderTutorias(); }
+  function renderTutorias() {
+    const tb = document.getElementById('tutorias-body'); const aviso = document.getElementById('tutorias-aviso'); tb.innerHTML = '';
+    if (tutoriasDocentes.length === 0) { aviso.innerHTML = '<div class="result err">No hay docentes activos. Ve a la pestaña Docentes para añadirlos.</div>'; return; }
+    if (tutoriasGrupos.length === 0) { aviso.innerHTML = '<div class="result err">No hay grupos. Ve a la pestaña Grupos para crearlos.</div>'; return; }
+    aviso.innerHTML = '';
+    const asignados = {};
+    Object.keys(tutoriasAsignacion).forEach(function(gid) { const tid = tutoriasAsignacion[gid]; if (tid) asignados[tid] = gid; });
+    tutoriasGrupos.forEach(function(g, i) {
+      const actual = tutoriasAsignacion[g.id] || '';
+      let opts = '<option value="">— sin asignar —</option>';
+      tutoriasDocentes.forEach(function(d) {
+        if (asignados[d.id] && asignados[d.id] !== g.id) return;
+        opts += '<option value="' + d.id + '"' + (actual===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>';
+      });
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><strong>' + _esc(g.nombre_corto) + '</strong></td>' +
+        '<td class="hint">' + _esc(g.nombre_largo || g.nivel || '') + '</td>' +
+        '<td><select onchange="actualizarTutoria(\'' + g.id + '\',this.value)">' + opts + '</select></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarTutorias() {
+    const btn = document.getElementById('btn-guardar-tutorias'); _cargando(btn,'Guardando…'); document.getElementById('res-tutorias').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('tutorias','ok','✓ Actualizadas ' + res.total + ' tutorías.'); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('tutorias','err','✗ ' + (err.message || err)); })
+      .guardarTutorias(tutoriasAsignacion);
+  }
+
+  // ================= Localizaciones =================
+  let locsLocal = [];
+  function _mapearLocalizacion(l) { return { id: l.id || null, codigo: l.codigo || '', descripcion: l.descripcion || '' }; }
+  function cargarLocalizaciones() {
+    google.script.run.withSuccessHandler(function(locs) {
+      if (locs && locs.length > 0) { locsLocal = locs.map(_mapearLocalizacion); renderLocalizaciones(); }
+      else if (locsLocal.length === 0) { cargarPlantillaLocalizaciones(); } else { renderLocalizaciones(); }
+    }).withFailureHandler(mostrarErrorGenerico).listarLocalizaciones();
+  }
+  function cargarPlantillaLocalizaciones() {
+    const aplicar = function() {
+      google.script.run.withSuccessHandler(function(pl) { locsLocal = (pl || []).map(_mapearLocalizacion); renderLocalizaciones(); })
+        .withFailureHandler(mostrarErrorGenerico).plantillaLocalizaciones();
+    };
+    if (locsLocal.length > 0) confirmar('Esto reemplazará la lista actual de localizaciones. ¿Continuar?', aplicar); else aplicar();
+  }
+  function anadirLocalizacion() { locsLocal.push(_mapearLocalizacion({})); renderLocalizaciones(); }
+  function eliminarLocalizacion(i) { locsLocal.splice(i,1); renderLocalizaciones(); }
+  function actualizarLocalizacion(i, c, v) { locsLocal[i][c] = v; }
+  function renderLocalizaciones() {
+    const tb = document.getElementById('locs-body'); tb.innerHTML = '';
+    locsLocal.forEach(function(l, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><input type="text" value="' + _esc(l.codigo) + '" placeholder="Aula PT, Biblioteca…" oninput="actualizarLocalizacion(' + i + ',\'codigo\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(l.descripcion) + '" placeholder="(opcional)" oninput="actualizarLocalizacion(' + i + ',\'descripcion\',this.value)"></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarLocalizacion(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarLocalizaciones() {
+    if (locsLocal.length === 0) { _res('localizaciones','err','Debes definir al menos una localización.'); return; }
+    const btn = document.getElementById('btn-guardar-locs'); _cargando(btn,'Guardando…'); document.getElementById('res-localizaciones').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('localizaciones','ok','✓ Guardadas ' + res.total + ' localizaciones.'); cargarLocalizaciones(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('localizaciones','err','✗ ' + (err.message || err)); })
+      .guardarLocalizaciones(locsLocal);
+  }
+
+  // ================= Materias =================
+  let materiasLocal = [];
+  function _mapearMateria(m) { return { id: m.id || null, nombre: m.nombre || '', abreviatura: m.abreviatura || '', es_recreo: !!m.es_recreo, color: m.color || '' }; }
+  function cargarMaterias() {
+    google.script.run.withSuccessHandler(function(ms) {
+      if (ms && ms.length > 0) { materiasLocal = ms.map(_mapearMateria); renderMaterias(); }
+      else if (materiasLocal.length === 0) { cargarPlantillaMaterias(); } else { renderMaterias(); }
+    }).withFailureHandler(mostrarErrorGenerico).listarMaterias();
+  }
+  function cargarPlantillaMaterias() {
+    const aplicar = function() {
+      google.script.run.withSuccessHandler(function(pl) { materiasLocal = (pl || []).map(_mapearMateria); renderMaterias(); })
+        .withFailureHandler(mostrarErrorGenerico).plantillaMaterias();
+    };
+    if (materiasLocal.length > 0) confirmar('Esto reemplazará la lista actual de materias. ¿Continuar?', aplicar); else aplicar();
+  }
+  function anadirMateria() { materiasLocal.push(_mapearMateria({})); renderMaterias(); }
+  function eliminarMateria(i) { materiasLocal.splice(i,1); renderMaterias(); }
+  function actualizarMateria(i, c, v) { materiasLocal[i][c] = v; }
+  function renderMaterias() {
+    const tb = document.getElementById('materias-body'); tb.innerHTML = '';
+    materiasLocal.forEach(function(m, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><input type="text" value="' + _esc(m.nombre) + '" placeholder="Lengua, Matemáticas…" oninput="actualizarMateria(' + i + ',\'nombre\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(m.abreviatura) + '" placeholder="LCL" oninput="actualizarMateria(' + i + ',\'abreviatura\',this.value)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (m.es_recreo?' checked':'') + ' onchange="actualizarMateria(' + i + ',\'es_recreo\',this.checked)"></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarMateria(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarMaterias() {
+    if (materiasLocal.length === 0) { _res('materias','err','Debes definir al menos una materia.'); return; }
+    const btn = document.getElementById('btn-guardar-materias'); _cargando(btn,'Guardando…'); document.getElementById('res-materias').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('materias','ok','✓ Guardadas ' + res.total + ' materias.'); cargarMaterias(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('materias','err','✗ ' + (err.message || err)); })
+      .guardarMaterias(materiasLocal);
+  }
+
+  // ================= Roles =================
+  let rolesLocal = [];
+  function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '' }; }
+  function cargarRoles() {
+    google.script.run.withSuccessHandler(function(rs) {
+      if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); }
+      else if (rolesLocal.length === 0) { cargarPlantillaRoles(); } else { renderRoles(); }
+    }).withFailureHandler(mostrarErrorGenerico).listarRoles();
+  }
+  function cargarPlantillaRoles() {
+    const aplicar = function() {
+      google.script.run.withSuccessHandler(function(pl) { rolesLocal = (pl || []).map(_mapearRol); renderRoles(); })
+        .withFailureHandler(mostrarErrorGenerico).plantillaRoles();
+    };
+    if (rolesLocal.length > 0) confirmar('Esto reemplazará la lista actual de roles. ¿Continuar?', aplicar); else aplicar();
+  }
+  function anadirRol() { rolesLocal.push(_mapearRol({})); renderRoles(); }
+  function eliminarRol(i) { rolesLocal.splice(i,1); renderRoles(); }
+  function actualizarRol(i, c, v) { rolesLocal[i][c] = v; }
+  function renderRoles() {
+    const tb = document.getElementById('roles-body'); tb.innerHTML = '';
+    rolesLocal.forEach(function(r, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(r.nombre_largo) + '" placeholder="Dirección" oninput="actualizarRol(' + i + ',\'nombre_largo\',this.value)"></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarRol(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function enviarRoles() {
+    if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
+    const btn = document.getElementById('btn-guardar-roles'); _cargando(btn,'Guardando…'); document.getElementById('res-roles').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('roles','ok','✓ Guardados ' + res.total + ' roles.'); cargarRoles(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('roles','err','✗ ' + (err.message || err)); })
+      .guardarRoles(rolesLocal);
+  }
+</script>

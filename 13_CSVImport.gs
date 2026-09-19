@@ -45,7 +45,17 @@ function analizarCSV(csvText) {
   if (!csvText || !String(csvText).trim()) {
     throw new Error('El CSV está vacío.');
   }
+  return _analizarFilasCrudas(_parsearFilasCSV(csvText));
+}
 
+/**
+ * Núcleo compartido de análisis: recibe filas "crudas" (objetos con las
+ * columnas docente/dia/tramo/tipo/materia/grupo/rol/grupo_destino/notas) y
+ * hace matching contra el catálogo del centro, detecta alternancias y
+ * conflictos, y calcula el estado de cada fila. Lo usan tanto el importador
+ * CSV como el de texto libre (16_TextoLibreImport.gs).
+ */
+function _analizarFilasCrudas(crudas) {
   const cat = catalogoImportacion();
   const catDoc = cat.docentes.map(function(d) { return { id: d.id, nombre: d.nombre, alt: d.extra }; });
   const catGru = cat.grupos.map(function(g) { return { id: g.id, nombre: g.nombre, alt: g.extra }; });
@@ -53,8 +63,6 @@ function analizarCSV(csvText) {
   const catRol = cat.roles.map(function(r) { return { id: r.id, nombre: r.nombre, alt: r.extra }; });
   const tramosPorOrden = {};
   cat.tramos.forEach(function(t) { tramosPorOrden[t.orden] = t.id; });
-
-  const crudas = _parsearFilasCSV(csvText);
 
   // Decodificar cada fila y hacer matching.
   const filas = crudas.map(function(c, i) {
@@ -107,8 +115,9 @@ function analizarCSV(csvText) {
  * Aplica las filas ya resueltas por el usuario. Cada fila debe traer los
  * ids definitivos elegidos en la pantalla de revisión.
  */
-function aplicarImportacionCSV(filas) {
+function aplicarImportacionCSV(filas, modo) {
   if (!Array.isArray(filas)) throw new Error('Formato inválido.');
+  modo = modo || 'anadir';
 
   const nuevas = [];
   const errores = [];
@@ -147,10 +156,15 @@ function aplicarImportacionCSV(filas) {
     throw new Error('No se pudo aplicar:\n' + errores.join('\n'));
   }
 
-  // Añadir en bloque a _Ocupaciones (sin borrar lo existente).
-  _appendOcupaciones(nuevas);
+  // Fusiona en _Ocupaciones según el modo elegido. La clave natural de una
+  // ocupación es (docente, día, tramo, mitad, semana).
+  const resumen = bulkMerge(
+    SHEETS.OCUPACIONES, nuevas,
+    ['docente_id', 'dia', 'tramo_id', 'mitad', 'semana'],
+    modo
+  );
 
-  return { ok: true, total: nuevas.length };
+  return { ok: true, total: nuevas.length, resumen: resumen };
 }
 
 // ---------- Parseo CSV ----------
@@ -346,28 +360,3 @@ function _calcularEstadoFila(f) {
   else f.estadoFila = 'ok';
 }
 
-// ---------- Escritura ----------
-
-function _appendOcupaciones(nuevas) {
-  const sheet = getBd().getSheetByName(SHEETS.OCUPACIONES);
-  if (!sheet) throw new Error('No existe la pestaña ' + SHEETS.OCUPACIONES);
-  const headers = SCHEMA[SHEETS.OCUPACIONES];
-
-  // Calcular próximo id continuando desde el máximo.
-  const existentes = getAll(SHEETS.OCUPACIONES);
-  let maxN = 0;
-  existentes.forEach(function(o) {
-    const m = String(o.id).match(/^ocup_(\d+)$/);
-    if (m) { const n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
-  });
-
-  const rows = nuevas.map(function(o) {
-    maxN++;
-    o.id = 'ocup_' + maxN;
-    return headers.map(function(h) { return o[h] === undefined || o[h] === null ? '' : o[h]; });
-  });
-
-  if (rows.length) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, rows.length, headers.length).setValues(rows);
-  }
-}
