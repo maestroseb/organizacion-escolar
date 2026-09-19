@@ -36,6 +36,9 @@
     </header>
 
     <main class="shell">
+      <!-- Submenú de Configuración (se muestra solo dentro de Configuración) -->
+      <nav class="subtabs" id="config-subnav" style="display:none;"></nav>
+
       <!-- Resumen -->
       <section class="view" id="view-resumen">
         <div class="page-head">
@@ -53,8 +56,8 @@
         <?!= include('partial_importar') ?>
       </section>
 
-      <!-- Configuración -->
-      <section class="view" id="view-config">
+      <!-- Configuración → Ajustes generales -->
+      <section class="view" id="view-ajustes">
         <?!= include('partial_config') ?>
       </section>
     </main>
@@ -76,9 +79,19 @@
     // Pestaña inicial pasada por el servidor (deep-link ?page=).
     var PESTANA_INICIAL = <?!= JSON.stringify(pestanaInicial || '') ?>;
 
-    // Definición de pestañas del espacio de trabajo.
+    // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
       { key: 'resumen',        label: 'Resumen' },
+      { key: 'config',         label: 'Configuración' },
+      { key: 'sabana',         label: 'Sábana',        soon: true },
+      { key: 'horario_doc',    label: 'Horario docente', soon: true },
+      { key: 'ahora',          label: 'Ahora',         soon: true },
+      { key: 'sustituciones',  label: 'Sustituciones', soon: true }
+    ];
+
+    // Submenú dentro de Configuración: datos del centro e importación.
+    var CONFIG_SUBTABS = [
+      { key: 'ajustes',        label: 'Ajustes' },
       { key: 'centro',         label: 'Centro' },
       { key: 'tramos',         label: 'Tramos',        cont: 'tramos' },
       { key: 'grupos',         label: 'Grupos',        cont: 'grupos' },
@@ -87,18 +100,16 @@
       { key: 'localizaciones', label: 'Localizaciones',cont: 'localizaciones' },
       { key: 'materias',       label: 'Materias',      cont: 'materias' },
       { key: 'roles',          label: 'Cargos',        cont: 'roles' },
-      { key: 'importar',       label: 'Importar' },
-      { key: 'config',         label: 'Configuración' },
-      { key: 'sabana',         label: 'Sábana',        soon: true },
-      { key: 'horario_doc',    label: 'Horario docente', soon: true },
-      { key: 'ahora',          label: 'Ahora',         soon: true },
-      { key: 'sustituciones',  label: 'Sustituciones', soon: true }
+      { key: 'importar',       label: 'Importar' }
     ];
+    var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
 
     var ESTADO = null;         // último estadoApp()
     var GUIADO = false;        // modo alta guiada: avanza por pendientes
     var PENDIENTES = [];       // claves de secciones pendientes (modo guiado)
     var OB_VOLCADO = null;     // volcado pendiente de revisar en Importar (puente onboarding→workspace)
+    var VISTA_ACTUAL = 'resumen';
+    var CONFIG_SUB_ACTUAL = 'ajustes';
 
     window.addEventListener('load', function() {
       aplicarTemaGuardado();
@@ -128,7 +139,7 @@
       pintarCabecera();
       construirTabs();
       const destino = pestana || _pestanaDesdeHash() || PESTANA_INICIAL || 'resumen';
-      irPestana(_tabValida(destino) ? destino : 'resumen');
+      irPestana(_keyValida(destino) ? destino : 'resumen');
     }
 
     function pintarCabecera() {
@@ -165,27 +176,86 @@
     function _tabValida(key) {
       return TABS.some(function(t) { return t.key === key && !t.soon; });
     }
+    function _keyValida(key) {
+      return _tabValida(key) || CONFIG_KEYS.indexOf(key) !== -1;
+    }
+
+    var LOADERS = {
+      resumen: function() { renderResumen(); },
+      importar: function() { prepararImportar(); },
+      ajustes: function() { renderConfig(); },
+      centro: function() { cargarCentro(); },
+      tramos: function() { cargarTramos(); },
+      grupos: function() { cargarGrupos(); },
+      docentes: function() { cargarDocentes(); },
+      tutorias: function() { cargarTutorias(); },
+      localizaciones: function() { cargarLocalizaciones(); },
+      materias: function() { cargarMaterias(); },
+      roles: function() { cargarRoles(); }
+    };
 
     function irPestana(key) {
-      if (!_tabValida(key)) key = 'resumen';
+      // La pestaña "Configuración" abre el hub (submenú + última subsección).
+      if (key === 'config') { irConfig(CONFIG_SUB_ACTUAL); return; }
+      if (!_keyValida(key)) key = 'resumen';
+      // Las secciones de datos viven dentro de Configuración.
+      if (CONFIG_KEYS.indexOf(key) !== -1) { irConfig(key); return; }
+
+      VISTA_ACTUAL = key;
       document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
-      document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('#tabs .tab').forEach(function(t) { t.classList.remove('active'); });
+      document.getElementById('config-subnav').style.display = 'none';
+
       const view = document.getElementById('view-' + key);
       const tab = document.getElementById('tab-' + key);
       if (view) view.classList.add('active');
       if (tab) tab.classList.add('active');
       try { history.replaceState(null, '', '#' + key); } catch (e) {}
 
-      // Cargar datos de la sección al mostrarla (funciones de los parciales).
-      const loaders = {
-        resumen: renderResumen, centro: cargarCentro, tramos: cargarTramos,
-        grupos: cargarGrupos, docentes: cargarDocentes, tutorias: cargarTutorias,
-        localizaciones: cargarLocalizaciones, materias: cargarMaterias, roles: cargarRoles,
-        importar: prepararImportar, config: renderConfig
-      };
-      const fn = loaders[key];
-      if (typeof fn === 'function') { try { fn(); } catch (e) { console.error(e); } }
+      _ejecutarLoader(key);
       window.scrollTo(0, 0);
+    }
+
+    // Configuración con submenú: 'ajustes' + todas las secciones de datos.
+    function irConfig(sub) {
+      sub = (CONFIG_KEYS.indexOf(sub) !== -1) ? sub : 'ajustes';
+      VISTA_ACTUAL = sub;
+      CONFIG_SUB_ACTUAL = sub;
+
+      document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+      document.querySelectorAll('#tabs .tab').forEach(function(t) { t.classList.remove('active'); });
+      const topTab = document.getElementById('tab-config');
+      if (topTab) topTab.classList.add('active');
+
+      construirSubnav(sub);
+      const view = document.getElementById('view-' + sub);
+      if (view) view.classList.add('active');
+      try { history.replaceState(null, '', '#' + sub); } catch (e) {}
+
+      _ejecutarLoader(sub);
+      window.scrollTo(0, 0);
+    }
+
+    function construirSubnav(sub) {
+      const cont = (ESTADO && ESTADO.contadores) || {};
+      const nav = document.getElementById('config-subnav');
+      nav.style.display = 'flex';
+      nav.innerHTML = '';
+      CONFIG_SUBTABS.forEach(function(t) {
+        const b = document.createElement('button');
+        b.className = 'subtab' + (t.key === sub ? ' active' : '');
+        b.type = 'button';
+        let pill = '';
+        if (t.cont && cont[t.cont] != null) pill = ' <span class="pill" id="pillsub-' + t.key + '">' + cont[t.cont] + '</span>';
+        b.innerHTML = t.label + pill;
+        b.onclick = function() { irConfig(t.key); };
+        nav.appendChild(b);
+      });
+    }
+
+    function _ejecutarLoader(key) {
+      const fn = LOADERS[key];
+      if (typeof fn === 'function') { try { fn(); } catch (e) { console.error(e); } }
     }
 
     function _pestanaDesdeHash() {
@@ -208,9 +278,9 @@
 
     function actualizarPills() {
       const cont = (ESTADO && ESTADO.contadores) || {};
-      TABS.forEach(function(t) {
+      CONFIG_SUBTABS.forEach(function(t) {
         if (!t.cont) return;
-        const el = document.getElementById('pill-' + t.key);
+        const el = document.getElementById('pillsub-' + t.key);
         if (el && cont[t.cont] != null) el.textContent = cont[t.cont];
       });
     }
@@ -220,9 +290,8 @@
       if (!GUIADO) return;
       google.script.run.withSuccessHandler(function(res) {
         PENDIENTES = (res && res.pendientes) || [];
-        // Quitar la sección actual si ya está ok.
-        const activa = document.querySelector('.tab.active');
-        const actual = activa ? activa.id.replace('tab-', '') : '';
+        // Quitar la sección actual (ya guardada) y saltar a la siguiente pendiente.
+        const actual = VISTA_ACTUAL;
         const siguiente = PENDIENTES.filter(function(k) { return k !== actual; })[0];
         pintarBannerGuia();
         if (siguiente) {

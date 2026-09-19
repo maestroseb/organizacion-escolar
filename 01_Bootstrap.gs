@@ -132,7 +132,7 @@ function reiniciarCentro() {
   });
   bulkReplace(SHEETS.CENTRO, []);
   try {
-    PropertiesService.getDocumentProperties().deleteProperty(PROP_KEY_WIZARD);
+    PropertiesService.getScriptProperties().deleteProperty(PROP_KEY_WIZARD);
   } catch (e) {}
   return { ok: true };
 }

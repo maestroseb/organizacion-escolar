@@ -81,14 +81,16 @@ function guardarCentroInicial(datos) {
 }
 
 function obtenerPreferenciasWizard() {
-  const raw = PropertiesService.getDocumentProperties().getProperty(PROP_KEY_WIZARD);
+  // OJO: este script es standalone (no ligado a un documento), así que
+  // getDocumentProperties() devuelve null. Usamos las propiedades del script.
+  const raw = PropertiesService.getScriptProperties().getProperty(PROP_KEY_WIZARD);
   if (!raw) return { etapas: '', lineas: '', bilingue: '' };
   try { return JSON.parse(raw); }
   catch (e) { return { etapas: '', lineas: '', bilingue: '' }; }
 }
 
 function guardarPreferenciasWizard(prefs) {
-  PropertiesService.getDocumentProperties()
+  PropertiesService.getScriptProperties()
     .setProperty(PROP_KEY_WIZARD, JSON.stringify(prefs));
 }
 

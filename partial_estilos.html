@@ -111,6 +111,22 @@
   .tab.active .pill { background: var(--accent-weak); color: var(--accent-text); }
   .tab .soon { font-size: 10px; font-weight: 600; color: var(--faint); border: 1px solid var(--border); border-radius: 999px; padding: 0 6px; }
 
+  /* ---------- Submenú de Configuración ---------- */
+  .subtabs {
+    display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 24px;
+    padding: 6px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .subtab {
+    appearance: none; border: none; background: transparent; cursor: pointer; font: inherit;
+    font-size: 13.5px; font-weight: 550; color: var(--muted); padding: 8px 13px; border-radius: 8px;
+    display: inline-flex; align-items: center; gap: 7px; transition: background .15s, color .15s;
+  }
+  .subtab:hover { color: var(--text); background: var(--surface-3); }
+  .subtab.active { background: var(--surface); color: var(--accent-text); box-shadow: var(--shadow-sm); }
+  .subtab .pill { font-size: 11px; font-weight: 600; min-width: 18px; text-align: center; background: var(--surface-3); color: var(--muted); border-radius: 999px; padding: 1px 6px; }
+  .subtab.active .pill { background: var(--accent-weak); color: var(--accent-text); }
+
   /* ---------- Contenedor de contenido ---------- */
   .shell { max-width: 1100px; margin: 0 auto; padding: 28px 20px 72px; }
   .view { display: none; animation: fade .18s ease; }
