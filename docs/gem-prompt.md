@@ -216,6 +216,38 @@ Un tramo normal ocupa una celda de una fila. Pero a veces la tabla muestra:
   mayoría de las celdas son enteras: no pongas sufijos "por si acaso".
 
 ═══════════════════════════════════════════════════════════════════
+CLASES ALTERNAS (una semana un grupo, la siguiente otro)
+═══════════════════════════════════════════════════════════════════
+
+A veces una misma franja NO se parte en medias horas, sino que se alterna
+por semanas: un grupo la semana A y otro la semana B. Es típico en Religión
+e Inglés. Visualmente la celda muestra un mismo docente con DOS grupos
+distintos (ej. "INGLÉS I3A / I3B — LOLA F.").
+
+Cómo distinguir ALTERNANCIA de DESDOBLE simultáneo:
+- Un mismo docente NO puede estar en dos grupos a la vez. Por tanto, si en
+  una celda ves UN SOLO docente asociado a DOS grupos distintos con la misma
+  materia → es ALTERNANCIA (semana A / semana B).
+- Si ves DOS docentes distintos, cada uno con lo suyo ("RELI Amparo / ATEDU
+  Puri") → es DESDOBLE simultáneo (dos filas normales, distinto docente).
+
+Para la alternancia, genera DOS filas con el MISMO tramo y docente, distinto
+grupo. La semana NO se codifica en el CSV (el sistema la ancla al calendario
+en la app); simplemente emite las dos filas y AVÍSALO en incidencias:
+
+    Lola F.,L,1,grupo,Inglés,I3 A,,,
+    Lola F.,L,1,grupo,Inglés,I3 B,,,
+    (incidencia: "Alternancia semanal L-T1: I3A / I3B — asignar semana A/B
+     en la app")
+
+NO trates estas dos filas como conflicto ni las colapses: son legítimas,
+conviven.
+
+Caso combinado (alternancia + desdoble a la vez, ej. "REL Amparo / ATEDU
+Lola F. / I3A / I3B"): extrae lo que puedas y márcalo claramente en
+incidencias para revisión manual. No fuerces una interpretación.
+
+═══════════════════════════════════════════════════════════════════
 ACUMULACIÓN ENTRE CAPTURAS
 ═══════════════════════════════════════════════════════════════════
 
@@ -225,6 +257,10 @@ ACUMULACIÓN ENTRE CAPTURAS
   describen esa terna con los MISMOS datos → CONFIRMACIÓN (una sola fila,
   no dupliques). Si la describen con datos DISTINTOS → CONFLICTO: quédate
   con la más reciente y anótalo en incidencias.
+- EXCEPCIÓN: no es conflicto (y no colapses) cuando la misma terna aparece
+  legítimamente varias veces por partido (sufijo a/b distinto) o por
+  alternancia semanal (mismo docente y tramo, grupos distintos). En esos
+  casos conviven varias filas.
 - NO es conflicto que dos docentes distintos den clase a la misma hora en
   aulas distintas: es lo normal en un colegio.
 - Si el usuario pega un CSV previo diciendo "sigue añadiendo", tómalo como
@@ -296,6 +332,17 @@ Sara,J,6,grupo,Lengua Castellana y Literatura,3º A,,,
 En la app, `tramo=5a`/`5b` se traduce al tramo 5 con el campo `mitad` a 1/2;
 `tramo=5` (sin sufijo) es el tramo completo (`mitad` vacío).
 
+**Clase alterna** (mismo docente y tramo, el grupo cambia según la semana):
+
+```csv
+docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas
+Lola F.,L,1,grupo,Inglés,I3 A,,,
+Lola F.,L,1,grupo,Inglés,I3 B,,,
+```
+
+Las dos filas conviven; la app las marca con el campo `semana` (A/B) en la
+pantalla de revisión y ancla qué semana del calendario es A o B.
+
 ---
 
 ## 5. Cómo lo importará la app
@@ -313,7 +360,12 @@ El importador CSV (en la app, Fase 2) hará:
    el 70-80%; el humano da el 20% de precisión.
 4. **Decodificar el tramo**: `tramo=5a`/`5b` → tramo 5 con `mitad` a 1/2;
    `tramo=5` (sin sufijo) → tramo completo (`mitad` vacío).
-5. **Aplicar**: genera filas en `_Ocupaciones` con los IDs correctos. Las
+5. **Resolver alternancias**: cuando el mismo `(docente, dia, tramo)` aparece
+   con grupos distintos (mismo docente, imposible a la vez), la pantalla de
+   revisión lo marca como clase alterna y asigna `semana` A/B a cada fila.
+   El ancla de qué semana del calendario es A o B se guarda en `_Centro`
+   (pendiente de Fase 2).
+6. **Aplicar**: genera filas en `_Ocupaciones` con los IDs correctos. Las
    filas con `??` o campos críticos vacíos quedan marcadas y no se importan
    automáticamente.
 
