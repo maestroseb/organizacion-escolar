@@ -12,6 +12,7 @@ function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('Horarios')
     .addItem('Abrir asistente de configuración', 'abrirSetup')
+    .addItem('Importar horarios (CSV)', 'abrirImportadorCSV')
     .addToUi();
 }
 
@@ -20,4 +21,11 @@ function abrirSetup() {
     .setWidth(1200)
     .setHeight(720);
   SpreadsheetApp.getUi().showModalDialog(html, 'Asistente de configuración');
+}
+
+function abrirImportadorCSV() {
+  const html = HtmlService.createHtmlOutputFromFile('src/csv')
+    .setWidth(1200)
+    .setHeight(720);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Importar horarios (CSV)');
 }

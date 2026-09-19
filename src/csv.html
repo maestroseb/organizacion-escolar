@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Google Sans', Roboto, Arial, sans-serif; margin: 0; color: #202124; background: #fff; }
+    .wrap { padding: 24px 28px; }
+    h1 { font-size: 22px; margin: 0 0 6px; font-weight: 500; }
+    .subtitle { color: #5f6368; margin-bottom: 20px; font-size: 14px; }
+    button {
+      background: #1a73e8; color: #fff; border: none; padding: 10px 20px;
+      border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500;
+    }
+    button:hover:not(:disabled) { background: #1765cc; }
+    button:disabled { background: #dadce0; color: #5f6368; cursor: not-allowed; }
+    button.secondary { background: #fff; color: #1a73e8; border: 1px solid #dadce0; }
+    button.secondary:hover:not(:disabled) { background: #f8f9fa; }
+    .actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+    textarea {
+      width: 100%; box-sizing: border-box; min-height: 140px; font-family: monospace;
+      font-size: 12px; padding: 10px; border: 1px solid #dadce0; border-radius: 4px; resize: vertical;
+    }
+    .btn-like { background: #fff; color: #1a73e8; border: 1px solid #dadce0;
+      padding: 10px 20px; border-radius: 4px; font-size: 14px; cursor: pointer;
+      font-weight: 500; display: inline-block; line-height: 1; }
+    .btn-like:hover { background: #f8f9fa; }
+    .result { margin: 14px 0; padding: 14px; border-radius: 6px; font-size: 13px; }
+    .result.ok { background: #e6f4ea; border: 1px solid #34a853; }
+    .result.err { background: #fce8e6; border: 1px solid #d93025; color: #b3261e; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff;
+      border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite;
+      vertical-align: middle; margin-right: 8px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .resumen-estados { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0; font-size: 13px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+    .dot.ok { background: #34a853; } .dot.dudoso { background: #f9ab00; }
+    .dot.revisar { background: #e8710a; } .dot.conflicto { background: #d93025; }
+    .dot.omitir { background: #9aa0a6; }
+    table.rev { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+    table.rev th { position: sticky; top: 0; background: #f1f3f4; text-align: left;
+      padding: 8px 6px; font-weight: 500; font-size: 12px; color: #5f6368; z-index: 1; }
+    table.rev td { padding: 4px 6px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    table.rev tr.f-ok { }
+    table.rev tr.f-dudoso { background: #fef7e0; }
+    table.rev tr.f-revisar { background: #fdf0e6; }
+    table.rev tr.f-conflicto { background: #fce8e6; }
+    table.rev tr.f-omitir { opacity: 0.5; }
+    table.rev select, table.rev input[type=text] {
+      font-size: 12px; padding: 3px 4px; border: 1px solid #dadce0; border-radius: 3px;
+      max-width: 150px; box-sizing: border-box;
+    }
+    table.rev select.sin { border-color: #d93025; background: #fff4f4; }
+    .estado-badge { font-size: 11px; padding: 1px 7px; border-radius: 10px; font-weight: 500; white-space: nowrap; }
+    .estado-badge.ok { background: #e6f4ea; color: #137333; }
+    .estado-badge.dudoso { background: #fef7e0; color: #9a6a00; }
+    .estado-badge.revisar { background: #fdf0e6; color: #b25000; }
+    .estado-badge.conflicto { background: #fce8e6; color: #b3261e; }
+    .estado-badge.omitir { background: #e8eaed; color: #5f6368; }
+    .avisos { font-size: 11px; color: #b25000; max-width: 220px; }
+    .col-mini { width: 44px; text-align: center; color: #5f6368; }
+    .tabla-scroll { max-height: 52vh; overflow: auto; border: 1px solid #e0e0e0; border-radius: 6px; }
+    .hint { font-size: 12px; color: #5f6368; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Importar horarios (CSV)</h1>
+    <p class="subtitle">
+      Pega el CSV generado por el Gem o sube el archivo. Revisa las
+      coincidencias contra el catálogo del centro y aplica.
+    </p>
+
+    <!-- FASE 1: entrada -->
+    <div id="fase-entrada">
+      <textarea id="csv-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Sebastián,L,1,grupo,Lengua Castellana y Literatura,3º B,,,&#10;..."></textarea>
+      <div class="actions">
+        <label class="btn-like" for="csv-file">Subir archivo .csv…</label>
+        <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none;" onchange="cargarArchivo(this)">
+        <span id="csv-filename" class="hint"></span>
+        <button id="btn-analizar" onclick="analizar()">Analizar</button>
+      </div>
+      <div id="result-entrada"></div>
+    </div>
+
+    <!-- FASE 2: revisión -->
+    <div id="fase-revision" style="display:none;">
+      <div class="resumen-estados">
+        <span class="chip"><span class="dot ok"></span> Correcta</span>
+        <span class="chip"><span class="dot dudoso"></span> Coincidencia dudosa</span>
+        <span class="chip"><span class="dot revisar"></span> Revisar</span>
+        <span class="chip"><span class="dot conflicto"></span> Conflicto</span>
+        <span class="chip"><span class="dot omitir"></span> Se omite</span>
+      </div>
+      <div id="contador" class="hint"></div>
+      <div class="tabla-scroll">
+        <table class="rev">
+          <thead>
+            <tr>
+              <th class="col-mini">#</th>
+              <th>Estado</th>
+              <th>Día</th>
+              <th>Tramo</th>
+              <th>Tipo</th>
+              <th>Docente</th>
+              <th>Actividad</th>
+              <th>Avisos</th>
+              <th class="col-mini">Omitir</th>
+            </tr>
+          </thead>
+          <tbody id="rev-body"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button class="secondary" onclick="volverEntrada()">← Volver</button>
+        <button id="btn-aplicar" onclick="aplicar()">Aplicar al horario</button>
+        <span id="aplicar-hint" class="hint"></span>
+      </div>
+      <div id="result-revision"></div>
+    </div>
+  </div>
+
+  <script>
+    let CAT = null;      // catálogo
+    let FILAS = [];      // filas analizadas
+
+    function cargarArchivo(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      document.getElementById('csv-filename').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = function(e) { document.getElementById('csv-texto').value = e.target.result; };
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function analizar() {
+      const texto = document.getElementById('csv-texto').value;
+      if (!texto.trim()) {
+        document.getElementById('result-entrada').innerHTML =
+          '<div class="result err">Pega el CSV o sube un archivo primero.</div>';
+        return;
+      }
+      const btn = document.getElementById('btn-analizar');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Analizando…';
+      document.getElementById('result-entrada').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false; btn.textContent = 'Analizar';
+          CAT = res.catalogo; FILAS = res.filas;
+          renderRevision();
+          document.getElementById('fase-entrada').style.display = 'none';
+          document.getElementById('fase-revision').style.display = 'block';
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false; btn.textContent = 'Analizar';
+          document.getElementById('result-entrada').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .analizarCSV(texto);
+    }
+
+    function volverEntrada() {
+      document.getElementById('fase-revision').style.display = 'none';
+      document.getElementById('fase-entrada').style.display = 'block';
+    }
+
+    function _opts(lista, selId, incluyeVacio) {
+      let h = incluyeVacio ? '<option value="">—</option>' : '';
+      lista.forEach(function(x) {
+        h += '<option value="' + x.id + '"' + (x.id === selId ? ' selected' : '') + '>' +
+             _esc(x.nombre) + '</option>';
+      });
+      return h;
+    }
+
+    function _sel(fila, campo, lista, matchObj) {
+      const selId = matchObj ? matchObj.id : '';
+      const sin = (!selId) ? ' sin' : '';
+      const title = matchObj && matchObj.texto ? ('CSV: "' + matchObj.texto + '"' +
+        (matchObj.score ? ' · ' + Math.round(matchObj.score*100) + '%' : '')) : '';
+      return '<select class="' + sin.trim() + '" title="' + _esc(title) +
+        '" onchange="setCampo(' + fila.n + ',\'' + campo + '\',this.value)">' +
+        _opts(lista, selId, true) + '</select>';
+    }
+
+    function renderRevision() {
+      const tb = document.getElementById('rev-body');
+      tb.innerHTML = '';
+      FILAS.forEach(function(f) {
+        const tr = document.createElement('tr');
+        tr.className = 'f-' + f.estadoFila;
+        tr.id = 'fila-' + f.n;
+
+        let actividad = '';
+        if (f.tipo === 'grupo') {
+          actividad = _sel(f, 'materia_id', CAT.materias, f.materia) + ' ' +
+                      _sel(f, 'grupo_id', CAT.grupos, f.grupo);
+        } else if (f.tipo === 'localizacion') {
+          actividad = _sel(f, 'rol_id', CAT.roles, f.rol) + ' → ' +
+                      _sel(f, 'grupo_destino_id', CAT.grupos, f.grupoDestino);
+        } else if (f.tipo === 'especial') {
+          actividad = _sel(f, 'rol_id', CAT.roles, f.rol);
+        } else {
+          actividad = '<span class="avisos">tipo desconocido</span>';
+        }
+
+        const tramoTxt = (f.tramoOrden || '?') +
+          (f.mitad === '1' ? 'a' : f.mitad === '2' ? 'b' : '') +
+          (f.semana ? ' · sem ' + f.semana : '');
+
+        tr.innerHTML =
+          '<td class="col-mini">' + f.n + '</td>' +
+          '<td><span class="estado-badge ' + f.estadoFila + '">' + f.estadoFila + '</span></td>' +
+          '<td>' + _esc(f.dia) + '</td>' +
+          '<td>' + tramoTxt + '</td>' +
+          '<td>' + _esc(f.tipo) + '</td>' +
+          '<td>' + _sel(f, 'docente_id', CAT.docentes, f.docente) + '</td>' +
+          '<td>' + actividad + '</td>' +
+          '<td class="avisos">' + _esc((f.avisos || []).join(' · ')) + '</td>' +
+          '<td class="col-mini"><input type="checkbox"' + (f.omitir ? ' checked' : '') +
+            ' onchange="setOmitir(' + f.n + ',this.checked)"></td>';
+        tb.appendChild(tr);
+      });
+      actualizarContador();
+    }
+
+    function setCampo(n, campo, val) {
+      const f = FILAS.find(function(x) { return x.n === n; });
+      if (f) f[campo] = val;
+    }
+    function setOmitir(n, val) {
+      const f = FILAS.find(function(x) { return x.n === n; });
+      if (f) { f.omitir = val; }
+      const tr = document.getElementById('fila-' + n);
+      if (tr) tr.classList.toggle('f-omitir', val);
+      actualizarContador();
+    }
+
+    function actualizarContador() {
+      const aplicables = FILAS.filter(function(f) { return !f.omitir; }).length;
+      const conf = FILAS.filter(function(f) { return !f.omitir && f.estadoFila === 'conflicto'; }).length;
+      document.getElementById('contador').textContent =
+        FILAS.length + ' filas · ' + aplicables + ' se aplicarán' +
+        (conf ? ' · ' + conf + ' con conflicto' : '');
+    }
+
+    function aplicar() {
+      const payload = FILAS.map(function(f) {
+        return {
+          n: f.n, omitir: !!f.omitir,
+          dia: f.dia, tramo_id: f.tramoId, mitad: f.mitad, semana: f.semana,
+          tipo: f.tipo, notas: f.notas,
+          docente_id: f.docente_id || (f.docente && f.docente.id) || '',
+          materia_id: f.materia_id || (f.materia && f.materia.id) || '',
+          grupo_id: f.grupo_id || (f.grupo && f.grupo.id) || '',
+          rol_id: f.rol_id || (f.rol && f.rol.id) || '',
+          grupo_destino_id: f.grupo_destino_id || (f.grupoDestino && f.grupoDestino.id) || ''
+        };
+      });
+
+      const aplicables = payload.filter(function(p) { return !p.omitir; });
+      const faltan = aplicables.filter(function(p) { return !p.docente_id || !p.tramo_id; });
+      if (faltan.length) {
+        document.getElementById('result-revision').innerHTML =
+          '<div class="result err">Hay ' + faltan.length + ' fila(s) sin docente o tramo resuelto. ' +
+          'Corrígelas o márcalas para omitir.</div>';
+        return;
+      }
+
+      const btn = document.getElementById('btn-aplicar');
+      btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Aplicando…';
+      document.getElementById('result-revision').innerHTML = '';
+
+      google.script.run
+        .withSuccessHandler(function(res) {
+          btn.disabled = false; btn.textContent = 'Aplicar al horario';
+          document.getElementById('result-revision').innerHTML =
+            '<div class="result ok">✓ Importadas ' + res.total + ' ocupaciones en _Ocupaciones.</div>';
+        })
+        .withFailureHandler(function(err) {
+          btn.disabled = false; btn.textContent = 'Aplicar al horario';
+          document.getElementById('result-revision').innerHTML =
+            '<div class="result err">✗ ' + (err.message || err) + '</div>';
+        })
+        .aplicarImportacionCSV(payload);
+    }
+
+    function _esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+    }
+  </script>
+</body>
+</html>
