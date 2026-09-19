@@ -1,22 +1,15 @@
 /**
  * Catálogo de centros de Andalucía para el alta guiada.
  *
- * El catálogo vive en un repo aparte (maestroseb/contactos-g.educaand,
- * fichero CentrosCatalogo.gs) como un objeto `const CENTROS = { 'codigo':
- * 'nombre', ... }` con ~1500 centros. Aquí lo descargamos con UrlFetchApp,
- * lo cacheamos en CacheService (6 h) y lo parseamos con una expresión
- * regular, sin depender del repo en tiempo real en cada búsqueda.
+ * Los datos (código → nombre) viven INCLUIDOS en la app, en
+ * 14_CentrosDatos.gs (objeto `CATALOGO_CENTROS`), copiados del repo
+ * maestroseb/contactos-g.educaand. Se incluyen en lugar de descargarlos en
+ * tiempo de ejecución para que el buscador funcione siempre, sin red ni
+ * permisos de conexión externa (coste cero, sin dependencias frágiles).
  *
- * Si la red falla o el código no está en el catálogo, las funciones
- * devuelven { encontrado: false } y el alta guiada permite escribir el
- * nombre del centro a mano. (Apps Script infiere el scope
- * script.external_request automáticamente por el uso de UrlFetchApp.)
+ * Si un código no está en el catálogo, las funciones devuelven
+ * { encontrado: false } y el alta guiada permite escribir el nombre a mano.
  */
-
-const CATALOGO_URL =
-  'https://raw.githubusercontent.com/maestroseb/contactos-g.educaand/main/CentrosCatalogo.gs';
-const CATALOGO_CACHE_KEY = 'catalogo_centros_v1';
-const CATALOGO_CACHE_SEG = 21600; // 6 horas
 
 const PROVINCIAS_ANDALUCIA = {
   '04': 'Almería',
@@ -57,7 +50,7 @@ function buscarCentroPorCodigo(codigo) {
  */
 function buscarCentrosPorNombre(texto, limite) {
   const q = _normalizarTexto(texto);
-  if (q.length < 3) return { resultados: [], truncado: false };
+  if (q.length < 3) return { resultados: [], truncado: false, total: 0 };
   limite = limite || 25;
 
   const mapa = _cargarCatalogo();
@@ -79,52 +72,9 @@ function buscarCentrosPorNombre(texto, limite) {
 
 // ---------- Internos ----------
 
+/** Devuelve el catálogo incluido (14_CentrosDatos.gs). */
 function _cargarCatalogo() {
-  const cache = CacheService.getScriptCache();
-  const guardado = cache.get(CATALOGO_CACHE_KEY);
-  if (guardado) {
-    try { return JSON.parse(guardado); } catch (e) {}
-  }
-
-  let texto = '';
-  try {
-    const resp = UrlFetchApp.fetch(CATALOGO_URL, {
-      muteHttpExceptions: true,
-      followRedirects: true
-    });
-    if (resp.getResponseCode() === 200) texto = resp.getContentText('UTF-8');
-  } catch (e) {
-    // Sin red: devolvemos un catálogo vacío (el alta guiada lo permite).
-    return {};
-  }
-
-  const mapa = _parsearCatalogo(texto);
-
-  // CacheService limita cada valor a 100 KB; el catálogo entero puede pasarse,
-  // así que lo troceamos en varias claves.
-  try { _guardarEnCache(cache, mapa); } catch (e) {}
-  return mapa;
-}
-
-function _parsearCatalogo(texto) {
-  const mapa = {};
-  if (!texto) return mapa;
-  // Pares del tipo:  '04000018': 'C.E.I.P. JOAQUÍN TENA SICILIA',
-  const re = /['"](\d{6,8})['"]\s*:\s*['"]((?:[^'"\\]|\\.)*)['"]/g;
-  let m;
-  while ((m = re.exec(texto)) !== null) {
-    mapa[m[1]] = m[2].replace(/\\'/g, "'").replace(/\\"/g, '"').trim();
-  }
-  return mapa;
-}
-
-function _guardarEnCache(cache, mapa) {
-  const json = JSON.stringify(mapa);
-  if (json.length <= 95000) {
-    cache.put(CATALOGO_CACHE_KEY, json, CATALOGO_CACHE_SEG);
-  }
-  // Si es demasiado grande para una sola clave, no cacheamos (se volverá a
-  // descargar): mantiene el código simple y la descarga es rápida.
+  return (typeof CATALOGO_CENTROS !== 'undefined' && CATALOGO_CENTROS) ? CATALOGO_CENTROS : {};
 }
 
 function _normalizarCodigo(codigo) {
