@@ -98,6 +98,7 @@
     var ESTADO = null;         // último estadoApp()
     var GUIADO = false;        // modo alta guiada: avanza por pendientes
     var PENDIENTES = [];       // claves de secciones pendientes (modo guiado)
+    var OB_VOLCADO = null;     // volcado pendiente de revisar en Importar (puente onboarding→workspace)
 
     window.addEventListener('load', function() {
       aplicarTemaGuardado();

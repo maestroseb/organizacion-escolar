@@ -41,8 +41,10 @@
     <label class="btn-like" for="csv-file">Subir .csv…</label>
     <input type="file" id="csv-file" accept=".csv,text/csv,text/plain" style="display:none;" onchange="cargarArchivoCSV(this)">
     <span id="csv-filename" class="hint"></span>
-    <button class="primary" id="btn-analizar-csv" onclick="analizarCSVUI()">Analizar</button>
+    <button class="secondary" onclick="detectarCatalogoUI('csv')">Detectar catálogo</button>
+    <button class="primary" id="btn-analizar-csv" onclick="analizarCSVUI()">Analizar horarios</button>
   </div>
+  <p class="hint" style="margin-top:0;">Sugerencia: si es la primera vez, pulsa <strong>Detectar catálogo</strong> para crear docentes, grupos, materias y cargos a partir del volcado; luego <strong>Analizar horarios</strong>.</p>
   <div id="res-csv"></div>
 </div>
 
@@ -51,9 +53,15 @@
   <p class="hint" style="margin-top:0;">Pega los horarios tal cual los tengas (una sesión por línea). La interpretación es aproximada: <strong>siempre podrás revisar y corregir</strong> antes de aplicar.</p>
   <textarea id="texto-libre" placeholder="Sebastián  Lunes  1  Lengua 3ºB&#10;Ana, martes, 2, Matemáticas, 5º A&#10;..."></textarea>
   <div class="toolbar">
-    <button class="primary" id="btn-analizar-texto" onclick="analizarTextoUI()">Interpretar</button>
+    <button class="secondary" onclick="detectarCatalogoUI('texto')">Detectar catálogo</button>
+    <button class="primary" id="btn-analizar-texto" onclick="analizarTextoUI()">Interpretar horarios</button>
   </div>
   <div id="res-texto"></div>
+</div>
+
+<!-- Detección de catálogo desde el volcado -->
+<div id="detect-catalogo" class="panelbox" style="display:none; margin-top:16px;">
+  <div id="detect-catalogo-body"></div>
 </div>
 
 <!-- Revisión (compartida CSV + texto) -->
@@ -98,6 +106,89 @@
     setModoFusion(IMP_MODO);
     setFuente(IMP_FUENTE);
     volverEntrada();
+    document.getElementById('detect-catalogo').style.display = 'none';
+
+    // Puente desde el alta guiada: si venimos de crear catálogo con un volcado,
+    // precargamos el texto y analizamos directamente los horarios para revisar.
+    if (typeof OB_VOLCADO !== 'undefined' && OB_VOLCADO && OB_VOLCADO.texto) {
+      const v = OB_VOLCADO; OB_VOLCADO = null;
+      setFuente(v.fuente);
+      if (v.fuente === 'texto') {
+        document.getElementById('texto-libre').value = v.texto;
+        setTimeout(analizarTextoUI, 60);
+      } else {
+        document.getElementById('csv-texto').value = v.texto;
+        setTimeout(analizarCSVUI, 60);
+      }
+    }
+  }
+
+  // ---------- Detección/creación de catálogo desde el volcado ----------
+  var DETECT_ENTIDADES = null;
+  function detectarCatalogoUI(fuente) {
+    const texto = document.getElementById(fuente === 'texto' ? 'texto-libre' : 'csv-texto').value;
+    if (!texto.trim()) { document.getElementById('res-' + (fuente==='texto'?'texto':'csv')).innerHTML = '<div class="result err">Pega algún dato primero.</div>'; return; }
+    const cont = document.getElementById('detect-catalogo');
+    const body = document.getElementById('detect-catalogo-body');
+    cont.style.display = 'block';
+    body.innerHTML = '<p class="hint"><span class="spinner"></span> Detectando…</p>';
+    google.script.run
+      .withSuccessHandler(function(res) { DETECT_ENTIDADES = { res: res, fuente: fuente }; _renderDetect(res); })
+      .withFailureHandler(function(err) { body.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .extraerEntidadesVolcado(texto, fuente);
+  }
+  function _renderDetect(res) {
+    const body = document.getElementById('detect-catalogo-body');
+    const filas = [
+      { k:'docentes', t:'Docentes', arr:res.docentes },
+      { k:'grupos', t:'Grupos', arr:res.grupos },
+      { k:'materias', t:'Materias', arr:res.materias },
+      { k:'roles', t:'Cargos y roles', arr:res.roles }
+    ];
+    let html = '<div class="page-head" style="margin-bottom:8px;"><h2 style="font-size:18px;">Catálogo detectado en el volcado</h2>' +
+      '<p>Se crearán en tu centro (modo combinar: no duplica lo que ya exista).</p></div>';
+    html += '<div class="seneca-cards">';
+    filas.forEach(function(f) {
+      const total=f.arr.length, nuevos=res.nuevos[f.k];
+      html += '<div class="seneca-card' + (total?' activa':' vacia') + '"><div class="body">' +
+        '<div class="titulo">' + f.t + '<span class="contador">' + total + '</span></div>' +
+        '<div class="muestra">' + _esc(f.arr.slice(0,6).map(function(x){return x.nombre;}).join(', ')) + (total>6?'…':'') + '</div>' +
+        (nuevos?('<div class="muestra" style="color:var(--ok)">' + nuevos + ' nuevo(s)</div>'):'') +
+        '</div></div>';
+    });
+    const tt=res.tramos.total, tn=res.nuevos.tramos;
+    html += '<div class="seneca-card' + (tt?' activa':' vacia') + '"><div class="body">' +
+      '<div class="titulo">Tramos<span class="contador">' + tt + '</span></div>' +
+      '<div class="muestra">Órdenes: ' + (res.tramos.ordenes.join(', ')||'—') + '</div>' +
+      (tn?('<div class="muestra" style="color:var(--ok)">se crearán ' + tn + '</div>'):(res.tramos.existe?'<div class="muestra">ya hay tramos</div>':'')) +
+      '</div></div>';
+    html += '</div>';
+    html += '<div class="actions"><button class="primary" id="btn-crear-catalogo" onclick="crearCatalogoUI()">Crear catálogo</button>' +
+      '<span class="hint">Después pulsa “Analizar horarios” para volcar las ocupaciones.</span></div>';
+    html += '<div id="res-detect"></div>';
+    body.innerHTML = html;
+  }
+  function crearCatalogoUI() {
+    if (!DETECT_ENTIDADES) return;
+    const res = DETECT_ENTIDADES.res;
+    const sel = {
+      docentes: res.docentes.map(function(x){return x.nombre;}),
+      grupos: res.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
+      materias: res.materias.map(function(x){return x.nombre;}),
+      roles: res.roles.map(function(x){return x.nombre;}),
+      tramosOrdenes: res.tramos.ordenes
+    };
+    const btn = document.getElementById('btn-crear-catalogo'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
+    google.script.run
+      .withSuccessHandler(function(r) {
+        btn.disabled = false; btn.textContent = 'Crear catálogo';
+        const rr = r.resumen || {};
+        const lst = Object.keys(rr).map(function(k){return k+': '+rr[k];}).join(' · ');
+        document.getElementById('res-detect').innerHTML = '<div class="result ok">✓ Catálogo creado. ' + (lst||'') + '. Ahora pulsa “Analizar horarios”.</div>';
+        refrescarEstado();
+      })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Crear catálogo'; document.getElementById('res-detect').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .crearEntidadesVolcado(sel, 'combinar');
   }
 
   function setModoFusion(m) {
@@ -235,6 +326,7 @@
     renderRevision();
     document.querySelectorAll('.src-panel').forEach(function(p){ p.style.display = 'none'; });
     document.getElementById('fuente-import').style.display = 'none';
+    document.getElementById('detect-catalogo').style.display = 'none';
     document.getElementById('fase-revision').style.display = 'block';
   }
   function volverEntrada() {

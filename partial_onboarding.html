@@ -51,29 +51,40 @@
     <div class="ob-card">
       <div class="ob-eyebrow">Paso 2 de 3</div>
       <h2>¿Quieres importar datos?</h2>
-      <p class="lead">Puedes traer tramos, grupos, docentes y horarios de una vez, o empezar de cero e ir rellenando. Siempre podrás importar más adelante.</p>
+      <p class="lead">Pega tus horarios y detectamos automáticamente docentes, grupos, materias, cargos y tramos. También puedes traer el XML de Séneca o empezar de cero.</p>
 
-      <div class="import-cards">
-        <button class="import-card" onclick="obEntrarImport('seneca')">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z M14 4v5h5"/></svg></div>
-          <div><h4>XML de Séneca</h4><p>La exportación de horarios de Séneca. Rellena casi todo automáticamente.</p></div>
-        </button>
-        <button class="import-card" onclick="obEntrarImport('csv')">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></div>
-          <div><h4>CSV del Gem</h4><p>El CSV de horarios que genera el Gem. Se revisa antes de aplicar.</p></div>
-        </button>
-        <button class="import-card" onclick="obEntrarImport('texto')">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
-          <div><h4>Pegar texto</h4><p>Pega horarios en texto libre y los interpretamos (revisable).</p></div>
-        </button>
-        <button class="import-card" onclick="obIrRepaso()">
-          <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
-          <div><h4>Empezar de cero</h4><p>Lo iré rellenando a mano, sección por sección.</p></div>
-        </button>
+      <!-- Elección de fuente -->
+      <div id="ob-import-opciones">
+        <div class="import-cards">
+          <button class="import-card" onclick="obPaste('csv')">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4M5 21h14"/></svg></div>
+            <div><h4>Pegar CSV del Gem</h4><p>El CSV de horarios que genera el Gem. Detectamos y creamos el catálogo.</p></div>
+          </button>
+          <button class="import-card" onclick="obPaste('texto')">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div>
+            <div><h4>Pegar texto libre</h4><p>Pega horarios en texto suelto y los interpretamos (revisable).</p></div>
+          </button>
+          <button class="import-card" onclick="obEntrarImport('seneca')">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z M14 4v5h5"/></svg></div>
+            <div><h4>XML de Séneca</h4><p>La exportación de horarios de Séneca (subir archivo).</p></div>
+          </button>
+          <button class="import-card" onclick="obIrRepaso()">
+            <div class="ico"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></div>
+            <div><h4>Empezar de cero</h4><p>Lo iré rellenando a mano, sección por sección.</p></div>
+          </button>
+        </div>
+        <div class="actions"><button class="secondary" onclick="obPaso(1)">← Atrás</button></div>
       </div>
 
-      <div class="actions">
-        <button class="secondary" onclick="obPaso(1)">← Atrás</button>
+      <!-- Pegar y detectar -->
+      <div id="ob-paste" style="display:none;">
+        <label id="ob-paste-label">Pega aquí tus horarios</label>
+        <textarea id="ob-paste-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Beatriz A.,L,1,grupo,Lengua,3º B,,,"></textarea>
+        <div class="actions">
+          <button class="secondary" onclick="obCancelarPaste()">← Atrás</button>
+          <button class="primary" id="ob-btn-detectar" onclick="obDetectar()">Detectar datos</button>
+        </div>
+        <div id="ob-detect-res"></div>
       </div>
     </div>
   </div>
@@ -105,6 +116,11 @@
     document.getElementById('ob-buscar-nombre').value = '';
     document.getElementById('ob-resultados').style.display = 'none';
     document.getElementById('ob-curso').value = _cursoActual();
+    // Reset del paso 2 (elección de fuente visible, panel de pegado oculto).
+    document.getElementById('ob-import-opciones').style.display = 'block';
+    document.getElementById('ob-paste').style.display = 'none';
+    document.getElementById('ob-paste-texto').value = '';
+    document.getElementById('ob-detect-res').innerHTML = '';
     obPaso(1);
     obRefrescarPaso1();
   }
@@ -215,8 +231,11 @@
   }
 
   // ---------- Paso 2: importar ----------
+  var obFuente = 'csv';
+  var obEntidades = null;
+
+  // Séneca: se sube archivo, así que se hace en la pestaña Importar.
   function obEntrarImport(fuente) {
-    // El centro ya está guardado: entramos al espacio de trabajo en Importar.
     google.script.run.withSuccessHandler(function(an) {
       GUIADO = !!(an && an.pendientes && an.pendientes.length);
       PENDIENTES = (an && an.pendientes) || [];
@@ -227,6 +246,93 @@
     }).withFailureHandler(function(){ refrescarEstado(function(){ entrarWorkspace('importar'); }); })
       .analizarConfiguracion();
   }
+
+  function obPaste(fuente) {
+    obFuente = fuente;
+    obEntidades = null;
+    document.getElementById('ob-import-opciones').style.display = 'none';
+    document.getElementById('ob-paste').style.display = 'block';
+    document.getElementById('ob-detect-res').innerHTML = '';
+    document.getElementById('ob-paste-label').textContent = fuente === 'csv'
+      ? 'Pega el CSV del Gem (con o sin cabecera)'
+      : 'Pega tus horarios en texto libre (una sesión por línea)';
+    document.getElementById('ob-paste-texto').placeholder = fuente === 'csv'
+      ? 'docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas\nBeatriz A.,L,1,grupo,Lengua,3º B,,,'
+      : 'Beatriz A.  Lunes  1  Lengua 3ºB\nCarmen A., martes, 2, Matemáticas, 2º B';
+  }
+  function obCancelarPaste() {
+    document.getElementById('ob-paste').style.display = 'none';
+    document.getElementById('ob-import-opciones').style.display = 'block';
+  }
+
+  function obDetectar() {
+    const texto = document.getElementById('ob-paste-texto').value;
+    if (!texto.trim()) { document.getElementById('ob-detect-res').innerHTML = '<div class="result err">Pega algún dato primero.</div>'; return; }
+    const btn = document.getElementById('ob-btn-detectar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Detectando…';
+    document.getElementById('ob-detect-res').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Detectar datos'; obEntidades = res; obRenderDetect(res, texto); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Detectar datos'; document.getElementById('ob-detect-res').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .extraerEntidadesVolcado(texto, obFuente);
+  }
+
+  function obRenderDetect(res, texto) {
+    const filas = [
+      { k:'docentes', t:'Docentes', arr:res.docentes },
+      { k:'grupos', t:'Grupos', arr:res.grupos },
+      { k:'materias', t:'Materias', arr:res.materias },
+      { k:'roles', t:'Cargos y roles', arr:res.roles }
+    ];
+    let html = '<div class="result info" style="margin-top:16px;">He leído <strong>' + res.filas + '</strong> líneas. Esto es lo que puedo crear en tu centro:</div>';
+    html += '<div class="seneca-cards">';
+    filas.forEach(function(f) {
+      const total = f.arr.length, nuevos = res.nuevos[f.k];
+      const muestra = f.arr.slice(0, 6).map(function(x){return x.nombre;}).join(', ');
+      html += '<div class="seneca-card' + (total?' activa':' vacia') + '">' +
+        '<div class="body"><div class="titulo">' + f.t + '<span class="contador">' + total + '</span></div>' +
+        '<div class="muestra">' + _esc(muestra) + (total>6?'…':'') + '</div>' +
+        (nuevos ? ('<div class="muestra" style="color:var(--ok)">' + nuevos + ' nuevo(s)</div>') : (total?'<div class="muestra">ya existen</div>':'')) +
+        '</div></div>';
+    });
+    // Tramos
+    const tt = res.tramos.total, tn = res.nuevos.tramos;
+    html += '<div class="seneca-card' + (tt?' activa':' vacia') + '">' +
+      '<div class="body"><div class="titulo">Tramos<span class="contador">' + tt + '</span></div>' +
+      '<div class="muestra">Órdenes: ' + (res.tramos.ordenes.join(', ') || '—') + '</div>' +
+      (tn ? '<div class="muestra" style="color:var(--ok)">se crearán ' + tn + '</div>' : (res.tramos.existe?'<div class="muestra">ya hay tramos</div>':'')) +
+      '</div></div>';
+    html += '</div>';
+    html += '<div class="actions"><button class="secondary" onclick="obCancelarPaste()">← Atrás</button>' +
+      '<button class="primary" id="ob-btn-crear" onclick="obCrearCatalogo()">Crear catálogo y revisar horarios →</button></div>';
+    document.getElementById('ob-detect-res').innerHTML = html;
+  }
+
+  function obCrearCatalogo() {
+    if (!obEntidades) return;
+    const texto = document.getElementById('ob-paste-texto').value;
+    const sel = {
+      docentes: obEntidades.docentes.map(function(x){return x.nombre;}),
+      grupos: obEntidades.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
+      materias: obEntidades.materias.map(function(x){return x.nombre;}),
+      roles: obEntidades.roles.map(function(x){return x.nombre;}),
+      tramosOrdenes: obEntidades.tramos.ordenes
+    };
+    const btn = document.getElementById('ob-btn-crear'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
+    google.script.run
+      .withSuccessHandler(function() {
+        // Guardamos el volcado para revisar las ocupaciones ya en la pestaña Importar.
+        OB_VOLCADO = { texto: texto, fuente: obFuente };
+        google.script.run.withSuccessHandler(function(an) {
+          GUIADO = !!(an && an.pendientes && an.pendientes.length);
+          PENDIENTES = (an && an.pendientes) || [];
+          refrescarEstado(function() { entrarWorkspace('importar'); });
+        }).withFailureHandler(function(){ refrescarEstado(function(){ entrarWorkspace('importar'); }); })
+          .analizarConfiguracion();
+      })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Crear catálogo y revisar horarios →'; document.getElementById('ob-detect-res').innerHTML += '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .crearEntidadesVolcado(sel, 'combinar');
+  }
+
   function obIrRepaso() { obPaso(3); }
 
   // ---------- Paso 3: repaso ----------
