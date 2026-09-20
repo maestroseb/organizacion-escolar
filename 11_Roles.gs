@@ -5,46 +5,45 @@
  * coordinaciones, perfiles de apoyo (PT/AL/Refuerzo/ATEDU) y guardias.
  * Se usan en _Ocupaciones para los tipos ESPECIAL y LOCALIZACION.
  *
- * Subset relevante de los 107 que define Séneca; el centro puede añadir
- * los suyos o quitar los que no use.
+ * El campo `orden` define la prioridad de sustitución (quién entra antes a
+ * cubrir): la sábana numera las localizaciones (#01, #02…) siguiendo ese
+ * orden, que el usuario reordena arrastrando en la pestaña Cargos.
+ * El `color` es configurable por el usuario y lo usan las vistas.
  */
 
 const ROLES_PLANTILLA = [
-  // Equipo directivo
-  { nombre: 'DIR',  nombre_largo: 'Dirección' },
-  { nombre: 'JE',   nombre_largo: 'Jefatura de Estudios' },
-  { nombre: 'SEC',  nombre_largo: 'Secretaría' },
-
-  // Transformación digital
-  { nombre: 'TDE',  nombre_largo: 'Coordinación TDE' },
-
+  // Apoyos y refuerzos (primeros: son los que antes entran a sustituir)
+  { nombre: 'Ref.',  nombre_largo: 'Refuerzo educativo',              color: '#e7b23c' },
+  { nombre: 'PT',    nombre_largo: 'Pedagogía Terapéutica',           color: '#d9e7f5' },
+  { nombre: 'AL',    nombre_largo: 'Audición y Lenguaje',             color: '#d9e7f5' },
+  { nombre: 'ATEDU', nombre_largo: 'Atención Educativa Domiciliaria', color: '#6a51a6' },
   // Coordinaciones
-  { nombre: 'COE',  nombre_largo: 'Coordinación Coeducación' },
-  { nombre: 'CON',  nombre_largo: 'Coordinación Convivencia' },
-  { nombre: 'BIB',  nombre_largo: 'Coordinación Biblioteca' },
-  { nombre: 'PRL',  nombre_largo: 'Coordinación PRL' },
-  { nombre: 'SAL',  nombre_largo: 'Coordinación Plan de Salud' },
-  { nombre: 'CIC',  nombre_largo: 'Coordinación de Ciclo' },
-
-  // Apoyos y refuerzos
-  { nombre: 'PT',    nombre_largo: 'Pedagogía Terapéutica' },
-  { nombre: 'AL',    nombre_largo: 'Audición y Lenguaje' },
-  { nombre: 'Ref.',  nombre_largo: 'Refuerzo educativo' },
-  { nombre: 'ATEDU', nombre_largo: 'Atención Educativa Domiciliaria' },
-
+  { nombre: 'TDE',  nombre_largo: 'Coordinación TDE',            color: '#2f6fd0' },
+  { nombre: 'COE',  nombre_largo: 'Coordinación Coeducación',    color: '#2f6fd0' },
+  { nombre: 'CON',  nombre_largo: 'Coordinación Convivencia',    color: '#2f6fd0' },
+  { nombre: 'BIB',  nombre_largo: 'Coordinación Biblioteca',     color: '#2f6fd0' },
+  { nombre: 'PRL',  nombre_largo: 'Coordinación PRL',            color: '#2f6fd0' },
+  { nombre: 'SAL',  nombre_largo: 'Coordinación Plan de Salud',  color: '#2f6fd0' },
+  { nombre: 'CIC',  nombre_largo: 'Coordinación de Ciclo',       color: '#2f6fd0' },
+  // Equipo directivo
+  { nombre: 'DIR',  nombre_largo: 'Dirección',            color: '#e0863a' },
+  { nombre: 'JE',   nombre_largo: 'Jefatura de Estudios', color: '#e0863a' },
+  { nombre: 'SEC',  nombre_largo: 'Secretaría',           color: '#e0863a' },
   // Otros
-  { nombre: 'Tut.',  nombre_largo: 'Tutoría' },
-  { nombre: 'Gua.',  nombre_largo: 'Recreo de guardia' },
-  { nombre: 'RH',    nombre_largo: 'Reducción Horaria (mayor de 55)' }
+  { nombre: 'Tut.',  nombre_largo: 'Tutoría',                     color: '' },
+  { nombre: 'Gua.',  nombre_largo: 'Recreo de guardia',           color: '#9b9ba3' },
+  { nombre: 'RH',    nombre_largo: 'Reducción Horaria (mayor de 55)', color: '#9b9ba3' }
 ];
 
 function listarRoles() {
-  return getAll(SHEETS.ROLES);
+  const roles = getAll(SHEETS.ROLES);
+  roles.sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
+  return roles;
 }
 
 function plantillaRoles() {
-  return ROLES_PLANTILLA.map(function(r) {
-    return { nombre: r.nombre, nombre_largo: r.nombre_largo };
+  return ROLES_PLANTILLA.map(function(r, i) {
+    return { nombre: r.nombre, nombre_largo: r.nombre_largo, color: r.color || '', orden: i + 1 };
   });
 }
 
@@ -67,12 +66,14 @@ function guardarRoles(roles, modo) {
     nombres[k] = true;
   });
 
-  const filas = roles.map(function(r) {
+  // El orden viene dado por la posición en la lista (drag & drop en la UI).
+  const filas = roles.map(function(r, i) {
     return {
       id: r.id || undefined,
       nombre: String(r.nombre).trim(),
       nombre_largo: r.nombre_largo || '',
-      color: r.color || ''
+      color: r.color || '',
+      orden: i + 1
     };
   });
   const resumen = bulkMerge(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');

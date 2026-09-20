@@ -34,8 +34,10 @@ function getBd() {
  */
 function asegurarBaseDatos() {
   getBd();
-  const estado = estadoEstructura();
-  if (!estado.completo) inicializarLibro();
+  // Idempotente: crea las pestañas que falten y AÑADE columnas nuevas del
+  // esquema a las que ya existan (p.ej. 'orden' en _RolesEspeciales). No toca
+  // los datos. Así una base creada con una versión anterior se pone al día.
+  inicializarLibro();
   return true;
 }
 

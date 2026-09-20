@@ -48,6 +48,11 @@
         <div id="resumen-body"></div>
       </section>
 
+      <!-- Sábana -->
+      <section class="view" id="view-sabana">
+        <?!= include('partial_sabana') ?>
+      </section>
+
       <!-- Secciones de datos (centro, tramos, grupos, docentes, tutorías, localizaciones, materias, roles) -->
       <?!= include('partial_secciones') ?>
 
@@ -82,8 +87,8 @@
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
       { key: 'resumen',        label: 'Resumen' },
+      { key: 'sabana',         label: 'Sábana' },
       { key: 'config',         label: 'Configuración' },
-      { key: 'sabana',         label: 'Sábana',        soon: true },
       { key: 'horario_doc',    label: 'Horario docente', soon: true },
       { key: 'ahora',          label: 'Ahora',         soon: true },
       { key: 'sustituciones',  label: 'Sustituciones', soon: true }
@@ -182,6 +187,7 @@
 
     var LOADERS = {
       resumen: function() { renderResumen(); },
+      sabana: function() { renderSabana(); },
       importar: function() { prepararImportar(); },
       ajustes: function() { renderConfig(); },
       centro: function() { cargarCentro(); },

@@ -49,7 +49,7 @@ const SCHEMA = {
     'id', 'nombre', 'abreviatura', 'color', 'es_recreo'
   ],
   [SHEETS.ROLES]: [
-    'id', 'nombre', 'nombre_largo', 'color'
+    'id', 'nombre', 'nombre_largo', 'color', 'orden'
   ],
   [SHEETS.OCUPACIONES]: [
     'id', 'docente_id', 'dia', 'tramo_id', 'tipo',

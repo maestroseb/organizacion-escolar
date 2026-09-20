@@ -191,8 +191,8 @@
   <div class="tablewrap">
     <table class="data">
       <thead><tr>
-        <th class="col-num">#</th><th>Nombre *</th><th style="width:140px">Abreviatura</th>
-        <th class="col-center" style="width:80px">Recreo</th><th class="col-acc"></th>
+        <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:130px">Abreviatura</th>
+        <th class="col-center" style="width:70px">Recreo</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="materias-body"></tbody>
     </table>
@@ -211,10 +211,11 @@
     <button class="secondary" onclick="cargarPlantillaRoles()">Generar plantilla</button>
     <button class="secondary" onclick="anadirRol()">+ Añadir rol</button>
   </div>
+  <p class="hint" style="margin:-6px 0 10px;">El <strong>orden</strong> marca la prioridad de sustitución (quién entra antes a cubrir) y numera las localizaciones en la sábana. Arrastra <span style="cursor:grab">⠿</span> para reordenar.</p>
   <div class="tablewrap">
     <table class="data">
       <thead><tr>
-        <th class="col-num">#</th><th style="width:160px">Nombre corto *</th><th>Nombre largo</th><th class="col-acc"></th>
+        <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th style="width:150px">Nombre corto *</th><th>Nombre largo</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="roles-body"></tbody>
     </table>
@@ -541,6 +542,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
+        '<td class="col-center">' + _colorCell(m.color, 'setColorMateria', i) + '</td>' +
         '<td><input type="text" value="' + _esc(m.nombre) + '" placeholder="Lengua, Matemáticas…" oninput="actualizarMateria(' + i + ',\'nombre\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(m.abreviatura) + '" placeholder="LCL" oninput="actualizarMateria(' + i + ',\'abreviatura\',this.value)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (m.es_recreo?' checked':'') + ' onchange="actualizarMateria(' + i + ',\'es_recreo\',this.checked)"></td>' +
@@ -580,13 +582,49 @@
     const tb = document.getElementById('roles-body'); tb.innerHTML = '';
     rolesLocal.forEach(function(r, i) {
       const tr = document.createElement('tr');
+      tr.setAttribute('draggable', 'true');
+      tr.setAttribute('data-i', i);
       tr.innerHTML =
-        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td class="col-num"><span class="drag" title="Arrastrar para reordenar">⠿</span> ' + (i+1) + '</td>' +
+        '<td class="col-center">' + _colorCell(r.color, 'setColorRol', i) + '</td>' +
         '<td><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(r.nombre_largo) + '" placeholder="Dirección" oninput="actualizarRol(' + i + ',\'nombre_largo\',this.value)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarRol(' + i + ')">×</button></td>';
+      _hacerArrastrable(tr, i);
       tb.appendChild(tr);
     });
+  }
+
+  // Arrastrar y soltar filas de roles para reordenarlas.
+  var _dragFrom = null;
+  function _hacerArrastrable(tr, i) {
+    tr.addEventListener('dragstart', function(e) {
+      _dragFrom = i; tr.classList.add('dragging');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); } catch (err) {}
+    });
+    tr.addEventListener('dragend', function() { tr.classList.remove('dragging'); document.querySelectorAll('#roles-body tr').forEach(function(x){x.classList.remove('drop-target');}); });
+    tr.addEventListener('dragover', function(e) { e.preventDefault(); tr.classList.add('drop-target'); });
+    tr.addEventListener('dragleave', function() { tr.classList.remove('drop-target'); });
+    tr.addEventListener('drop', function(e) {
+      e.preventDefault();
+      const to = i;
+      if (_dragFrom == null || _dragFrom === to) return;
+      const item = rolesLocal.splice(_dragFrom, 1)[0];
+      rolesLocal.splice(to, 0, item);
+      _dragFrom = null;
+      renderRoles();
+    });
+  }
+  function setColorRol(i, v) { rolesLocal[i].color = v; renderRoles(); }
+  function setColorMateria(i, v) { materiasLocal[i].color = v; renderMaterias(); }
+
+  // Celda de selector de color reutilizable (materias y roles).
+  function _colorCell(color, fn, i) {
+    const val = color || '#cccccc';
+    let h = '<span class="colorpick"><input type="color" value="' + val + '" oninput="' + fn + '(' + i + ', this.value)">';
+    if (color) h += '<button class="colorclear" title="Sin color" onclick="' + fn + '(' + i + ', \'\')">×</button>';
+    h += '</span>';
+    return h;
   }
   function enviarRoles() {
     if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
