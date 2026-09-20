@@ -53,6 +53,11 @@
         <?!= include('partial_sabana') ?>
       </section>
 
+      <!-- Horario del docente -->
+      <section class="view" id="view-horario">
+        <?!= include('partial_horario') ?>
+      </section>
+
       <!-- Secciones de datos (centro, tramos, grupos, docentes, tutorías, localizaciones, materias, roles) -->
       <?!= include('partial_secciones') ?>
 
@@ -88,8 +93,8 @@
     var TABS = [
       { key: 'resumen',        label: 'Resumen' },
       { key: 'sabana',         label: 'Sábana' },
+      { key: 'horario',        label: 'Horario docente' },
       { key: 'config',         label: 'Configuración' },
-      { key: 'horario_doc',    label: 'Horario docente', soon: true },
       { key: 'ahora',          label: 'Ahora',         soon: true },
       { key: 'sustituciones',  label: 'Sustituciones', soon: true }
     ];
@@ -188,6 +193,7 @@
     var LOADERS = {
       resumen: function() { renderResumen(); },
       sabana: function() { renderSabana(); },
+      horario: function() { renderHorario(); },
       importar: function() { prepararImportar(); },
       ajustes: function() { renderConfig(); },
       centro: function() { cargarCentro(); },

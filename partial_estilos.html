@@ -368,6 +368,31 @@
     .sb-rail { writing-mode: horizontal-tb; transform: none; }
   }
 
+  /* ---------- Horario del docente ---------- */
+  .hd-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table.hd { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.hd th, table.hd td { border: 1px solid var(--border); padding: 4px 8px; vertical-align: top; }
+  table.hd thead th { background: var(--surface-2); color: var(--muted); font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .03em; }
+  table.hd .hd-th-tramo { background: var(--surface-2); text-align: left; white-space: nowrap; font-weight: 800; min-width: 74px; }
+  .hd-horas { display: block; font-weight: 500; color: var(--faint); font-size: 10.5px; }
+  .hd-cell { cursor: pointer; min-width: 120px; transition: background .12s; }
+  .hd-cell:hover { background: var(--accent-weak); }
+  .hd-add { color: var(--faint); font-weight: 700; }
+  .hd-oc { border-radius: 6px; padding: 1px 6px; margin: 1px 0; font-size: 12px; }
+  .hd-oc.t-grupo { background: var(--surface-3); }
+  .hd-oc.t-localizacion { background: var(--warn-weak); color: var(--warn); }
+  .hd-oc.t-especial { background: var(--purple-weak); color: var(--purple); }
+  .hd-suf { color: var(--faint); font-size: 10.5px; }
+
+  .modal-wide { max-width: 640px; }
+  .hd-oceditor { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 10px; background: var(--surface-2); }
+  .hd-oceditor-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 10px; }
+  .hd-frow { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; align-items: flex-end; }
+  .hd-f { flex: 1; min-width: 150px; }
+  .hd-f label { margin-bottom: 3px; }
+  .hd-f.hd-mini { flex: 0 0 84px; min-width: 84px; }
+  .hd-f select { width: 100%; }
+
   @media (max-width: 640px) {
     .form { grid-template-columns: 1fr; }
     .shell { padding: 22px 16px 60px; }

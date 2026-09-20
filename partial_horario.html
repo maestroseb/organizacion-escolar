@@ -1,0 +1,215 @@
+<div class="page-head">
+  <h2>Horario del docente</h2>
+  <p>Consulta y corrige el horario individual de cada docente. Pulsa una celda para editar ese hueco (materia, grupo, apoyo o cargo). Guarda al terminar.</p>
+</div>
+
+<div class="toolbar">
+  <div>
+    <label style="display:inline">Docente</label>
+    <select id="hd-select" style="min-width:220px" onchange="cargarHorario(this.value)"></select>
+  </div>
+  <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
+  <span id="hd-estado" class="hint"></span>
+</div>
+
+<div id="hd-body"></div>
+<div id="hd-res"></div>
+
+<!-- Modal editor de hueco -->
+<div class="modal-overlay" id="hd-modal">
+  <div class="modal-box modal-wide">
+    <h3 id="hd-modal-title">Editar hueco</h3>
+    <div id="hd-modal-body"></div>
+    <div class="toolbar" style="margin:14px 0 0">
+      <button class="secondary" onclick="hdAddOc()">+ Añadir ocupación</button>
+    </div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button type="button" class="secondary" onclick="hdCerrar()">Cancelar</button>
+      <button type="button" class="primary" onclick="hdAceptar()">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var HD_DOC = '', HD_CAT = null, HD_OCUPS = [], HD_DIRTY = false;
+  var HD_SLOT = null; // { dia, tramo, working: [...] }
+  var HD_DIAS = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
+
+  function renderHorario() {
+    const sel = document.getElementById('hd-select');
+    // Cargar docentes en el selector (una vez).
+    google.script.run.withSuccessHandler(function(docs) {
+      const activos = (docs || []).filter(function(d){ return d.activo !== false; });
+      sel.innerHTML = '<option value="">— elige docente —</option>' +
+        activos.map(function(d){ return '<option value="' + d.id + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
+      if (HD_DOC) cargarHorario(HD_DOC);
+      else document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente para ver y editar su horario.</div>';
+    }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
+  }
+
+  function cargarHorario(id) {
+    HD_DOC = id;
+    if (!id) { document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente.</div>'; return; }
+    document.getElementById('hd-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
+    document.getElementById('hd-res').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) {
+        HD_CAT = res.catalogo;
+        HD_OCUPS = res.ocupaciones || [];
+        HD_DIRTY = false; _hdActualizarGuardar();
+        _hdMapas();
+        renderGrid();
+      })
+      .withFailureHandler(function(err){ document.getElementById('hd-body').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
+      .datosHorarioDocente(id);
+  }
+
+  var _hdMat = {}, _hdGru = {}, _hdRol = {};
+  function _hdMapas() {
+    _hdMat = {}; (HD_CAT.materias||[]).forEach(function(m){ _hdMat[m.id]=m.nombre; });
+    _hdGru = {}; (HD_CAT.grupos||[]).forEach(function(g){ _hdGru[g.id]=g.nombre; });
+    _hdRol = {}; (HD_CAT.roles||[]).forEach(function(r){ _hdRol[r.id]=r.nombre; });
+  }
+  function _hdGruposNombres(csv) {
+    if (!csv) return '';
+    return String(csv).split(',').map(function(s){ return _hdGru[s.trim()] || s.trim(); }).join(' / ');
+  }
+  function _hdResumen(o) {
+    if (o.tipo === 'grupo') return _esc(((_hdMat[o.materia_id]||'') + ' ' + _hdGruposNombres(o.grupo_id)).trim() || '—');
+    if (o.tipo === 'localizacion') return _esc(((_hdRol[o.rol_id]||'') + (o.grupo_destino_id?(' → '+_hdGruposNombres(o.grupo_destino_id)):'')).trim() || '—');
+    if (o.tipo === 'especial') return _esc(_hdRol[o.rol_id] || '—');
+    return '—';
+  }
+
+  function renderGrid() {
+    if (!HD_CAT.tramos || !HD_CAT.tramos.length) {
+      document.getElementById('hd-body').innerHTML = '<div class="empty">No hay tramos configurados. Ve a Configuración → Tramos.</div>';
+      return;
+    }
+    var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d){ return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
+    var rows = HD_CAT.tramos.map(function(t){
+      var celdas = HD_DIAS.map(function(d){
+        var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; });
+        var cont = ocs.length
+          ? ocs.map(function(o){ return '<div class="hd-oc t-'+o.tipo+'">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
+          : '<span class="hd-add">+</span>';
+        return '<td class="hd-cell" onclick="abrirSlot(\'' + d.k + '\',\'' + t.id + '\')">' + cont + '</td>';
+      }).join('');
+      var etq = t.etiqueta ? (' · ' + _esc(t.etiqueta)) : '';
+      return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + t.orden)) + '<span class="hd-horas">' + _esc(t.horas||'') + '</span></th>' + celdas + '</tr>';
+    }).join('');
+    document.getElementById('hd-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
+  }
+  function _hdSufijo(o) {
+    var s = [];
+    if (o.mitad) s.push(o.mitad === '1' ? '½a' : (o.mitad === '2' ? '½b' : o.mitad));
+    if (o.semana) s.push('sem ' + o.semana);
+    return s.length ? (' <span class="hd-suf">' + s.join(' · ') + '</span>') : '';
+  }
+
+  // ---------- Modal de edición de un hueco ----------
+  function abrirSlot(dia, tramoId) {
+    var t = HD_CAT.tramos.filter(function(x){ return x.id === tramoId; })[0];
+    var diaN = (HD_DIAS.filter(function(d){ return d.k === dia; })[0] || {}).n || dia;
+    var working = HD_OCUPS.filter(function(o){ return o.dia === dia && o.tramo_id === tramoId; })
+      .map(function(o){ return _hdClon(o); });
+    HD_SLOT = { dia: dia, tramo: tramoId, working: working };
+    document.getElementById('hd-modal-title').textContent = diaN + ' · ' + (t.es_recreo?'Recreo':('Tramo '+t.orden)) + (t.horas?(' · '+t.horas):'');
+    renderModal();
+    document.getElementById('hd-modal').classList.add('show');
+  }
+  function _hdClon(o) {
+    return { tipo:o.tipo||'grupo', materia_id:o.materia_id||'', rol_id:o.rol_id||'',
+      _grupos: _hdCsvArr(o.tipo==='localizacion'?o.grupo_destino_id:o.grupo_id),
+      mitad:o.mitad||'', semana:o.semana||'', notas:o.notas||'' };
+  }
+  function _hdCsvArr(csv){ return csv ? String(csv).split(',').map(function(s){return s.trim();}).filter(Boolean) : []; }
+
+  function renderModal() {
+    var body = document.getElementById('hd-modal-body');
+    if (!HD_SLOT.working.length) { body.innerHTML = '<p class="hint">Este hueco está libre. Añade una ocupación o deja el docente libre.</p>'; return; }
+    body.innerHTML = HD_SLOT.working.map(function(o, i){ return _hdOcEditor(o, i); }).join('');
+  }
+  function _optList(arr, sel) {
+    return '<option value="">—</option>' + arr.map(function(x){ return '<option value="' + x.id + '"' + (x.id===sel?' selected':'') + '>' + _esc(x.nombre) + '</option>'; }).join('');
+  }
+  function _hdOcEditor(o, i) {
+    var tipoSel = '<select onchange="hdSet(' + i + ',\'tipo\',this.value)">' +
+      ['grupo','localizacion','especial'].map(function(tp){ return '<option value="'+tp+'"'+(o.tipo===tp?' selected':'')+'>'+({grupo:'Clase a grupo',localizacion:'Apoyo / localización',especial:'Cargo / especial'})[tp]+'</option>'; }).join('') + '</select>';
+
+    var campos = '';
+    if (o.tipo === 'grupo') {
+      campos = '<div class="hd-f"><label>Materia</label><select onchange="hdSet(' + i + ',\'materia_id\',this.value)">' + _optList(HD_CAT.materias, o.materia_id) + '</select></div>' +
+        '<div class="hd-f"><label>Grupo(s)</label>' + _hdChips(o, i) + '</div>';
+    } else if (o.tipo === 'localizacion') {
+      campos = '<div class="hd-f"><label>Rol / apoyo</label><select onchange="hdSet(' + i + ',\'rol_id\',this.value)">' + _optList(HD_CAT.roles, o.rol_id) + '</select></div>' +
+        '<div class="hd-f"><label>Grupo(s) destino</label>' + _hdChips(o, i) + '</div>';
+    } else {
+      campos = '<div class="hd-f"><label>Cargo</label><select onchange="hdSet(' + i + ',\'rol_id\',this.value)">' + _optList(HD_CAT.roles, o.rol_id) + '</select></div>';
+    }
+
+    var mitad = '<div class="hd-f hd-mini"><label>Mitad</label><select onchange="hdSet(' + i + ',\'mitad\',this.value)">' +
+      [['','—'],['1','½ a'],['2','½ b']].map(function(p){ return '<option value="'+p[0]+'"'+(o.mitad===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('') + '</select></div>';
+    var semana = '<div class="hd-f hd-mini"><label>Semana</label><select onchange="hdSet(' + i + ',\'semana\',this.value)">' +
+      [['','—'],['A','A'],['B','B']].map(function(p){ return '<option value="'+p[0]+'"'+(o.semana===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('') + '</select></div>';
+
+    return '<div class="hd-oceditor">' +
+      '<div class="hd-oceditor-head"><div class="hd-f"><label>Tipo</label>' + tipoSel + '</div>' +
+      '<button class="btn-icon" title="Eliminar" onclick="hdDelOc(' + i + ')">×</button></div>' +
+      '<div class="hd-frow">' + campos + mitad + semana + '</div></div>';
+  }
+  function _hdChips(o, i) {
+    var h = '<div class="chips">';
+    o._grupos.forEach(function(id){
+      var g = (HD_CAT.grupos.filter(function(x){return x.id===id;})[0]) || {nombre:id};
+      h += '<span class="chip">' + _esc(g.nombre) + '<button type="button" onclick="hdDelGrupo(' + i + ',\'' + id + '\')">×</button></span>';
+    });
+    var disp = HD_CAT.grupos.filter(function(x){ return o._grupos.indexOf(x.id) === -1; });
+    h += '<select class="add-grupo" onchange="hdAddGrupo(' + i + ',this.value)"><option value="">＋</option>' +
+      disp.map(function(x){ return '<option value="'+x.id+'">'+_esc(x.nombre)+'</option>'; }).join('') + '</select></div>';
+    return h;
+  }
+
+  function hdSet(i, campo, v) { HD_SLOT.working[i][campo] = v; if (campo==='tipo') renderModal(); }
+  function hdAddGrupo(i, id) { if(!id) return; var a=HD_SLOT.working[i]._grupos; if(a.indexOf(id)===-1) a.push(id); renderModal(); }
+  function hdDelGrupo(i, id) { HD_SLOT.working[i]._grupos = HD_SLOT.working[i]._grupos.filter(function(g){return g!==id;}); renderModal(); }
+  function hdAddOc() { HD_SLOT.working.push({ tipo:'grupo', materia_id:'', rol_id:'', _grupos:[], mitad:'', semana:'', notas:'' }); renderModal(); }
+  function hdDelOc(i) { HD_SLOT.working.splice(i,1); renderModal(); }
+  function hdCerrar() { document.getElementById('hd-modal').classList.remove('show'); HD_SLOT = null; }
+
+  function hdAceptar() {
+    // Quita las ocupaciones previas de este hueco y añade las del working.
+    HD_OCUPS = HD_OCUPS.filter(function(o){ return !(o.dia === HD_SLOT.dia && o.tramo_id === HD_SLOT.tramo); });
+    HD_SLOT.working.forEach(function(w){
+      var oc = { dia: HD_SLOT.dia, tramo_id: HD_SLOT.tramo, tipo: w.tipo, materia_id:'', grupo_id:'', rol_id:'', grupo_destino_id:'', mitad:w.mitad||'', semana:w.semana||'', notas:w.notas||'' };
+      var grupos = (w._grupos||[]).join(',');
+      if (w.tipo==='grupo') { oc.materia_id=w.materia_id||''; oc.grupo_id=grupos; }
+      else if (w.tipo==='localizacion') { oc.rol_id=w.rol_id||''; oc.grupo_destino_id=grupos; }
+      else if (w.tipo==='especial') { oc.rol_id=w.rol_id||''; }
+      HD_OCUPS.push(oc);
+    });
+    HD_DIRTY = true; _hdActualizarGuardar();
+    hdCerrar();
+    renderGrid();
+  }
+
+  function _hdActualizarGuardar() {
+    const btn = document.getElementById('hd-guardar');
+    btn.disabled = !HD_DIRTY;
+    document.getElementById('hd-estado').textContent = HD_DIRTY ? 'Cambios sin guardar' : '';
+  }
+
+  function guardarHorario() {
+    if (!HD_DOC) return;
+    const btn = document.getElementById('hd-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
+    document.getElementById('hd-res').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res){
+        btn.innerHTML = 'Guardar horario'; HD_DIRTY = false; _hdActualizarGuardar();
+        document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + res.total + ' ocupaciones).</div>';
+        refrescarEstado();
+      })
+      .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; document.getElementById('hd-res').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
+      .guardarHorarioDocente(HD_DOC, HD_OCUPS);
+  }
+</script>
