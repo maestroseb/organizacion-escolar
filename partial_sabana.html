@@ -108,27 +108,31 @@
   }
   function _sbTablaCursos(cursos) {
     var rows = cursos.map(function(c){
-      var oc;
-      if (c.vacio) oc = '<span class="sb-sin">sin cubrir</span>';
-      else oc = c.ocupantes.map(_sbSegmento).join('');
-      return '<tr><td class="sb-curso">' + _esc(c.grupo.nombre) + '</td><td>' + oc + '</td></tr>';
+      var curso = _esc(c.grupo.nombre);
+      if (c.vacio) {
+        return '<tr><td class="sb-curso">' + curso + '</td><td class="sb-doc">—</td><td><span class="sb-sin">sin cubrir</span></td></tr>';
+      }
+      // Cada docente del grupo va en su propia fila (Docente | Ocup.); el
+      // nombre del curso ocupa (rowspan) todas las filas de ese grupo.
+      var segs = c.ocupantes;
+      return segs.map(function(o, i){
+        var cursoCell = (i === 0) ? ('<td class="sb-curso" rowspan="' + segs.length + '">' + curso + '</td>') : '';
+        return '<tr>' + cursoCell +
+          '<td class="sb-doc">' + _esc(o.docente || '—') + '</td>' +
+          '<td class="sb-ocupcell">' + _sbOcupCelda(o) + '</td></tr>';
+      }).join('');
     }).join('');
-    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente · Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
-  // Un segmento = un docente y sus áreas. Alternancia de semana o desdoble en
-  // dos mitades se muestran en la MISMA línea, separadas por "/", y el docente
-  // solo una vez. La casilla de la semana que toca hoy va en negrita.
-  function _sbSegmento(o){
-    var contenido;
-    if (o.tutor) {
-      contenido = '<span class="sb-tutor">tutoría</span>';
-    } else {
-      var partes = (o.partes || []).filter(function(p){ return p.materia; });
-      contenido = partes.map(function(p){
-        return '<span class="sb-ocup' + (p.actual ? ' now' : '') + '" style="' + _sbTint(p.color) + '">' + _esc(p.materia) + '</span>';
-      }).join('<span class="sb-alt">/</span>');
-    }
-    return '<div class="sb-line"><span class="sb-doc">' + _esc(o.docente || '—') + '</span> ' + contenido + '</div>';
+  // La ocupación de un docente en su celda: alternancia de semana A/B o
+  // desdoble en dos mitades, separadas por "/". En negrita la semana de hoy.
+  function _sbOcupCelda(o){
+    if (o.tutor) return '<span class="sb-tutor">tutoría</span>';
+    var partes = (o.partes || []).filter(function(p){ return p.materia; });
+    if (!partes.length) return '';
+    return partes.map(function(p){
+      return '<span class="sb-ocup' + (p.actual ? ' now' : '') + '" style="' + _sbTint(p.color) + '">' + _esc(p.materia) + '</span>';
+    }).join('<span class="sb-alt">/</span>');
   }
   function _sbTablaApoyos(apoyos) {
     var rows = apoyos.map(function(a){

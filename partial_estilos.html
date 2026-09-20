@@ -355,12 +355,15 @@
   .sb-cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-width: 0; }
   .sb-pane { padding: 6px; min-width: 0; }
   .sb-pane + .sb-pane { border-left: 2px solid var(--border-strong); }
-  table.sb { width: 100%; border-collapse: collapse; font-size: 12.5px; line-height: 1.25; }
-  table.sb th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; text-align: left; padding: 3px 8px; }
-  table.sb td { padding: 2px 8px; border-top: 1px solid var(--border); vertical-align: middle; }
+  /* Tablas compactas: se encogen al contenido y su texto va centrado en cada
+     columna; el ancho de columna lo marca la celda que más ocupa (sin cortes). */
+  table.sb { width: auto; border-collapse: collapse; font-size: 12.5px; line-height: 1.25; }
+  table.sb th { font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; text-align: center; padding: 3px 8px; white-space: nowrap; }
+  table.sb td { padding: 2px 8px; border-top: 1px solid var(--border); vertical-align: middle; text-align: center; white-space: nowrap; }
   .sb-curso { font-weight: 800; white-space: nowrap; }
   .sb-loc { font-weight: 800; color: var(--faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .sb-doc { font-weight: 600; }
+  .sb-ocupcell { white-space: nowrap; }
   .sb-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
   .sb-line + .sb-line { margin-top: 1px; }
   .sb-ocup { font-size: 11px; border-radius: 6px; padding: 0 6px; color: var(--muted); background: var(--surface-3); }
@@ -374,9 +377,11 @@
   /* Semana completa: filas por tramo con columnas por día (scroll horizontal). */
   .sb-weekscroll { overflow-x: auto; }
   .sb-weekrow { display: flex; align-items: stretch; min-width: min-content; }
-  .sb-daycol { flex: 1 0 340px; min-width: 340px; border-left: 2px solid var(--border-strong); }
+  /* Cada día se encoge a su contenido (no ancho fijo): sus dos paneles se
+     dimensionan por la celda que más ocupa, sin desbordar ni cortar. */
+  .sb-daycol { flex: 0 0 auto; border-left: 2px solid var(--border-strong); }
   .sb-daycol:first-of-type { border-left: none; }
-  .sb-daycol .sb-cols { border-top: 1px solid var(--border); }
+  .sb-daycol .sb-cols { border-top: 1px solid var(--border); grid-template-columns: max-content max-content; }
   .sb-dayhead { text-align: center; font-weight: 800; font-size: 12px; letter-spacing: .03em; padding: 4px; }
   @media (max-width: 720px) {
     .sb-cols { grid-template-columns: 1fr; }
