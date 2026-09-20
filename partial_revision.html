@@ -8,14 +8,25 @@
   <span id="rev-resumen" class="hint"></span>
 </div>
 
+<div id="revp-filtros" class="rev-filtros"></div>
 <div id="revp-body"></div>
 
 <script>
   var REV_CAT = null;
+  var REV_DATA = null;           // últimos grupos de problemas analizados
+  var REV_OCULTOS = _revCargarOcultos();  // tipos de problema que el usuario oculta
+
+  function _revCargarOcultos() {
+    try { return JSON.parse(localStorage.getItem('rev_ocultos') || '{}') || {}; } catch (e) { return {}; }
+  }
+  function _revGuardarOcultos() {
+    try { localStorage.setItem('rev_ocultos', JSON.stringify(REV_OCULTOS)); } catch (e) {}
+  }
 
   function renderProblemas() {
     const cont = document.getElementById('revp-body');
     cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
+    document.getElementById('revp-filtros').innerHTML = '';
     document.getElementById('rev-resumen').textContent = '';
     google.script.run
       .withSuccessHandler(_pintarRevision)
@@ -24,16 +35,63 @@
   }
 
   function _pintarRevision(res) {
-    const cont = document.getElementById('revp-body');
     REV_CAT = res.catalogo || {};
-    const r = res.resumen || { errores: 0, avisos: 0 };
-    document.getElementById('rev-resumen').textContent = r.total ? (r.errores + ' error(es), ' + r.avisos + ' aviso(s)') : '';
+    REV_DATA = res;
+    _revRepintar();
+  }
 
-    if (!res.grupos || !res.grupos.length) {
+  // Repinta filtros + cuerpo con los tipos activos (sin volver a llamar al servidor).
+  function _revRepintar() {
+    const cont = document.getElementById('revp-body');
+    const res = REV_DATA || { grupos: [] };
+    const grupos = res.grupos || [];
+
+    if (!grupos.length) {
+      document.getElementById('revp-filtros').innerHTML = '';
+      document.getElementById('rev-resumen').textContent = '';
       cont.innerHTML = '<div class="result ok" style="margin-top:0;">✓ Todo correcto. No se han detectado problemas en el horario.</div>';
       return;
     }
-    cont.innerHTML = res.grupos.map(_pintarGrupo).join('');
+
+    // Barra de filtros: un chip por tipo detectado.
+    document.getElementById('revp-filtros').innerHTML = _revFiltrosHTML(grupos);
+
+    const visibles = grupos.filter(function(gp){ return !REV_OCULTOS[gp.tipo]; });
+    let errVis = 0, avVis = 0;
+    visibles.forEach(function(gp){ if (gp.gravedad === 'error') errVis += gp.items.length; else avVis += gp.items.length; });
+    const r = res.resumen || {};
+    var resumen = (r.errores || 0) + ' error(es), ' + (r.avisos || 0) + ' aviso(s)';
+    const ocultosN = grupos.length - visibles.length;
+    if (ocultosN > 0) resumen += ' · mostrando ' + errVis + '+' + avVis + ' (' + ocultosN + ' tipo(s) oculto(s))';
+    document.getElementById('rev-resumen').textContent = resumen;
+
+    if (!visibles.length) {
+      cont.innerHTML = '<div class="result info" style="margin-top:0;">Todos los tipos de problema están ocultos. Activa alguno en los filtros de arriba.</div>';
+      return;
+    }
+    cont.innerHTML = visibles.map(_pintarGrupo).join('');
+  }
+
+  function _revFiltrosHTML(grupos) {
+    var chips = grupos.map(function(gp){
+      var on = !REV_OCULTOS[gp.tipo];
+      return '<button type="button" class="rev-chip-f' + (on ? ' on' : ' off') + ' ' + (gp.gravedad === 'error' ? 'g-error' : 'g-aviso') + '" ' +
+        'onclick="revToggleTipo(\'' + gp.tipo + '\')" title="' + (on ? 'Ocultar' : 'Mostrar') + '">' +
+        (on ? '● ' : '○ ') + _esc(gp.titulo) + ' <span class="n">' + gp.items.length + '</span></button>';
+    }).join('');
+    return '<span class="rev-filtros-lbl">Mostrar:</span> ' + chips +
+      ' <button type="button" class="rev-chip-f todos" onclick="revMostrarTodos()">Todos</button>';
+  }
+
+  function revToggleTipo(tipo) {
+    if (REV_OCULTOS[tipo]) delete REV_OCULTOS[tipo]; else REV_OCULTOS[tipo] = true;
+    _revGuardarOcultos();
+    _revRepintar();
+  }
+  function revMostrarTodos() {
+    REV_OCULTOS = {};
+    _revGuardarOcultos();
+    _revRepintar();
   }
 
   function _pintarGrupo(gp) {
