@@ -74,12 +74,29 @@
     <span class="chip"><span class="dot conflicto"></span> Conflicto</span>
     <span class="chip"><span class="dot omitir"></span> Se omite</span>
   </div>
+
+  <!-- Filtros -->
+  <div class="toolbar" style="margin:6px 0 4px; gap:10px;">
+    <div class="segmented" id="rev-filtro-estado">
+      <button type="button" data-f="todas" class="active" onclick="setFiltroEstado('todas')">Todas</button>
+      <button type="button" data-f="pendientes" onclick="setFiltroEstado('pendientes')">Pendientes</button>
+      <button type="button" data-f="conflicto" onclick="setFiltroEstado('conflicto')">Conflictos</button>
+      <button type="button" data-f="ok" onclick="setFiltroEstado('ok')">Correctas</button>
+    </div>
+    <input type="text" id="rev-filtro-texto" placeholder="Buscar (docente, materia, grupo, día…)" style="max-width:280px;" oninput="setFiltroTexto(this.value)">
+    <select id="rev-filtro-dia" style="max-width:130px;" onchange="renderRevision()">
+      <option value="">Todos los días</option>
+      <option value="L">Lunes</option><option value="M">Martes</option><option value="X">Miércoles</option>
+      <option value="J">Jueves</option><option value="V">Viernes</option>
+    </select>
+  </div>
+
   <div id="rev-contador" class="hint" style="margin-bottom:8px;"></div>
   <div class="rev-scroll">
     <table class="rev">
       <thead><tr>
         <th style="width:40px">#</th><th>Estado</th><th>Día</th><th>Tramo</th><th>Tipo</th>
-        <th>Docente</th><th>Actividad</th><th>Avisos</th><th style="width:44px">Omitir</th>
+        <th>Docente</th><th>Actividad</th><th style="width:120px">Grupo</th><th>Avisos</th><th style="width:44px">Omitir</th>
       </tr></thead>
       <tbody id="rev-body"></tbody>
     </table>
@@ -323,6 +340,11 @@
   // ---------- Revisión (compartida) ----------
   function _entrarRevision(res) {
     IMP_CAT = res.catalogo; IMP_FILAS = res.filas;
+    // Reiniciar filtros.
+    IMP_FILTRO_ESTADO = 'todas'; IMP_FILTRO_TEXTO = '';
+    const ft = document.getElementById('rev-filtro-texto'); if (ft) ft.value = '';
+    const fd = document.getElementById('rev-filtro-dia'); if (fd) fd.value = '';
+    document.querySelectorAll('#rev-filtro-estado button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-f')==='todas'); });
     renderRevision();
     document.querySelectorAll('.src-panel').forEach(function(p){ p.style.display = 'none'; });
     document.getElementById('fuente-import').style.display = 'none';
@@ -340,26 +362,69 @@
     document.getElementById('src-texto').style.display = IMP_FUENTE === 'texto' ? 'block' : 'none';
   }
 
+  var IMP_FILTRO_ESTADO = 'todas';
+  var IMP_FILTRO_TEXTO = '';
+
   function _opts(lista, selId) {
     let h = '<option value="">—</option>';
     lista.forEach(function(x) { h += '<option value="' + x.id + '"' + (x.id===selId?' selected':'') + '>' + _esc(x.nombre) + '</option>'; });
     return h;
   }
-  function _sel(fila, campo, lista, matchObj) {
-    const selId = matchObj ? matchObj.id : '';
-    const sin = selId ? '' : ' sin';
-    const title = matchObj && matchObj.texto ? ('Texto: "' + matchObj.texto + '"' + (matchObj.score ? ' · ' + Math.round(matchObj.score*100) + '%' : '')) : '';
-    return '<select class="' + sin.trim() + '" title="' + _esc(title) + '" onchange="setCampoRev(' + fila.n + ',\'' + campo + '\',this.value)">' + _opts(lista, selId) + '</select>';
+  // Id seleccionado: el elegido a mano (si el usuario tocó el desplegable) o el del match.
+  function _selId(fila, campo, matchObj) {
+    if (Object.prototype.hasOwnProperty.call(fila, campo)) return fila[campo];
+    return matchObj ? matchObj.id : '';
   }
+  function _sel(fila, campo, lista, matchObj, clase) {
+    const selId = _selId(fila, campo, matchObj);
+    const sin = selId ? '' : 'sin';
+    const title = matchObj && matchObj.texto ? ('Texto: "' + matchObj.texto + '"' + (matchObj.score ? ' · ' + Math.round(matchObj.score*100) + '%' : '')) : '';
+    return '<select class="' + (sin + ' ' + (clase||'')).trim() + '" title="' + _esc(title) +
+      '" onchange="setCampoRev(' + fila.n + ',\'' + campo + '\',this.value)">' + _opts(lista, selId) + '</select>';
+  }
+
+  function _celdaActividad(f) {
+    if (f.tipo === 'grupo') return _sel(f,'materia_id',IMP_CAT.materias,f.materia);
+    if (f.tipo === 'localizacion' || f.tipo === 'especial') return _sel(f,'rol_id',IMP_CAT.roles,f.rol);
+    return '<span class="avisos">tipo desconocido</span>';
+  }
+  function _celdaGrupo(f) {
+    if (f.tipo === 'grupo') return _sel(f,'grupo_id',IMP_CAT.grupos,f.grupo,'gcol');
+    if (f.tipo === 'localizacion') return _sel(f,'grupo_destino_id',IMP_CAT.grupos,f.grupoDestino,'gcol');
+    return '<span class="hint">—</span>';
+  }
+
+  function _textoFila(f) {
+    const partes = [f.dia, f.tramoOrden, f.tipo,
+      f.docente && (f.docente.texto || f.docente.nombre),
+      f.materia && (f.materia.texto || f.materia.nombre),
+      f.grupo && (f.grupo.texto || f.grupo.nombre),
+      f.rol && (f.rol.texto || f.rol.nombre),
+      f.grupoDestino && (f.grupoDestino.texto || f.grupoDestino.nombre),
+      f.notas];
+    return partes.filter(Boolean).join(' ').toLowerCase();
+  }
+  function _filaVisible(f) {
+    // Filtro por estado.
+    const e = IMP_FILTRO_ESTADO;
+    if (e === 'pendientes' && ['revisar','dudoso','conflicto'].indexOf(f.estadoFila) === -1) return false;
+    if (e === 'conflicto' && f.estadoFila !== 'conflicto') return false;
+    if (e === 'ok' && f.estadoFila !== 'ok') return false;
+    // Filtro por día.
+    const dia = document.getElementById('rev-filtro-dia');
+    if (dia && dia.value && f.dia !== dia.value) return false;
+    // Filtro por texto.
+    if (IMP_FILTRO_TEXTO && _textoFila(f).indexOf(IMP_FILTRO_TEXTO) === -1) return false;
+    return true;
+  }
+
   function renderRevision() {
     const tb = document.getElementById('rev-body'); tb.innerHTML = '';
+    let mostradas = 0;
     IMP_FILAS.forEach(function(f) {
-      const tr = document.createElement('tr'); tr.className = 'f-' + f.estadoFila; tr.id = 'rev-fila-' + f.n;
-      let actividad = '';
-      if (f.tipo === 'grupo') actividad = _sel(f,'materia_id',IMP_CAT.materias,f.materia) + ' ' + _sel(f,'grupo_id',IMP_CAT.grupos,f.grupo);
-      else if (f.tipo === 'localizacion') actividad = _sel(f,'rol_id',IMP_CAT.roles,f.rol) + ' → ' + _sel(f,'grupo_destino_id',IMP_CAT.grupos,f.grupoDestino);
-      else if (f.tipo === 'especial') actividad = _sel(f,'rol_id',IMP_CAT.roles,f.rol);
-      else actividad = '<span class="avisos">tipo desconocido</span>';
+      if (!_filaVisible(f)) return;
+      mostradas++;
+      const tr = document.createElement('tr'); tr.className = 'f-' + f.estadoFila + (f.omitir?' f-omitir':''); tr.id = 'rev-fila-' + f.n;
       const tramoTxt = (f.tramoOrden || '?') + (f.mitad==='1'?'a':f.mitad==='2'?'b':'') + (f.semana?(' · sem '+f.semana):'');
       tr.innerHTML =
         '<td class="col-num">' + f.n + '</td>' +
@@ -368,19 +433,28 @@
         '<td>' + tramoTxt + '</td>' +
         '<td>' + _esc(f.tipo) + '</td>' +
         '<td>' + _sel(f,'docente_id',IMP_CAT.docentes,f.docente) + '</td>' +
-        '<td>' + actividad + '</td>' +
+        '<td>' + _celdaActividad(f) + '</td>' +
+        '<td class="gcol">' + _celdaGrupo(f) + '</td>' +
         '<td class="avisos">' + _esc((f.avisos||[]).join(' · ')) + '</td>' +
         '<td class="col-num"><input type="checkbox"' + (f.omitir?' checked':'') + ' onchange="setOmitirRev(' + f.n + ',this.checked)"></td>';
       tb.appendChild(tr);
     });
-    actualizarContadorRev();
+    actualizarContadorRev(mostradas);
   }
   function setCampoRev(n, campo, val) { const f = IMP_FILAS.find(function(x){return x.n===n;}); if (f) f[campo] = val; }
   function setOmitirRev(n, val) { const f = IMP_FILAS.find(function(x){return x.n===n;}); if (f) f.omitir = val; const tr = document.getElementById('rev-fila-'+n); if (tr) tr.classList.toggle('f-omitir', val); actualizarContadorRev(); }
-  function actualizarContadorRev() {
+  function setFiltroEstado(e) {
+    IMP_FILTRO_ESTADO = e;
+    document.querySelectorAll('#rev-filtro-estado button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-f')===e); });
+    renderRevision();
+  }
+  function setFiltroTexto(t) { IMP_FILTRO_TEXTO = String(t||'').trim().toLowerCase(); renderRevision(); }
+  function actualizarContadorRev(mostradas) {
+    const total = IMP_FILAS.length;
     const apl = IMP_FILAS.filter(function(f){return !f.omitir;}).length;
     const conf = IMP_FILAS.filter(function(f){return !f.omitir && f.estadoFila==='conflicto';}).length;
-    document.getElementById('rev-contador').textContent = IMP_FILAS.length + ' filas · ' + apl + ' se aplicarán' + (conf?(' · '+conf+' con conflicto'):'') + ' · modo: ' + IMP_MODO;
+    const filtrado = (mostradas != null && mostradas !== total) ? ('mostrando ' + mostradas + ' de ' + total + ' · ') : (total + ' filas · ');
+    document.getElementById('rev-contador').textContent = filtrado + apl + ' se aplicarán' + (conf?(' · '+conf+' con conflicto'):'') + ' · modo: ' + IMP_MODO;
   }
   function aplicarImport() {
     const payload = IMP_FILAS.map(function(f) {
