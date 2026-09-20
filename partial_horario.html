@@ -1,6 +1,6 @@
 <div class="page-head">
   <h2>Horario del docente</h2>
-  <p>Consulta y corrige el horario individual de cada docente. Pulsa una celda para editar ese hueco (materia, grupo, apoyo o cargo). Guarda al terminar.</p>
+  <p>Consulta el horario individual de cada docente. Para cambiarlo, pulsa <strong>Editar horario</strong>: elige un área y un grupo (o un cargo) y píntalo arrastrando sobre la rejilla.</p>
 </div>
 
 <div class="toolbar">
@@ -8,214 +8,396 @@
     <label style="display:inline">Docente</label>
     <select id="hd-select" style="min-width:220px" onchange="cargarHorario(this.value)"></select>
   </div>
-  <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
-  <span id="hd-estado" class="hint"></span>
+  <button class="primary" id="hd-editar" onclick="abrirPaint()" disabled>Editar horario</button>
 </div>
 
 <div id="hd-body"></div>
 <div id="hd-res"></div>
 
-<!-- Modal editor de hueco -->
-<div class="modal-overlay" id="hd-modal">
-  <div class="modal-box modal-wide">
-    <h3 id="hd-modal-title">Editar hueco</h3>
-    <div id="hd-modal-body"></div>
-    <div class="toolbar" style="margin:14px 0 0">
-      <button class="secondary" onclick="hdAddOc()">+ Añadir ocupación</button>
+<!-- ============ Modal de edición por pintado ============ -->
+<div class="modal-overlay" id="hd-paint-modal">
+  <div class="modal-box modal-huge">
+    <div class="hp-head">
+      <h3>Editar horario · <span id="hd-paint-doc"></span></h3>
+      <button class="ghost" title="Cerrar" onclick="cerrarPaint()">✕</button>
     </div>
-    <div class="modal-actions" style="margin-top:18px">
-      <button type="button" class="secondary" onclick="hdCerrar()">Cancelar</button>
-      <button type="button" class="primary" onclick="hdAceptar()">Aceptar</button>
+
+    <div class="hp-body">
+      <aside class="hp-left">
+        <div id="hd-brush-actual" class="hp-brush"></div>
+
+        <div class="section-label">Áreas y grupos</div>
+        <div class="hp-ag">
+          <div class="hp-ag-col"><div class="hp-ag-h">Área</div><div id="hd-materias" class="hp-list"></div></div>
+          <div class="hp-ag-col"><div class="hp-ag-h">Grupo</div><div id="hd-grupos" class="hp-list"></div></div>
+        </div>
+
+        <div class="section-label">Apoyos y cargos</div>
+        <p class="hint" style="margin:0 0 6px;">Un cargo solo: coordinación, dirección… Con un grupo seleccionado: apoyo/refuerzo a ese grupo.</p>
+        <div id="hd-roles" class="hp-list hp-list-wrap"></div>
+      </aside>
+
+      <div class="hp-gridwrap">
+        <div id="hd-paint-grid" class="hp-gridscroll"></div>
+      </div>
+    </div>
+
+    <div class="hp-foot">
+      <div id="hd-sel-editor" class="hp-selbar"></div>
+      <div class="hp-foot-actions">
+        <span id="hd-paint-hint" class="hint"></span>
+        <button class="secondary" onclick="cerrarPaint()">Cancelar</button>
+        <button class="primary" id="hd-paint-guardar" onclick="guardarPaint()">Guardar horario</button>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-  var HD_DOC = '', HD_CAT = null, HD_OCUPS = [], HD_DIRTY = false;
-  var HD_SLOT = null; // { dia, tramo, working: [...] }
+  var HD_DOC = '', HD_CAT = null, HD_OCUPS = [];
+  var HD_DOCS = [];
   var HD_DIAS = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
-
-  // Abre el horario de un docente concreto (usado desde la Revisión).
-  function abrirHorarioDocente(id) {
-    HD_DOC = id || '';
-    irPestana('horario');
-  }
+  var HD_DIAS_C = [{k:'L',n:'Lun'},{k:'M',n:'Mar'},{k:'X',n:'Mié'},{k:'J',n:'Jue'},{k:'V',n:'Vie'}];
 
   function renderHorario() {
     const sel = document.getElementById('hd-select');
-    // Cargar docentes en el selector (una vez).
     google.script.run.withSuccessHandler(function(docs) {
-      const activos = (docs || []).filter(function(d){ return d.activo !== false; });
+      HD_DOCS = (docs || []).filter(function(d){ return d.activo !== false; });
       sel.innerHTML = '<option value="">— elige docente —</option>' +
-        activos.map(function(d){ return '<option value="' + d.id + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
+        HD_DOCS.map(function(d){ return '<option value="' + d.id + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
       if (HD_DOC) cargarHorario(HD_DOC);
-      else document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente para ver y editar su horario.</div>';
+      else { document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente para ver su horario.</div>'; document.getElementById('hd-editar').disabled = true; }
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
 
   function cargarHorario(id) {
     HD_DOC = id;
-    if (!id) { document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente.</div>'; return; }
+    const editar = document.getElementById('hd-editar');
+    if (!id) { document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente.</div>'; editar.disabled = true; return; }
     document.getElementById('hd-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
     document.getElementById('hd-res').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) {
-        HD_CAT = res.catalogo;
-        HD_OCUPS = res.ocupaciones || [];
-        HD_DIRTY = false; _hdActualizarGuardar();
-        _hdMapas();
-        renderGrid();
+        HD_CAT = res.catalogo; HD_OCUPS = res.ocupaciones || [];
+        _hdMapas(); renderGridRO(); editar.disabled = false;
       })
       .withFailureHandler(function(err){ document.getElementById('hd-body').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
       .datosHorarioDocente(id);
   }
 
-  var _hdMat = {}, _hdGru = {}, _hdRol = {};
+  var _hdMat = {}, _hdGru = {}, _hdRol = {}, _hdMatC = {}, _hdRolC = {};
   function _hdMapas() {
-    _hdMat = {}; (HD_CAT.materias||[]).forEach(function(m){ _hdMat[m.id]=m.nombre; });
+    _hdMat = {}; _hdMatC = {}; (HD_CAT.materias||[]).forEach(function(m){ _hdMat[m.id]=m.abreviatura||m.nombre; _hdMatC[m.id]=m.color||''; });
     _hdGru = {}; (HD_CAT.grupos||[]).forEach(function(g){ _hdGru[g.id]=g.nombre; });
-    _hdRol = {}; (HD_CAT.roles||[]).forEach(function(r){ _hdRol[r.id]=r.nombre; });
+    _hdRol = {}; _hdRolC = {}; (HD_CAT.roles||[]).forEach(function(r){ _hdRol[r.id]=r.nombre; _hdRolC[r.id]=r.color||''; });
   }
   function _hdGruposNombres(csv) {
     if (!csv) return '';
     return String(csv).split(',').map(function(s){ return _hdGru[s.trim()] || s.trim(); }).join(' / ');
   }
-  function _hdResumen(o) {
-    if (o.tipo === 'grupo') return _esc(((_hdMat[o.materia_id]||'') + ' ' + _hdGruposNombres(o.grupo_id)).trim() || '—');
-    if (o.tipo === 'localizacion') return _esc(((_hdRol[o.rol_id]||'') + (o.grupo_destino_id?(' → '+_hdGruposNombres(o.grupo_destino_id)):'')).trim() || '—');
-    if (o.tipo === 'especial') return _esc(_hdRol[o.rol_id] || '—');
-    return '—';
+  function _hdSuf(o) {
+    var s = [];
+    if (o.mitad) s.push(o.mitad === '1' ? '½a' : (o.mitad === '2' ? '½b' : o.mitad));
+    if (o.semana) s.push('sem ' + o.semana);
+    return s.length ? (' <span class="hd-suf">' + s.join(' · ') + '</span>') : '';
+  }
+  function _hdOcHtml(o) {
+    var label, color = '';
+    if (o.tipo === 'grupo') { label = ((_hdMat[o.materia_id]||'') + ' ' + _hdGruposNombres(o.grupo_id)).trim() || '—'; color = _hdMatC[o.materia_id]; }
+    else if (o.tipo === 'localizacion') { label = ((_hdRol[o.rol_id]||'') + (o.grupo_destino_id?(' → '+_hdGruposNombres(o.grupo_destino_id)):'')).trim() || '—'; color = _hdRolC[o.rol_id]; }
+    else if (o.tipo === 'especial') { label = _hdRol[o.rol_id] || '—'; color = _hdRolC[o.rol_id]; }
+    else label = '—';
+    var st = color ? ('background:' + color + ';color:' + _sbTxt(color) + ';') : '';
+    return '<div class="hd-oc" style="' + st + '">' + _esc(label) + _hdSuf(o) + '</div>';
   }
 
-  function renderGrid() {
+  // ---------- Rejilla de solo lectura ----------
+  function renderGridRO() {
     if (!HD_CAT.tramos || !HD_CAT.tramos.length) {
       document.getElementById('hd-body').innerHTML = '<div class="empty">No hay tramos configurados. Ve a Configuración → Tramos.</div>';
+      document.getElementById('hd-editar').disabled = true;
       return;
     }
     var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d){ return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
     var rows = HD_CAT.tramos.map(function(t){
       var celdas = HD_DIAS.map(function(d){
         var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; });
-        var cont = ocs.length
-          ? ocs.map(function(o){ return '<div class="hd-oc t-'+o.tipo+'">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
-          : '<span class="hd-add">+</span>';
-        return '<td class="hd-cell" onclick="abrirSlot(\'' + d.k + '\',\'' + t.id + '\')">' + cont + '</td>';
+        var cont = ocs.length ? ocs.map(_hdOcHtml).join('') : '';
+        return '<td>' + cont + '</td>';
       }).join('');
-      var etq = t.etiqueta ? (' · ' + _esc(t.etiqueta)) : '';
       return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + t.orden)) + '<span class="hd-horas">' + _esc(t.horas||'') + '</span></th>' + celdas + '</tr>';
     }).join('');
-    document.getElementById('hd-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
-  }
-  function _hdSufijo(o) {
-    var s = [];
-    if (o.mitad) s.push(o.mitad === '1' ? '½a' : (o.mitad === '2' ? '½b' : o.mitad));
-    if (o.semana) s.push('sem ' + o.semana);
-    return s.length ? (' <span class="hd-suf">' + s.join(' · ') + '</span>') : '';
+    document.getElementById('hd-body').innerHTML = '<div class="hd-wrap"><table class="hd hd-ro">' + head + '<tbody>' + rows + '</tbody></table></div>';
   }
 
-  // ---------- Modal de edición de un hueco ----------
-  function abrirSlot(dia, tramoId) {
-    var t = HD_CAT.tramos.filter(function(x){ return x.id === tramoId; })[0];
-    var diaN = (HD_DIAS.filter(function(d){ return d.k === dia; })[0] || {}).n || dia;
-    var working = HD_OCUPS.filter(function(o){ return o.dia === dia && o.tramo_id === tramoId; })
-      .map(function(o){ return _hdClon(o); });
-    HD_SLOT = { dia: dia, tramo: tramoId, working: working };
-    document.getElementById('hd-modal-title').textContent = diaN + ' · ' + (t.es_recreo?'Recreo':('Tramo '+t.orden)) + (t.horas?(' · '+t.horas):'');
-    renderModal();
-    document.getElementById('hd-modal').classList.add('show');
-  }
-  function _hdClon(o) {
-    return { tipo:o.tipo||'grupo', materia_id:o.materia_id||'', rol_id:o.rol_id||'',
-      _grupos: _hdCsvArr(o.tipo==='localizacion'?o.grupo_destino_id:o.grupo_id),
-      mitad:o.mitad||'', semana:o.semana||'', notas:o.notas||'' };
-  }
-  function _hdCsvArr(csv){ return csv ? String(csv).split(',').map(function(s){return s.trim();}).filter(Boolean) : []; }
+  // ================= Editor por pintado =================
+  var PB = null;             // { bloques, matSel, gruSel, rolSel, brush, sel }
+  var PB_ROWH = 46;
+  var PB_SEQ = 1;
+  var _pbDrag = null;
 
-  function renderModal() {
-    var body = document.getElementById('hd-modal-body');
-    if (!HD_SLOT.working.length) { body.innerHTML = '<p class="hint">Este hueco está libre. Añade una ocupación o deja el docente libre.</p>'; return; }
-    body.innerHTML = HD_SLOT.working.map(function(o, i){ return _hdOcEditor(o, i); }).join('');
+  function abrirPaint() {
+    if (!HD_DOC || !HD_CAT) return;
+    if (!HD_CAT.tramos || !HD_CAT.tramos.length) { document.getElementById('hd-res').innerHTML = '<div class="result err">Configura tramos antes de editar el horario.</div>'; return; }
+    PB = { bloques: _pbDesdeOcups(HD_OCUPS), matSel:'', gruSel:'', rolSel:'', brush:null, sel:null };
+    var d = HD_DOCS.filter(function(x){ return x.id === HD_DOC; })[0];
+    document.getElementById('hd-paint-doc').textContent = d ? d.nombre_corto : '';
+    _pbRenderBrushes(); _pbActualizarBrush(); _pbRenderGrid();
+    _pbRenderSelBar();
+    document.getElementById('hd-paint-modal').classList.add('show');
   }
-  function _optList(arr, sel) {
-    return '<option value="">—</option>' + arr.map(function(x){ return '<option value="' + x.id + '"' + (x.id===sel?' selected':'') + '>' + _esc(x.nombre) + '</option>'; }).join('');
-  }
-  function _hdOcEditor(o, i) {
-    var tipoSel = '<select onchange="hdSet(' + i + ',\'tipo\',this.value)">' +
-      ['grupo','localizacion','especial'].map(function(tp){ return '<option value="'+tp+'"'+(o.tipo===tp?' selected':'')+'>'+({grupo:'Clase a grupo',localizacion:'Apoyo / localización',especial:'Cargo / especial'})[tp]+'</option>'; }).join('') + '</select>';
+  function cerrarPaint() { document.getElementById('hd-paint-modal').classList.remove('show'); PB = null; _pbDrag = null; }
 
-    var campos = '';
-    if (o.tipo === 'grupo') {
-      campos = '<div class="hd-f"><label>Materia</label><select onchange="hdSet(' + i + ',\'materia_id\',this.value)">' + _optList(HD_CAT.materias, o.materia_id) + '</select></div>' +
-        '<div class="hd-f"><label>Grupo(s)</label>' + _hdChips(o, i) + '</div>';
-    } else if (o.tipo === 'localizacion') {
-      campos = '<div class="hd-f"><label>Rol / apoyo</label><select onchange="hdSet(' + i + ',\'rol_id\',this.value)">' + _optList(HD_CAT.roles, o.rol_id) + '</select></div>' +
-        '<div class="hd-f"><label>Grupo(s) destino</label>' + _hdChips(o, i) + '</div>';
-    } else {
-      campos = '<div class="hd-f"><label>Cargo</label><select onchange="hdSet(' + i + ',\'rol_id\',this.value)">' + _optList(HD_CAT.roles, o.rol_id) + '</select></div>';
+  // Convierte las ocupaciones (una por tramo) en bloques que abarcan tramos
+  // consecutivos con el mismo contenido (así se pueden mover y redimensionar).
+  function _pbDesdeOcups(ocups) {
+    var idx = {}; HD_CAT.tramos.forEach(function(t,i){ idx[t.id]=i; });
+    var grupos = {};
+    ocups.forEach(function(o){
+      if (idx[o.tramo_id] == null) return;
+      var sig = [o.tipo, o.materia_id||'', o.grupo_id||'', o.rol_id||'', o.grupo_destino_id||'', o.mitad||'', o.semana||''].join('|');
+      var k = o.dia + '#' + sig;
+      (grupos[k] = grupos[k] || { o:o, dia:o.dia, idxs:[] }).idxs.push(idx[o.tramo_id]);
+    });
+    var out = [];
+    Object.keys(grupos).forEach(function(k){
+      var g = grupos[k]; g.idxs.sort(function(a,b){ return a-b; });
+      var start=null, prev=null;
+      g.idxs.forEach(function(i){
+        if (start===null) { start=i; prev=i; }
+        else if (i===prev+1) { prev=i; }
+        else { out.push(_pbBloque(g.o, g.dia, start, prev)); start=i; prev=i; }
+      });
+      if (start!==null) out.push(_pbBloque(g.o, g.dia, start, prev));
+    });
+    return out;
+  }
+  function _pbBloque(o, dia, ini, fin) {
+    return { id: 'b' + (PB_SEQ++), dia:dia, ini:ini, fin:fin, tipo:o.tipo,
+      materia_id:o.materia_id||'', grupo_id:o.grupo_id||'', rol_id:o.rol_id||'',
+      grupo_destino_id:o.grupo_destino_id||'', mitad:o.mitad||'', semana:o.semana||'' };
+  }
+
+  // ---------- Paletas de pinceles (izquierda) ----------
+  function _pbRenderBrushes() {
+    document.getElementById('hd-materias').innerHTML = (HD_CAT.materias||[]).map(function(m){
+      return '<button type="button" class="hp-li' + (PB.matSel===m.id?' sel':'') + '" onclick="_pbPickMat(\'' + m.id + '\')">' +
+        '<span class="hp-dot" style="background:' + (m.color||'var(--faint)') + '"></span>' + _esc(m.extra||m.nombre) + '</button>';
+    }).join('') || '<div class="hint">Sin áreas. Créalas en Áreas y cargos.</div>';
+
+    document.getElementById('hd-grupos').innerHTML = (HD_CAT.grupos||[]).map(function(g){
+      return '<button type="button" class="hp-li' + (PB.gruSel===g.id?' sel':'') + '" onclick="_pbPickGru(\'' + g.id + '\')">' + _esc(g.nombre) + '</button>';
+    }).join('') || '<div class="hint">Sin grupos.</div>';
+
+    document.getElementById('hd-roles').innerHTML = (HD_CAT.roles||[]).map(function(r){
+      return '<button type="button" class="hp-li' + (PB.rolSel===r.id?' sel':'') + '" onclick="_pbPickRol(\'' + r.id + '\')">' +
+        '<span class="hp-dot" style="background:' + (r.color||'var(--faint)') + '"></span>' + _esc(r.nombre) + '</button>';
+    }).join('') || '<div class="hint">Sin cargos.</div>';
+  }
+  function _pbPickMat(id) { PB.matSel = (PB.matSel===id?'':id); if (PB.matSel) PB.rolSel=''; _pbRenderBrushes(); _pbActualizarBrush(); }
+  function _pbPickRol(id) { PB.rolSel = (PB.rolSel===id?'':id); if (PB.rolSel) PB.matSel=''; _pbRenderBrushes(); _pbActualizarBrush(); }
+  function _pbPickGru(id) { PB.gruSel = (PB.gruSel===id?'':id); _pbRenderBrushes(); _pbActualizarBrush(); }
+
+  function _pbActualizarBrush() {
+    var b = null, txt = '', color = '';
+    var matN = _hdMat[PB.matSel], gruN = _hdGru[PB.gruSel], rolN = _hdRol[PB.rolSel];
+    if (PB.matSel && PB.gruSel) { b = { tipo:'grupo', materia_id:PB.matSel, grupo_id:PB.gruSel }; txt = matN + ' · ' + gruN; color = _hdMatC[PB.matSel]; }
+    else if (PB.rolSel && PB.gruSel) { b = { tipo:'localizacion', rol_id:PB.rolSel, grupo_destino_id:PB.gruSel }; txt = rolN + ' → ' + gruN; color = _hdRolC[PB.rolSel]; }
+    else if (PB.rolSel) { b = { tipo:'especial', rol_id:PB.rolSel }; txt = rolN + ' (cargo)'; color = _hdRolC[PB.rolSel]; }
+    else if (PB.matSel) { txt = 'Elige también un grupo para «' + matN + '»'; }
+    PB.brush = b;
+    var bar = document.getElementById('hd-brush-actual');
+    if (b) bar.innerHTML = '<span class="hp-dot" style="background:' + (color||'var(--faint)') + '"></span> Pincel: <b>' + _esc(txt) + '</b>';
+    else bar.innerHTML = txt ? ('<span class="hp-warn">' + _esc(txt) + '</span>') : 'Elige un área + grupo, o un cargo, para pintar.';
+    document.getElementById('hd-paint-hint').textContent = b ? 'Arrastra sobre la rejilla para pintar; arrastra un bloque para moverlo, su borde inferior para alargarlo, y ✕ para quitarlo.' : '';
+  }
+
+  // ---------- Rejilla de pintado ----------
+  function _pbRenderGrid() {
+    var N = HD_CAT.tramos.length;
+    var html = '<div class="pg" style="grid-template-columns:64px repeat(5,minmax(116px,1fr));">';
+    html += '<div class="pg-corner"></div>';
+    HD_DIAS_C.forEach(function(d){ html += '<div class="pg-dayhead">' + d.n + '</div>'; });
+    html += '<div class="pg-times" style="height:' + (N*PB_ROWH) + 'px">' + HD_CAT.tramos.map(function(t){
+      return '<div class="pg-time" style="height:' + PB_ROWH + 'px">' + (t.es_recreo?'Recreo':('T'+t.orden)) + '<span>' + _esc((t.horas||'').replace('-','–')) + '</span></div>';
+    }).join('') + '</div>';
+    HD_DIAS_C.forEach(function(d){
+      var lines = HD_CAT.tramos.map(function(t,i){ return '<div class="pg-rowline' + (t.es_recreo?' recreo':'') + '" style="top:' + (i*PB_ROWH) + 'px;height:' + PB_ROWH + 'px"></div>'; }).join('');
+      html += '<div class="pg-day" data-dia="' + d.k + '" style="height:' + (N*PB_ROWH) + 'px">' + lines + '</div>';
+    });
+    html += '</div>';
+    var grid = document.getElementById('hd-paint-grid');
+    grid.innerHTML = html;
+    _pbPintarBloques();
+    grid.querySelector('.pg').addEventListener('pointerdown', _pbDown);
+  }
+
+  function _pbDiaEl(k) { return document.querySelector('#hd-paint-grid .pg-day[data-dia="' + k + '"]'); }
+  function _pbPintarBloques() {
+    document.querySelectorAll('#hd-paint-grid .pb-block, #hd-paint-grid .pb-ghost').forEach(function(el){ el.remove(); });
+    PB.bloques.forEach(function(b){
+      var day = _pbDiaEl(b.dia); if (!day) return;
+      var info = _pbInfo(b);
+      var el = document.createElement('div');
+      el.className = 'pb-block' + (PB.sel===b.id?' sel':'');
+      el.setAttribute('data-id', b.id);
+      el.style.top = (b.ini*PB_ROWH) + 'px';
+      el.style.height = ((b.fin-b.ini+1)*PB_ROWH - 4) + 'px';
+      if (info.color) { el.style.background = info.color; el.style.color = _sbTxt(info.color); }
+      var suf = [];
+      if (b.mitad) suf.push(b.mitad==='1'?'½a':'½b');
+      if (b.semana) suf.push('sem '+b.semana);
+      el.innerHTML = '<button class="pb-del" title="Quitar" data-del="' + b.id + '">✕</button>' +
+        '<div class="pb-label">' + _esc(info.label) + '</div>' +
+        (info.sub ? '<div class="pb-sub">' + _esc(info.sub) + '</div>' : '') +
+        (suf.length ? '<div class="pb-suf">' + suf.join(' · ') + '</div>' : '') +
+        '<div class="pb-handle"></div>';
+      day.appendChild(el);
+    });
+  }
+  function _pbInfo(b) {
+    if (b.tipo === 'grupo') return { label:(_hdMat[b.materia_id]||'¿área?'), sub:_hdGruposNombres(b.grupo_id), color:_hdMatC[b.materia_id] };
+    if (b.tipo === 'localizacion') return { label:(_hdRol[b.rol_id]||'¿apoyo?'), sub:_hdGruposNombres(b.grupo_destino_id), color:_hdRolC[b.rol_id] };
+    return { label:(_hdRol[b.rol_id]||'¿cargo?'), sub:'', color:_hdRolC[b.rol_id] };
+  }
+
+  function _pbDayAt(x, y) {
+    var days = document.querySelectorAll('#hd-paint-grid .pg-day');
+    for (var i=0;i<days.length;i++){ var r=days[i].getBoundingClientRect(); if (x>=r.left && x<=r.right && y>=r.top-4 && y<=r.bottom+4) return days[i]; }
+    return null;
+  }
+  function _pbIdxAt(dayEl, y) {
+    var r = dayEl.getBoundingClientRect();
+    var i = Math.floor((y - r.top) / PB_ROWH);
+    return Math.max(0, Math.min(HD_CAT.tramos.length-1, i));
+  }
+
+  function _pbDown(e) {
+    var del = e.target.closest('.pb-del');
+    if (del) { e.preventDefault(); _pbBorrar(del.getAttribute('data-del')); return; }
+    var blockEl = e.target.closest('.pb-block');
+    if (blockEl) {
+      var b = _pbById(blockEl.getAttribute('data-id')); if (!b) return;
+      var handle = e.target.closest('.pb-handle');
+      _pbDrag = { mode: handle ? 'resize' : 'move', id:b.id, startX:e.clientX, startY:e.clientY, moved:false, len:b.fin-b.ini };
+      e.preventDefault();
+      document.addEventListener('pointermove', _pbMove);
+      document.addEventListener('pointerup', _pbUp);
+      return;
     }
-
-    var mitad = '<div class="hd-f hd-mini"><label>Mitad</label><select onchange="hdSet(' + i + ',\'mitad\',this.value)">' +
-      [['','—'],['1','½ a'],['2','½ b']].map(function(p){ return '<option value="'+p[0]+'"'+(o.mitad===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('') + '</select></div>';
-    var semana = '<div class="hd-f hd-mini"><label>Semana</label><select onchange="hdSet(' + i + ',\'semana\',this.value)">' +
-      [['','—'],['A','A'],['B','B']].map(function(p){ return '<option value="'+p[0]+'"'+(o.semana===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('') + '</select></div>';
-
-    return '<div class="hd-oceditor">' +
-      '<div class="hd-oceditor-head"><div class="hd-f"><label>Tipo</label>' + tipoSel + '</div>' +
-      '<button class="btn-icon" title="Eliminar" onclick="hdDelOc(' + i + ')">×</button></div>' +
-      '<div class="hd-frow">' + campos + mitad + semana + '</div></div>';
+    // Zona vacía: pintar (requiere pincel).
+    var day = e.target.closest('.pg-day');
+    if (!day) return;
+    if (!PB.brush) { _pbFlashHint(); return; }
+    var idx = _pbIdxAt(day, e.clientY);
+    _pbDrag = { mode:'paint', dia:day.getAttribute('data-dia'), a:idx, b:idx, moved:false };
+    e.preventDefault();
+    _pbGhost();
+    document.addEventListener('pointermove', _pbMove);
+    document.addEventListener('pointerup', _pbUp);
   }
-  function _hdChips(o, i) {
-    var h = '<div class="chips">';
-    o._grupos.forEach(function(id){
-      var g = (HD_CAT.grupos.filter(function(x){return x.id===id;})[0]) || {nombre:id};
-      h += '<span class="chip">' + _esc(g.nombre) + '<button type="button" onclick="hdDelGrupo(' + i + ',\'' + id + '\')">×</button></span>';
+
+  function _pbMove(e) {
+    if (!_pbDrag) return;
+    _pbDrag.moved = _pbDrag.moved || Math.abs(e.clientX-_pbDrag.startX) > 3 || Math.abs(e.clientY-_pbDrag.startY) > 3;
+    if (_pbDrag.mode === 'paint') {
+      var day = _pbDiaEl(_pbDrag.dia);
+      _pbDrag.b = _pbIdxAt(day, e.clientY);
+      _pbGhost();
+    } else if (_pbDrag.mode === 'resize') {
+      var b = _pbById(_pbDrag.id); if (!b) return;
+      var day2 = _pbDiaEl(b.dia);
+      b.fin = Math.max(b.ini, _pbIdxAt(day2, e.clientY));
+      _pbPintarBloques();
+    } else if (_pbDrag.mode === 'move') {
+      var bm = _pbById(_pbDrag.id); if (!bm) return;
+      var dayEl = _pbDayAt(e.clientX, e.clientY) || _pbDiaEl(bm.dia);
+      var idx = _pbIdxAt(dayEl, e.clientY);
+      var maxIni = HD_CAT.tramos.length - 1 - _pbDrag.len;
+      bm.dia = dayEl.getAttribute('data-dia');
+      bm.ini = Math.max(0, Math.min(maxIni, idx));
+      bm.fin = bm.ini + _pbDrag.len;
+      _pbPintarBloques();
+    }
+  }
+
+  function _pbUp(e) {
+    document.removeEventListener('pointermove', _pbMove);
+    document.removeEventListener('pointerup', _pbUp);
+    var drag = _pbDrag; _pbDrag = null;
+    if (!drag) return;
+    if (drag.mode === 'paint') {
+      _pbClearGhost();
+      var ini = Math.min(drag.a, drag.b), fin = Math.max(drag.a, drag.b);
+      var nb = { id:'b'+(PB_SEQ++), dia:drag.dia, ini:ini, fin:fin, tipo:PB.brush.tipo,
+        materia_id:PB.brush.materia_id||'', grupo_id:PB.brush.grupo_id||'', rol_id:PB.brush.rol_id||'',
+        grupo_destino_id:PB.brush.grupo_destino_id||'', mitad:'', semana:'' };
+      PB.bloques.push(nb);
+      PB.sel = nb.id;
+      _pbPintarBloques(); _pbRenderSelBar();
+    } else if (drag.mode === 'move' || drag.mode === 'resize') {
+      if (!drag.moved) { PB.sel = (PB.sel===drag.id ? null : drag.id); _pbPintarBloques(); _pbRenderSelBar(); }
+      else { PB.sel = drag.id; _pbRenderSelBar(); }
+    }
+  }
+
+  function _pbGhost() {
+    _pbClearGhost();
+    var day = _pbDiaEl(_pbDrag.dia); if (!day) return;
+    var ini = Math.min(_pbDrag.a, _pbDrag.b), fin = Math.max(_pbDrag.a, _pbDrag.b);
+    var g = document.createElement('div');
+    g.className = 'pb-ghost';
+    g.style.top = (ini*PB_ROWH) + 'px';
+    g.style.height = ((fin-ini+1)*PB_ROWH - 4) + 'px';
+    day.appendChild(g);
+  }
+  function _pbClearGhost() { document.querySelectorAll('#hd-paint-grid .pb-ghost').forEach(function(el){ el.remove(); }); }
+
+  function _pbById(id) { return PB.bloques.filter(function(b){ return b.id===id; })[0]; }
+  function _pbBorrar(id) { PB.bloques = PB.bloques.filter(function(b){ return b.id!==id; }); if (PB.sel===id) PB.sel=null; _pbPintarBloques(); _pbRenderSelBar(); }
+  function _pbFlashHint() {
+    var bar = document.getElementById('hd-brush-actual');
+    bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
+  }
+
+  // Barra del bloque seleccionado: semana (A/B) y mitad (desdoble), y borrar.
+  function _pbRenderSelBar() {
+    var bar = document.getElementById('hd-sel-editor');
+    var b = PB.sel ? _pbById(PB.sel) : null;
+    if (!b) { bar.innerHTML = ''; return; }
+    var info = _pbInfo(b);
+    bar.innerHTML = '<span class="hp-selname"><span class="hp-dot" style="background:' + (info.color||'var(--faint)') + '"></span>' + _esc(info.label + (info.sub?(' · '+info.sub):'')) + '</span>' +
+      '<label>Semana <select onchange="_pbSet(\'semana\',this.value)">' +
+        [['','—'],['A','A'],['B','B']].map(function(p){ return '<option value="'+p[0]+'"'+(b.semana===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('') + '</select></label>' +
+      '<label>Mitad <select onchange="_pbSet(\'mitad\',this.value)">' +
+        [['','—'],['1','½ a'],['2','½ b']].map(function(p){ return '<option value="'+p[0]+'"'+(b.mitad===p[0]?' selected':'')+'>'+p[1]+'</option>'; }).join('') + '</select></label>' +
+      '<button class="danger btn-sm" onclick="_pbBorrar(\'' + b.id + '\')">Borrar bloque</button>';
+  }
+  function _pbSet(campo, val) { var b = PB.sel ? _pbById(PB.sel) : null; if (!b) return; b[campo]=val; _pbPintarBloques(); }
+
+  function guardarPaint() {
+    if (!PB) return;
+    var ocups = [];
+    PB.bloques.forEach(function(b){
+      for (var i=b.ini;i<=b.fin;i++){
+        var t = HD_CAT.tramos[i]; if (!t) continue;
+        var o = { dia:b.dia, tramo_id:t.id, tipo:b.tipo, materia_id:'', grupo_id:'', rol_id:'', grupo_destino_id:'', mitad:b.mitad||'', semana:b.semana||'', notas:'' };
+        if (b.tipo==='grupo') { o.materia_id=b.materia_id; o.grupo_id=b.grupo_id; }
+        else if (b.tipo==='localizacion') { o.rol_id=b.rol_id; o.grupo_destino_id=b.grupo_destino_id; }
+        else if (b.tipo==='especial') { o.rol_id=b.rol_id; }
+        ocups.push(o);
+      }
     });
-    var disp = HD_CAT.grupos.filter(function(x){ return o._grupos.indexOf(x.id) === -1; });
-    h += '<select class="add-grupo" onchange="hdAddGrupo(' + i + ',this.value)"><option value="">＋</option>' +
-      disp.map(function(x){ return '<option value="'+x.id+'">'+_esc(x.nombre)+'</option>'; }).join('') + '</select></div>';
-    return h;
-  }
-
-  function hdSet(i, campo, v) { HD_SLOT.working[i][campo] = v; if (campo==='tipo') renderModal(); }
-  function hdAddGrupo(i, id) { if(!id) return; var a=HD_SLOT.working[i]._grupos; if(a.indexOf(id)===-1) a.push(id); renderModal(); }
-  function hdDelGrupo(i, id) { HD_SLOT.working[i]._grupos = HD_SLOT.working[i]._grupos.filter(function(g){return g!==id;}); renderModal(); }
-  function hdAddOc() { HD_SLOT.working.push({ tipo:'grupo', materia_id:'', rol_id:'', _grupos:[], mitad:'', semana:'', notas:'' }); renderModal(); }
-  function hdDelOc(i) { HD_SLOT.working.splice(i,1); renderModal(); }
-  function hdCerrar() { document.getElementById('hd-modal').classList.remove('show'); HD_SLOT = null; }
-
-  function hdAceptar() {
-    // Quita las ocupaciones previas de este hueco y añade las del working.
-    HD_OCUPS = HD_OCUPS.filter(function(o){ return !(o.dia === HD_SLOT.dia && o.tramo_id === HD_SLOT.tramo); });
-    HD_SLOT.working.forEach(function(w){
-      var oc = { dia: HD_SLOT.dia, tramo_id: HD_SLOT.tramo, tipo: w.tipo, materia_id:'', grupo_id:'', rol_id:'', grupo_destino_id:'', mitad:w.mitad||'', semana:w.semana||'', notas:w.notas||'' };
-      var grupos = (w._grupos||[]).join(',');
-      if (w.tipo==='grupo') { oc.materia_id=w.materia_id||''; oc.grupo_id=grupos; }
-      else if (w.tipo==='localizacion') { oc.rol_id=w.rol_id||''; oc.grupo_destino_id=grupos; }
-      else if (w.tipo==='especial') { oc.rol_id=w.rol_id||''; }
-      HD_OCUPS.push(oc);
-    });
-    HD_DIRTY = true; _hdActualizarGuardar();
-    hdCerrar();
-    renderGrid();
-  }
-
-  function _hdActualizarGuardar() {
-    const btn = document.getElementById('hd-guardar');
-    btn.disabled = !HD_DIRTY;
-    document.getElementById('hd-estado').textContent = HD_DIRTY ? 'Cambios sin guardar' : '';
-  }
-
-  function guardarHorario() {
-    if (!HD_DOC) return;
-    const btn = document.getElementById('hd-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
-    document.getElementById('hd-res').innerHTML = '';
+    var btn = document.getElementById('hd-paint-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
     google.script.run
       .withSuccessHandler(function(res){
-        btn.innerHTML = 'Guardar horario'; HD_DIRTY = false; _hdActualizarGuardar();
+        btn.disabled = false; btn.textContent = 'Guardar horario';
+        cerrarPaint();
         document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + res.total + ' ocupaciones).</div>';
+        cargarHorario(HD_DOC);
         refrescarEstado();
       })
-      .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; document.getElementById('hd-res').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
-      .guardarHorarioDocente(HD_DOC, HD_OCUPS);
+      .withFailureHandler(function(err){ btn.disabled = false; btn.textContent = 'Guardar horario'; document.getElementById('hd-res').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
+      .guardarHorarioDocente(HD_DOC, ocups);
   }
 </script>
