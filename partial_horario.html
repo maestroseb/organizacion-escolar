@@ -13,67 +13,42 @@
 
 <div id="hd-body"></div>
 <div id="hd-res"></div>
-
-<!-- ============ Modal de edición por pintado ============ -->
-<div class="modal-overlay" id="hd-paint-modal">
-  <div class="modal-box modal-huge">
-    <div class="hp-head">
-      <h3>Editar horario · <span id="hd-paint-doc"></span></h3>
-      <button class="ghost" title="Cerrar" onclick="cerrarPaint()">✕</button>
-    </div>
-
-    <div class="hp-body">
-      <aside class="hp-left">
-        <div id="hd-brush-actual" class="hp-brush"></div>
-
-        <div class="hp-semana">
-          <span class="hp-semana-lbl">Semana</span>
-          <div class="segmented hp-seg" id="hd-sem-modo">
-            <button type="button" data-s="" class="active" onclick="_pbSemMode('')">Todas</button>
-            <button type="button" data-s="A" onclick="_pbSemMode('A')">A</button>
-            <button type="button" data-s="B" onclick="_pbSemMode('B')">B</button>
-          </div>
-        </div>
-        <p class="hint" style="margin:0 0 12px;">Para alternancia quincenal: pon <b>Semana A</b> y pinta un área; luego <b>Semana B</b> y pinta la otra en el mismo hueco (quedan lado a lado, A a la izquierda y B a la derecha).</p>
-
-        <div class="section-label">Áreas y grupos</div>
-        <div class="hp-ag">
-          <div class="hp-ag-col"><div class="hp-ag-h">Área</div><div id="hd-materias" class="hp-list"></div></div>
-          <div class="hp-ag-col"><div class="hp-ag-h">Grupo</div><div id="hd-grupos" class="hp-list"></div></div>
-        </div>
-
-        <div class="section-label">Apoyos y cargos</div>
-        <p class="hint" style="margin:0 0 6px;">Los cargos y apoyos (refuerzos, AL, PT…) no necesitan grupo. Si quieres, añade uno en la columna Grupo para asignar el apoyo a ese curso.</p>
-        <div id="hd-roles" class="hp-list hp-list-wrap"></div>
-      </aside>
-
-      <div class="hp-gridwrap">
-        <div id="hd-paint-grid" class="hp-gridscroll"></div>
-      </div>
-    </div>
-
-    <div class="hp-foot">
-      <div id="hd-sel-editor" class="hp-selbar"></div>
-      <div class="hp-foot-actions">
-        <span id="hd-paint-hint" class="hint"></span>
-        <button class="secondary" onclick="cerrarPaint()">Cancelar</button>
-        <button class="primary" id="hd-paint-guardar" onclick="guardarPaint()">Guardar horario</button>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- El modal de edición (#hd-paint-modal) vive a nivel de app.html para poder
+     abrirse por encima de cualquier pestaña (p. ej. desde Revisión). -->
 
 <script>
   var HD_DOC = '', HD_CAT = null, HD_OCUPS = [];
   var HD_DOCS = [];
   var HD_AUTO_EDIT = false;   // abrir el editor automáticamente tras cargar (desde Revisión)
 
-  // Abre el horario de un docente concreto y, opcionalmente, el editor
-  // (usado desde la pestaña Revisión).
+  // Desde la pestaña Revisión: si editar=true, abre el modal de edición
+  // sobre la propia pantalla (sin cambiar de pestaña); si no, navega al
+  // horario del docente.
   function abrirHorarioDocente(id, editar) {
-    HD_DOC = id || '';
-    HD_AUTO_EDIT = !!editar;
+    if (!id) return;
+    if (editar) { abrirEditorDocente(id); return; }
+    HD_DOC = id; HD_AUTO_EDIT = false;
     irPestana('horario');
+  }
+
+  // Carga los datos del docente en segundo plano y abre el editor de pintado,
+  // sin necesidad de estar en la pestaña Horario.
+  function abrirEditorDocente(id) {
+    var run = function() {
+      google.script.run
+        .withSuccessHandler(function(res) {
+          HD_DOC = id; HD_CAT = res.catalogo; HD_OCUPS = res.ocupaciones || [];
+          _hdMapas();
+          var sel = document.getElementById('hd-select'); if (sel) sel.value = id;
+          var ed = document.getElementById('hd-editar'); if (ed) ed.disabled = false;
+          try { renderGridRO(); } catch (e) {}
+          abrirPaint();
+        })
+        .withFailureHandler(mostrarErrorGenerico)
+        .datosHorarioDocente(id);
+    };
+    if (HD_DOCS && HD_DOCS.length) run();
+    else google.script.run.withSuccessHandler(function(docs){ HD_DOCS = (docs||[]).filter(function(d){ return d.activo !== false; }); run(); }).withFailureHandler(function(){ run(); }).listarDocentes();
   }
   var HD_DIAS = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
   var HD_DIAS_C = [{k:'L',n:'Lun'},{k:'M',n:'Mar'},{k:'X',n:'Mié'},{k:'J',n:'Jue'},{k:'V',n:'Vie'}];
@@ -430,6 +405,8 @@
         document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + res.total + ' ocupaciones).</div>';
         cargarHorario(HD_DOC);
         refrescarEstado();
+        // Si el editor se abrió desde Revisión, re-analiza para reflejar el arreglo.
+        if (typeof VISTA_ACTUAL !== 'undefined' && VISTA_ACTUAL === 'revision' && typeof renderProblemas === 'function') renderProblemas();
       })
       .withFailureHandler(function(err){ btn.disabled = false; btn.textContent = 'Guardar horario'; document.getElementById('hd-res').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
       .guardarHorarioDocente(HD_DOC, ocups);

@@ -83,6 +83,56 @@
     </main>
   </div>
 
+  <!-- ============ Modal de edición de horario por pintado ============ -->
+  <!-- A nivel de app para poder abrirse sobre cualquier pestaña (Horario, Revisión…). -->
+  <div class="modal-overlay" id="hd-paint-modal">
+    <div class="modal-box modal-huge">
+      <div class="hp-head">
+        <h3>Editar horario · <span id="hd-paint-doc"></span></h3>
+        <button class="ghost" title="Cerrar" onclick="cerrarPaint()">✕</button>
+      </div>
+
+      <div class="hp-body">
+        <aside class="hp-left">
+          <div id="hd-brush-actual" class="hp-brush"></div>
+
+          <div class="hp-semana">
+            <span class="hp-semana-lbl">Semana</span>
+            <div class="segmented hp-seg" id="hd-sem-modo">
+              <button type="button" data-s="" class="active" onclick="_pbSemMode('')">Todas</button>
+              <button type="button" data-s="A" onclick="_pbSemMode('A')">A</button>
+              <button type="button" data-s="B" onclick="_pbSemMode('B')">B</button>
+            </div>
+          </div>
+          <p class="hint" style="margin:0 0 12px;">Para alternancia quincenal: pon <b>Semana A</b> y pinta un área; luego <b>Semana B</b> y pinta la otra en el mismo hueco (quedan lado a lado, A a la izquierda y B a la derecha).</p>
+
+          <div class="section-label">Áreas y grupos</div>
+          <div class="hp-ag">
+            <div class="hp-ag-col"><div class="hp-ag-h">Área</div><div id="hd-materias" class="hp-list"></div></div>
+            <div class="hp-ag-col"><div class="hp-ag-h">Grupo</div><div id="hd-grupos" class="hp-list"></div></div>
+          </div>
+
+          <div class="section-label">Apoyos y cargos</div>
+          <p class="hint" style="margin:0 0 6px;">Los cargos y apoyos (refuerzos, AL, PT…) no necesitan grupo. Si quieres, añade uno en la columna Grupo para asignar el apoyo a ese curso.</p>
+          <div id="hd-roles" class="hp-list hp-list-wrap"></div>
+        </aside>
+
+        <div class="hp-gridwrap">
+          <div id="hd-paint-grid" class="hp-gridscroll"></div>
+        </div>
+      </div>
+
+      <div class="hp-foot">
+        <div id="hd-sel-editor" class="hp-selbar"></div>
+        <div class="hp-foot-actions">
+          <span id="hd-paint-hint" class="hint"></span>
+          <button class="secondary" onclick="cerrarPaint()">Cancelar</button>
+          <button class="primary" id="hd-paint-guardar" onclick="guardarPaint()">Guardar horario</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ============ Modal de confirmación reutilizable ============ -->
   <div class="modal-overlay" id="modal-confirm">
     <div class="modal-box">
