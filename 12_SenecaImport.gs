@@ -339,11 +339,15 @@ function _fechaSeneca(s) {
 }
 
 function _detectarNivel(cursoTxt) {
-  const t = (cursoTxt || '').toLowerCase();
-  if (/tres/.test(t))   return 'INF3';
-  if (/cuatro/.test(t)) return 'INF4';
-  if (/cinco/.test(t))  return 'INF5';
-  const m = t.match(/^([1-6])/);
+  const t = String(cursoTxt || '').toLowerCase().trim();
+  // Infantil (3/4/5 años). Se comprueba antes que Primaria para que "5 años"
+  // no se confunda con "5º". Reconoce el texto de Séneca ("… 3 años", "tres")
+  // y las abreviaturas habituales del volcado ("I3", "EI 3", "INF3", "3A" infantil).
+  if (/tres|(^|[^0-9])3\s*a[ñn]os|^(e?i|inf(antil)?)\s*\.?\s*-?\s*3\b|^i-?3\b/.test(t)) return 'INF3';
+  if (/cuatro|(^|[^0-9])4\s*a[ñn]os|^(e?i|inf(antil)?)\s*\.?\s*-?\s*4\b|^i-?4\b/.test(t)) return 'INF4';
+  if (/cinco|(^|[^0-9])5\s*a[ñn]os|^(e?i|inf(antil)?)\s*\.?\s*-?\s*5\b|^i-?5\b/.test(t)) return 'INF5';
+  // Primaria: empieza por 1-6 ("1º", "1º A", "1P", "3ºB"…).
+  const m = t.match(/^([1-6])\b/);
   if (m) return m[1] + 'P';
   return '';
 }

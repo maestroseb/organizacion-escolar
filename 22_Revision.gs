@@ -157,6 +157,15 @@ function revisarProblemas() {
     descripcion: 'Grupos cuyo tutor/a apunta a un docente que ya no existe. Reasigna el tutor en Grupos.', items: tutorRoto
   });
 
+  // ---- E2) Grupos sin nivel (p. ej. creados desde un volcado no reconocido) ----
+  const sinNivel = grupos
+    .filter(function(g) { return !String(g.nivel || '').trim(); })
+    .map(function(g) { return _gen(g.nombre_corto + ' — sin nivel asignado (ordena al final en las vistas)', [{ t: 'tab', label: 'Editar grupos', tab: 'grupos' }]); });
+  if (sinNivel.length) gruposProblemas.push({
+    tipo: 'sin_nivel', gravedad: 'aviso', titulo: 'Grupos sin nivel',
+    descripcion: 'Grupos sin nivel (Infantil/Primaria). Se crean igualmente pero ordenan al final; asígnales el nivel en Grupos.', items: sinNivel
+  });
+
   // ---- F) Ocupaciones incompletas (faltan datos, no referencias rotas) ----
   const incompletas = [];
   ocup.forEach(function(o) {
