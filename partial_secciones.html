@@ -84,7 +84,7 @@
   <div class="tablewrap">
     <table class="data">
       <thead><tr>
-        <th class="col-num">#</th><th style="width:110px">Inicio</th><th style="width:110px">Fin</th>
+        <th class="col-num">#</th><th class="col-center" style="width:56px">Color</th><th style="width:110px">Inicio</th><th style="width:110px">Fin</th>
         <th class="col-center" style="width:80px">Recreo</th><th>Etiqueta</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="tramos-body"></tbody>
@@ -127,8 +127,8 @@
   <div class="tablewrap">
     <table class="data">
       <thead><tr>
-        <th class="col-num">#</th><th style="width:140px">Nombre corto *</th><th>Nombre completo</th>
-        <th>Puesto</th><th style="width:190px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-acc"></th>
+        <th class="col-num">#</th><th style="width:140px">Nombre corto *</th><th style="width:140px">Sustituto/a</th><th>Nombre completo</th>
+        <th>Puesto</th><th style="width:180px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="docentes-body"></tbody>
     </table>
@@ -294,7 +294,7 @@
   function cargarTramos() {
     google.script.run.withSuccessHandler(function(tramos) {
       tramosLocal = (tramos || []).map(function(t) {
-        return { id: t.id, hora_inicio: _fmtHora(t.hora_inicio), hora_fin: _fmtHora(t.hora_fin), es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || '' };
+        return { id: t.id, hora_inicio: _fmtHora(t.hora_inicio), hora_fin: _fmtHora(t.hora_fin), es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || '', color: t.color || '' };
       });
       if (tramosLocal.length === 0) anadirTramo(); else renderTramos();
     }).withFailureHandler(mostrarErrorGenerico).listarTramos();
@@ -302,7 +302,7 @@
   function cargarPlantillaTramos() {
     const aplicar = function() {
       google.script.run.withSuccessHandler(function(pl) {
-        tramosLocal = pl.map(function(t) { return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin, es_recreo: t.es_recreo, etiqueta: t.etiqueta }; });
+        tramosLocal = pl.map(function(t) { return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin, es_recreo: t.es_recreo, etiqueta: t.etiqueta, color: t.color || '' }; });
         renderTramos();
       }).withFailureHandler(mostrarErrorGenerico).plantillaTramos();
     };
@@ -311,7 +311,7 @@
   function anadirTramo() {
     const ult = tramosLocal[tramosLocal.length - 1];
     const inicio = ult ? ult.hora_fin : '09:00';
-    tramosLocal.push({ id: null, hora_inicio: inicio, hora_fin: _sumarMinutos(inicio, 45), es_recreo: false, etiqueta: 'TR' + String(tramosLocal.length + 1).padStart(2,'0') });
+    tramosLocal.push({ id: null, hora_inicio: inicio, hora_fin: _sumarMinutos(inicio, 45), es_recreo: false, etiqueta: 'TR' + String(tramosLocal.length + 1).padStart(2,'0'), color: '' });
     renderTramos();
   }
   function eliminarTramo(i) { tramosLocal.splice(i,1); renderTramos(); }
@@ -322,6 +322,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
+        '<td class="col-center">' + _colorCell(t.color, 'setColorTramo', i, _defColorTramo(i, tramosLocal.length)) + '</td>' +
         '<td><input type="text" value="' + _esc(t.hora_inicio) + '" placeholder="09:00" oninput="actualizarTramo(' + i + ',\'hora_inicio\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(t.hora_fin) + '" placeholder="09:45" oninput="actualizarTramo(' + i + ',\'hora_fin\',this.value)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (t.es_recreo?' checked':'') + ' onchange="actualizarTramo(' + i + ',\'es_recreo\',this.checked)"></td>' +
@@ -402,7 +403,7 @@
 
   // ================= Docentes =================
   let docentesLocal = [];
-  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '' }; }
+  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '' }; }
   function cargarDocentes() {
     google.script.run.withSuccessHandler(function(docs) {
       if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); }
@@ -419,6 +420,7 @@
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
         '<td><input type="text" value="' + _esc(d.nombre_corto) + '" placeholder="Sebastián" oninput="actualizarDocente(' + i + ',\'nombre_corto\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(d.sustituto) + '" placeholder="(si hay baja)" title="Si hay un sustituto, su nombre aparece en la sábana y vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(d.nombre_completo) + '" placeholder="Sebastián García Rodríguez" oninput="actualizarDocente(' + i + ',\'nombre_completo\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
@@ -618,14 +620,25 @@
   function setColorRol(i, v) { rolesLocal[i].color = v; renderRoles(); }
   function setColorMateria(i, v) { materiasLocal[i].color = v; renderMaterias(); }
 
-  // Celda de selector de color reutilizable (materias y roles).
-  function _colorCell(color, fn, i) {
-    const val = color || '#cccccc';
+  // Celda de selector de color reutilizable (materias, roles y tramos).
+  // `fallback` es el color que muestra el selector cuando aún no hay uno propio.
+  function _colorCell(color, fn, i, fallback) {
+    const val = color || fallback || '#cccccc';
     let h = '<span class="colorpick"><input type="color" value="' + val + '" oninput="' + fn + '(' + i + ', this.value)">';
-    if (color) h += '<button class="colorclear" title="Sin color" onclick="' + fn + '(' + i + ', \'\')">×</button>';
+    if (color) h += '<button class="colorclear" title="Color por defecto" onclick="' + fn + '(' + i + ', \'\')">×</button>';
     h += '</span>';
     return h;
   }
+
+  // Paleta por defecto de tramos (arcoíris repartido según nº de tramos).
+  var PALETA_TRAMOS = ['#277da1','#577590','#4d908e','#43aa8b','#90be6d','#f9c74f','#f8961e','#f3722c','#f94144'];
+  function _defColorTramo(i, total) {
+    const L = PALETA_TRAMOS.length;
+    if (total <= 1) return PALETA_TRAMOS[0];
+    if (total >= L) return PALETA_TRAMOS[i % L];
+    return PALETA_TRAMOS[Math.round(i * (L - 1) / (total - 1))];
+  }
+  function setColorTramo(i, v) { tramosLocal[i].color = v; renderTramos(); }
   function enviarRoles() {
     if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
     const btn = document.getElementById('btn-guardar-roles'); _cargando(btn,'Guardando…'); document.getElementById('res-roles').innerHTML = '';

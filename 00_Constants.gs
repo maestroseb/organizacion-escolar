@@ -32,7 +32,7 @@ const SCHEMA = {
     'etapas', 'curso_academico', 'fecha_inicio', 'fecha_fin'
   ],
   [SHEETS.TRAMOS]: [
-    'id', 'orden', 'hora_inicio', 'hora_fin', 'es_recreo', 'etiqueta'
+    'id', 'orden', 'hora_inicio', 'hora_fin', 'es_recreo', 'etiqueta', 'color'
   ],
   [SHEETS.GRUPOS]: [
     'id', 'nombre_corto', 'nombre_largo', 'nivel', 'etapa', 'orden',
@@ -40,7 +40,7 @@ const SCHEMA = {
   ],
   [SHEETS.DOCENTES]: [
     'id', 'nombre_corto', 'nombre_completo', 'puesto', 'email',
-    'activo', 'orden', 'color'
+    'activo', 'orden', 'color', 'sustituto'
   ],
   [SHEETS.LOCALIZACIONES]: [
     'id', 'codigo', 'descripcion', 'orden'

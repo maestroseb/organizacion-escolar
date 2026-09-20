@@ -44,7 +44,11 @@ function _sabanaContexto() {
   const docentes = getAll(SHEETS.DOCENTES)
     .filter(function(d) { return d.activo !== false; })
     .sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
-  const grupos = getAll(SHEETS.GRUPOS).sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
+  // Cursos siempre en orden canónico: INF3, INF4, INF5, 1º…6º de Primaria.
+  const grupos = getAll(SHEETS.GRUPOS).sort(function(a, b) {
+    return (ordenNivel(a.nivel) - ordenNivel(b.nivel)) ||
+           String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es');
+  });
   const tramos = getAll(SHEETS.TRAMOS).sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
   const materias = getAll(SHEETS.MATERIAS);
   const roles = getAll(SHEETS.ROLES);
@@ -54,17 +58,47 @@ function _sabanaContexto() {
   const materiaById = {}; materias.forEach(function(m) { materiaById[m.id] = m; });
   const rolById = {}; roles.forEach(function(r) { rolById[r.id] = r; });
 
+  // Color de cada tramo: el elegido por el usuario o, si no, el de la paleta
+  // arcoíris repartida según el número de tramos.
+  const paleta = _paletaTramos(tramos.length);
+  const colorTramo = {};
+  tramos.forEach(function(t, i) { colorTramo[t.id] = t.color || paleta[i] || '#4f9d84'; });
+
   return {
     docentes: docentes, grupos: grupos, tramos: tramos,
     ocupaciones: getAll(SHEETS.OCUPACIONES),
-    docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById
+    docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById,
+    colorTramo: colorTramo
   };
+}
+
+// Paleta base (tipo arcoíris) y selección de N colores repartidos: con menos
+// tramos se descartan los más parecidos entre sí (los del centro del arcoíris).
+const _PALETA_TRAMOS = ['#277da1','#577590','#4d908e','#43aa8b','#90be6d','#f9c74f','#f8961e','#f3722c','#f94144'];
+function _paletaTramos(n) {
+  const L = _PALETA_TRAMOS.length;
+  if (n <= 0) return [];
+  if (n === 1) return [_PALETA_TRAMOS[0]];
+  if (n >= L) {
+    const out = [];
+    for (let i = 0; i < n; i++) out.push(_PALETA_TRAMOS[i % L]);
+    return out;
+  }
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(_PALETA_TRAMOS[Math.round(i * (L - 1) / (n - 1))]);
+  return out;
 }
 
 function _sabanaTramoData(t, ocupDia, ctx) {
   const ocs = ocupDia.filter(function(o) { return o.tramo_id === t.id; });
 
-  const nombreDoc = function(id) { const d = ctx.docById[id]; return d ? d.nombre_corto : ''; };
+  // Si el docente tiene un sustituto asignado, se muestra el sustituto en su
+  // lugar en todas las vistas (al quitarlo, vuelve el titular).
+  const nombreDoc = function(id) {
+    const d = ctx.docById[id];
+    if (!d) return '';
+    return String(d.sustituto || '').trim() || d.nombre_corto;
+  };
 
   // --- Cursos (panel izquierdo) ---
   const cursos = ctx.grupos.map(function(g) {
@@ -121,13 +155,14 @@ function _sabanaTramoData(t, ocupDia, ctx) {
   ocs.forEach(function(o) { if (o.docente_id) ocupados[o.docente_id] = true; });
   const libres = ctx.docentes
     .filter(function(d) { return !ocupados[d.id]; })
-    .map(function(d) { return d.nombre_corto; });
+    .map(function(d) { return String(d.sustituto || '').trim() || d.nombre_corto; });
 
   return {
     tramo: {
       id: t.id, orden: t.orden, etiqueta: t.etiqueta || '',
       horas: _hhmm(t.hora_inicio) + ' – ' + _hhmm(t.hora_fin),
-      es_recreo: !!t.es_recreo
+      es_recreo: !!t.es_recreo,
+      color: ctx.colorTramo[t.id] || '#4f9d84'
     },
     cursos: cursos,
     apoyos: apoyos,

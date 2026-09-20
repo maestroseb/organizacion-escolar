@@ -70,10 +70,11 @@
 
     var libres = t.libres.length ? ('<div class="sb-libres"><b>Libres (' + t.libres.length + '):</b> ' + t.libres.map(_esc).join(' · ') + '</div>') : '';
 
+    var col = tr.color || '#4f9d84', txt = _sbTxt(col), st = 'background:' + col + ';color:' + txt + ';';
     return '<div class="sb-tramo' + (tr.es_recreo ? ' recreo' : '') + '">' +
-      '<div class="sb-head">' + _esc(titulo) + '</div>' +
+      '<div class="sb-head" style="' + st + '">' + _esc(titulo) + '</div>' +
       '<div class="sb-bodyrow">' +
-        '<div class="sb-rail">' + (tr.es_recreo ? 'RECREO' : ('TR ' + tr.orden)) + '</div>' +
+        '<div class="sb-rail" style="' + st + '">' + (tr.es_recreo ? 'RECREO' : ('TR ' + tr.orden)) + '</div>' +
         '<div class="sb-cols">' +
           '<div class="sb-pane"><table class="sb"><thead><tr><th>Curso</th><th>Docente · Ocup.</th></tr></thead><tbody>' + left + '</tbody></table></div>' +
           '<div class="sb-pane"><table class="sb"><thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + right + '</tbody></table></div>' +

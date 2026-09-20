@@ -43,7 +43,8 @@ function guardarTramos(tramos, modo) {
       hora_inicio: t.hora_inicio,
       hora_fin: t.hora_fin,
       es_recreo: !!t.es_recreo,
-      etiqueta: t.etiqueta || ''
+      etiqueta: t.etiqueta || '',
+      color: t.color || ''
     };
   });
   const resumen = bulkMerge(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo || 'reemplazar');

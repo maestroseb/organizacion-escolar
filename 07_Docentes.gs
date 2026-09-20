@@ -43,7 +43,8 @@ function guardarDocentes(docentes, modo) {
       email: d.email || '',
       activo: d.activo === false ? false : true,
       orden: i + 1,
-      color: d.color || ''
+      color: d.color || '',
+      sustituto: d.sustituto || ''
     };
   });
   const resumen = bulkMerge(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
