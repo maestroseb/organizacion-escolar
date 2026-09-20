@@ -64,6 +64,8 @@ function _analizarFilasCrudas(crudas) {
   const tramosPorOrden = {};
   cat.tramos.forEach(function(t) { tramosPorOrden[t.orden] = t.id; });
 
+  _aplicarSinonimosCrudas(crudas);
+
   // Decodificar cada fila y hacer matching.
   const filas = crudas.map(function(c, i) {
     const dec = _decodificarTramo(c.tramo);
@@ -86,10 +88,13 @@ function _analizarFilasCrudas(crudas) {
     fila.docente = _match(c.docente, catDoc);
     if (fila.tipo === 'grupo') {
       fila.materia = _match(c.materia, catMat);
-      fila.grupo = _match(c.grupo, catGru);
+      // Un grupo puede impartirse a varios a la vez ("6º B y 6º C").
+      fila.gruposMatch = _matchMulti(c.grupo, catGru);
+      fila.grupo = fila.gruposMatch[0] || _match(c.grupo, catGru);
     } else if (fila.tipo === 'localizacion') {
       fila.rol = _match(c.rol, catRol);
-      fila.grupoDestino = _match(c.grupo_destino, catGru);
+      fila.gruposMatch = _matchMulti(c.grupo_destino, catGru);
+      fila.grupoDestino = fila.gruposMatch[0] || _match(c.grupo_destino, catGru);
     } else if (fila.tipo === 'especial') {
       fila.rol = _match(c.rol, catRol);
     } else {
@@ -252,12 +257,56 @@ function _match(texto, candidatos) {
 }
 
 function _norm(s) {
-  return String(s || '')
+  const base = String(s || '')
     .toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '') // quita acentos
     .replace(/[^a-z0-9]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+  return _sinonimo(base);
+}
+
+/**
+ * Sinónimos/equivalencias del centro, aplicados sobre el texto ya normalizado
+ * para que el matching los trate como lo mismo:
+ *   - ATEDU ≡ Atención Educativa
+ *   - RH ≡ M55 / M 55 / Reducción Horaria (mayor de 55)
+ */
+function _sinonimo(s) {
+  if (s === 'atedu' || s === 'atencion educativa' || s === 'at edu') return 'atedu';
+  if (_esRH(s)) return 'rh';
+  return s;
+}
+
+/** Reconoce las variantes de Reducción Horaria por mayores de 55. */
+function _esRH(s) {
+  const t = String(s || '').trim().toLowerCase();
+  return /^(rh|m\s*55|reduccion\s*horaria|reduccion.*55|mayor(es)?\s*de?\s*55)\b/.test(
+    t.normalize('NFD').replace(/[̀-ͯ]/g, '')
+  );
+}
+
+/**
+ * Corrige las filas crudas antes del matching: cuando la actividad es una
+ * Reducción Horaria pero el Gem la dejó sin identificar (rol vacío o "??" y el
+ * código en notas, p.ej. "M55"), fija el rol a "RH".
+ */
+function _aplicarSinonimosCrudas(crudas) {
+  (crudas || []).forEach(function(c) {
+    const tipo = (c.tipo || '').trim().toLowerCase();
+    if (tipo === 'especial' || tipo === 'localizacion') {
+      const rol = (c.rol || '').trim();
+      if (_esRH(rol)) { c.rol = 'RH'; }
+      else if ((!rol || /^\?\?/.test(rol)) && _esRH(c.notas)) { c.rol = 'RH'; }
+    }
+  });
+  return crudas;
+}
+
+/** Como _match pero admite varios valores separados por " y ", "/" o ",". */
+function _matchMulti(texto, candidatos) {
+  const partes = _partirGrupos(texto);
+  return partes.map(function(p) { return _match(p, candidatos); });
 }
 
 /** Similitud 0..1 basada en distancia de Levenshtein. */
@@ -346,9 +395,13 @@ function _calcularEstadoFila(f) {
   if (f.omitir) { f.estadoFila = 'omitir'; return; }
   const tieneConflicto = f.avisos.some(function(a) { return a.indexOf('CONFLICTO') === 0; });
   const partes = [f.docente];
-  if (f.tipo === 'grupo') partes.push(f.materia, f.grupo);
-  else if (f.tipo === 'localizacion') partes.push(f.rol, f.grupoDestino);
+  if (f.tipo === 'grupo') partes.push(f.materia);
+  else if (f.tipo === 'localizacion') partes.push(f.rol);
   else if (f.tipo === 'especial') partes.push(f.rol);
+  // Todos los grupos detectados (uno o varios) cuentan para el estado.
+  if (f.gruposMatch && f.gruposMatch.length) partes.push.apply(partes, f.gruposMatch);
+  else if (f.tipo === 'grupo') partes.push(f.grupo);
+  else if (f.tipo === 'localizacion') partes.push(f.grupoDestino);
 
   const hayNomatch = partes.some(function(p) { return p && (p.estado === 'nomatch'); });
   const hayDudoso = partes.some(function(p) { return p && p.estado === 'dudoso'; });

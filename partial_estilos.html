@@ -278,9 +278,17 @@
   table.rev tr.f-conflicto { background: var(--danger-weak); }
   table.rev tr.f-omitir { opacity: .5; }
   table.rev select, table.rev input[type=text] { font-size: 12px; padding: 4px 5px; max-width: 150px; }
-  table.rev td.gcol { width: 120px; }
-  table.rev td.gcol select { max-width: 110px; width: 100%; }
+  table.rev td.gcol { width: 168px; }
   table.rev select.sin { border-color: var(--danger); }
+  /* Multi-grupo (chips) */
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .chips .chip { display: inline-flex; align-items: center; gap: 4px; background: var(--accent-weak); color: var(--accent-text); border-radius: 999px; padding: 1px 4px 1px 8px; font-size: 11.5px; font-weight: 600; }
+  .chips .chip button { appearance: none; border: none; background: transparent; color: inherit; cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; border-radius: 999px; }
+  .chips .chip button:hover { background: rgba(0,0,0,.12); }
+  .chips select.add-grupo { max-width: 44px; padding: 3px; font-size: 12px; color: var(--muted); }
+  .chips .chip-warn { font-size: 11px; color: var(--danger); }
+  .rev td.gcol select.add-grupo { max-width: 44px; }
+  table.rev tr td.gcol { min-width: 150px; }
   .avisos { font-size: 11px; color: var(--warn); max-width: 220px; }
 
   /* ---------- Onboarding ---------- */

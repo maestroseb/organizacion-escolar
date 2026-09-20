@@ -34,7 +34,8 @@ const ROLES_PLANTILLA = [
 
   // Otros
   { nombre: 'Tut.',  nombre_largo: 'Tutoría' },
-  { nombre: 'Gua.',  nombre_largo: 'Recreo de guardia' }
+  { nombre: 'Gua.',  nombre_largo: 'Recreo de guardia' },
+  { nombre: 'RH',    nombre_largo: 'Reducción Horaria (mayor de 55)' }
 ];
 
 function listarRoles() {

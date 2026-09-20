@@ -96,7 +96,7 @@
     <table class="rev">
       <thead><tr>
         <th style="width:40px">#</th><th>Estado</th><th>Día</th><th>Tramo</th><th>Tipo</th>
-        <th>Docente</th><th>Actividad</th><th style="width:120px">Grupo</th><th>Avisos</th><th style="width:44px">Omitir</th>
+        <th>Docente</th><th>Actividad</th><th style="width:168px">Grupo</th><th>Avisos</th><th style="width:44px">Omitir</th>
       </tr></thead>
       <tbody id="rev-body"></tbody>
     </table>
@@ -388,10 +388,42 @@
     if (f.tipo === 'localizacion' || f.tipo === 'especial') return _sel(f,'rol_id',IMP_CAT.roles,f.rol);
     return '<span class="avisos">tipo desconocido</span>';
   }
+  // Inicializa la lista de grupos seleccionados a partir de las coincidencias
+  // (puede haber varios: "6º B y 6º C").
+  function _initGruposSel(f) {
+    if (f.gruposSel) return;
+    const ids = [];
+    (f.gruposMatch || []).forEach(function(m) { if (m && m.id && ids.indexOf(m.id) === -1) ids.push(m.id); });
+    f.gruposSel = ids;
+  }
   function _celdaGrupo(f) {
-    if (f.tipo === 'grupo') return _sel(f,'grupo_id',IMP_CAT.grupos,f.grupo,'gcol');
-    if (f.tipo === 'localizacion') return _sel(f,'grupo_destino_id',IMP_CAT.grupos,f.grupoDestino,'gcol');
-    return '<span class="hint">—</span>';
+    if (f.tipo === 'especial') return '<span class="hint">—</span>';
+    _initGruposSel(f);
+    let html = '<div class="chips">';
+    f.gruposSel.forEach(function(id) {
+      const g = IMP_CAT.grupos.find(function(x) { return x.id === id; });
+      html += '<span class="chip">' + _esc(g ? g.nombre : id) +
+        '<button type="button" title="Quitar" onclick="quitarGrupoRev(' + f.n + ',\'' + id + '\')">×</button></span>';
+    });
+    const disp = IMP_CAT.grupos.filter(function(x) { return f.gruposSel.indexOf(x.id) === -1; });
+    html += '<select class="add-grupo" title="Añadir grupo" onchange="anadirGrupoRev(' + f.n + ',this.value)">';
+    html += '<option value="">＋</option>';
+    disp.forEach(function(x) { html += '<option value="' + x.id + '">' + _esc(x.nombre) + '</option>'; });
+    html += '</select>';
+    if (!f.gruposSel.length) html += '<span class="chip-warn">sin grupo</span>';
+    html += '</div>';
+    return html;
+  }
+  function anadirGrupoRev(n, id) {
+    if (!id) return;
+    const f = IMP_FILAS.find(function(x) { return x.n === n; });
+    if (f) { if (!f.gruposSel) f.gruposSel = []; if (f.gruposSel.indexOf(id) === -1) f.gruposSel.push(id); }
+    renderRevision();
+  }
+  function quitarGrupoRev(n, id) {
+    const f = IMP_FILAS.find(function(x) { return x.n === n; });
+    if (f && f.gruposSel) f.gruposSel = f.gruposSel.filter(function(g) { return g !== id; });
+    renderRevision();
   }
 
   function _textoFila(f) {
@@ -458,12 +490,13 @@
   }
   function aplicarImport() {
     const payload = IMP_FILAS.map(function(f) {
+      const grupos = (f.gruposSel || []).join(',');
       return { n:f.n, omitir:!!f.omitir, dia:f.dia, tramo_id:f.tramoId, mitad:f.mitad, semana:f.semana, tipo:f.tipo, notas:f.notas,
         docente_id: f.docente_id || (f.docente && f.docente.id) || '',
         materia_id: f.materia_id || (f.materia && f.materia.id) || '',
-        grupo_id: f.grupo_id || (f.grupo && f.grupo.id) || '',
+        grupo_id: f.tipo === 'grupo' ? grupos : '',
         rol_id: f.rol_id || (f.rol && f.rol.id) || '',
-        grupo_destino_id: f.grupo_destino_id || (f.grupoDestino && f.grupoDestino.id) || '' };
+        grupo_destino_id: f.tipo === 'localizacion' ? grupos : '' };
     });
     const aplicables = payload.filter(function(p){return !p.omitir;});
     const faltan = aplicables.filter(function(p){return !p.docente_id || !p.tramo_id;});

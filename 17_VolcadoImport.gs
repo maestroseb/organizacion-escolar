@@ -20,6 +20,7 @@ function extraerEntidadesVolcado(texto, fuente) {
   if (!crudas.length) {
     throw new Error('No se ha podido leer ninguna línea. Revisa el formato.');
   }
+  _aplicarSinonimosCrudas(crudas); // reconoce RH/M55 aunque el Gem lo dejara en notas
 
   const docSet = _acumulador();
   const gruSet = _acumulador();
