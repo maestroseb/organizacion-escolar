@@ -7,7 +7,6 @@
 <div class="panelbox" style="margin-bottom:20px;">
   <label style="margin-bottom:8px;">¿Qué hacer con los datos que ya existen?</label>
   <div class="segmented" id="modo-fusion" role="group">
-    <button type="button" data-modo="anadir" onclick="setModoFusion('anadir')">Añadir (sumar)</button>
     <button type="button" data-modo="combinar" onclick="setModoFusion('combinar')">Combinar</button>
     <button type="button" data-modo="reemplazar" onclick="setModoFusion('reemplazar')">Reemplazar</button>
   </div>
@@ -263,8 +262,7 @@
       b.classList.toggle('active', b.getAttribute('data-modo') === m);
     });
     const desc = {
-      anadir: 'Añade solo lo que no exista todavía. No modifica ni duplica lo que ya hay.',
-      combinar: 'Actualiza lo que coincida (por nombre/código) y añade lo nuevo. Conserva el resto.',
+      combinar: 'Añade lo nuevo y actualiza lo que coincida (por nombre/código). Conserva el resto.',
       reemplazar: 'Sustituye por completo el contenido de las secciones importadas. Se pierde lo anterior.'
     };
     document.getElementById('modo-fusion-desc').textContent = desc[m] || '';

@@ -4,17 +4,17 @@
 </div>
 
 <div class="toolbar">
-  <button class="secondary" onclick="renderRevision()">Volver a analizar</button>
+  <button class="secondary" onclick="renderProblemas()">Volver a analizar</button>
   <span id="rev-resumen" class="hint"></span>
 </div>
 
-<div id="rev-body"></div>
+<div id="revp-body"></div>
 
 <script>
   var REV_CAT = null;
 
-  function renderRevision() {
-    const cont = document.getElementById('rev-body');
+  function renderProblemas() {
+    const cont = document.getElementById('revp-body');
     cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
     document.getElementById('rev-resumen').textContent = '';
     google.script.run
@@ -24,7 +24,7 @@
   }
 
   function _pintarRevision(res) {
-    const cont = document.getElementById('rev-body');
+    const cont = document.getElementById('revp-body');
     REV_CAT = res.catalogo || {};
     const r = res.resumen || { errores: 0, avisos: 0 };
     document.getElementById('rev-resumen').textContent = r.total ? (r.errores + ' error(es), ' + r.avisos + ' aviso(s)') : '';
@@ -117,17 +117,17 @@
   // ---- Acciones ----
   function revReasignar(ocupId, campo, valor) {
     if (!valor) return;
-    google.script.run.withSuccessHandler(renderRevision).withFailureHandler(mostrarErrorGenerico)
+    google.script.run.withSuccessHandler(renderProblemas).withFailureHandler(mostrarErrorGenerico)
       .reasignarOcupacion(ocupId, campo, valor);
   }
   function revBorrar(ocupId) {
     confirmar('¿Borrar esta ocupación? No se puede deshacer.', function() {
-      google.script.run.withSuccessHandler(renderRevision).withFailureHandler(mostrarErrorGenerico)
+      google.script.run.withSuccessHandler(renderProblemas).withFailureHandler(mostrarErrorGenerico)
         .eliminarOcupacion(ocupId);
     }, { peligro: true, aceptar: 'Borrar', titulo: 'Borrar ocupación' });
   }
   function revParcial(docenteId) {
-    google.script.run.withSuccessHandler(function(){ refrescarEstado(); renderRevision(); }).withFailureHandler(mostrarErrorGenerico)
+    google.script.run.withSuccessHandler(function(){ refrescarEstado(); renderProblemas(); }).withFailureHandler(mostrarErrorGenerico)
       .marcarDocenteParcial(docenteId, true);
   }
 </script>
