@@ -56,28 +56,33 @@ function parsearSeneca(xmlText) {
  *
  * Las preferencias del wizard (etapas, líneas, bilingüe) se deducen del XML.
  */
-function aplicarSeneca(seleccion) {
+function aplicarSeneca(seleccion, modo) {
   if (!seleccion || typeof seleccion !== 'object') {
     throw new Error('Sin datos a aplicar.');
   }
+  modo = modo || 'reemplazar';
 
   const resumen = {};
 
   if (seleccion.centro) {
     const c = seleccion.centro;
     const etapasDetect = _detectarEtapas(seleccion.unidades || []);
-    guardarCentro({
-      nombre: c.nombre || 'Centro',
-      codigo: c.codigo || '',
-      localidad: '', provincia: '', comunidad: 'Andalucía',
-      curso_academico: c.curso_academico || '',
-      fecha_inicio: c.fecha_inicio || '',
-      fecha_fin: c.fecha_fin || '',
-      etapas: etapasDetect.join(','),
-      lineas: '',
-      bilingue: 'no'
-    });
-    resumen.centro = 1;
+    const centroPrevio = findById(SHEETS.CENTRO, CENTRO_ID);
+    // En modo "añadir" no se pisa un centro ya configurado.
+    if (!(modo === 'anadir' && centroPrevio && String(centroPrevio.nombre || '').trim())) {
+      guardarCentro({
+        nombre: c.nombre || 'Centro',
+        codigo: c.codigo || '',
+        localidad: '', provincia: '', comunidad: 'Andalucía',
+        curso_academico: c.curso_academico || '',
+        fecha_inicio: c.fecha_inicio || '',
+        fecha_fin: c.fecha_fin || '',
+        etapas: etapasDetect.join(','),
+        lineas: '',
+        bilingue: 'no'
+      });
+      resumen.centro = 1;
+    }
   }
 
   if (seleccion.tramos && seleccion.tramos.length) {
@@ -86,7 +91,7 @@ function aplicarSeneca(seleccion) {
         hora_inicio: t.hora_inicio, hora_fin: t.hora_fin,
         es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || ''
       };
-    }));
+    }), modo);
     resumen.tramos = seleccion.tramos.length;
   }
 
@@ -97,7 +102,7 @@ function aplicarSeneca(seleccion) {
         nombre_largo: u.nombre_largo,
         nivel: u.nivel
       };
-    }));
+    }), modo);
     resumen.grupos = seleccion.unidades.length;
   }
 
@@ -109,14 +114,14 @@ function aplicarSeneca(seleccion) {
         puesto: d.puesto,
         email: '', activo: true
       };
-    }));
+    }), modo);
     resumen.docentes = seleccion.docentes.length;
   }
 
   if (seleccion.localizaciones && seleccion.localizaciones.length) {
     guardarLocalizaciones(seleccion.localizaciones.map(function(l) {
       return { codigo: l.codigo, descripcion: l.descripcion || '' };
-    }));
+    }), modo);
     resumen.localizaciones = seleccion.localizaciones.length;
   }
 
@@ -126,14 +131,14 @@ function aplicarSeneca(seleccion) {
         nombre: m.nombre, abreviatura: m.abreviatura || '',
         es_recreo: !!m.es_recreo
       };
-    }));
+    }), modo);
     resumen.materias = seleccion.materias.length;
   }
 
   if (seleccion.roles && seleccion.roles.length) {
     guardarRoles(seleccion.roles.map(function(r) {
       return { nombre: r.nombre, nombre_largo: r.nombre_largo || '' };
-    }));
+    }), modo);
     resumen.roles = seleccion.roles.length;
   }
 

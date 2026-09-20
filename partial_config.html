@@ -1,0 +1,78 @@
+<div class="page-head">
+  <h2>Ajustes generales</h2>
+  <p>Base de datos, reimportación y opciones de reinicio. Los datos del centro están en las pestañas de este mismo menú (Centro, Tramos, Grupos…).</p>
+</div>
+
+<div class="section-label">Base de datos</div>
+<div class="panelbox">
+  <p class="hint" style="margin-top:0;">Todos los datos viven en una hoja de cálculo en tu Drive. Puedes abrirla para verla o editarla directamente.</p>
+  <div class="toolbar" style="margin-bottom:0;">
+    <a class="btn-like" id="cfg-abrir-bd" href="#" target="_blank" rel="noopener">Abrir la hoja de datos ↗</a>
+    <button class="secondary" onclick="irPestana('importar')">Ir a Importar</button>
+  </div>
+</div>
+
+<div class="section-label">Zona peligrosa</div>
+<div class="panelbox" style="border-color: color-mix(in srgb, var(--danger) 35%, var(--border));">
+  <p class="hint" style="margin-top:0;">Estas acciones borran datos y no se pueden deshacer. Úsalas con cuidado.</p>
+
+  <div style="margin-top:14px;">
+    <label>Vaciar una sección</label>
+    <div class="toolbar" style="margin-top:6px;margin-bottom:0;">
+      <select id="cfg-seccion" style="max-width:260px;">
+        <option value="ocupaciones">Ocupaciones (horarios)</option>
+        <option value="tramos">Tramos</option>
+        <option value="grupos">Grupos</option>
+        <option value="docentes">Docentes</option>
+        <option value="localizaciones">Localizaciones</option>
+        <option value="materias">Materias</option>
+        <option value="roles">Cargos y roles</option>
+      </select>
+      <button class="danger" onclick="vaciarSeccionUI()">Vaciar sección</button>
+    </div>
+  </div>
+
+  <div style="margin-top:22px;">
+    <label>Reiniciar el centro por completo</label>
+    <p class="hint" style="margin:2px 0 8px;">Borra todos los datos (centro, tramos, grupos, docentes, horarios…) y vuelve al alta guiada. La estructura de la hoja se conserva.</p>
+    <button class="danger" onclick="reiniciarCentroUI()">Reiniciar y empezar de nuevo</button>
+  </div>
+
+  <div id="res-config"></div>
+</div>
+
+<script>
+  function renderConfig() {
+    const a = document.getElementById('cfg-abrir-bd');
+    const url = ESTADO && ESTADO.bdUrl;
+    if (a) {
+      if (url) { a.href = url; a.style.pointerEvents = 'auto'; a.style.opacity = '1'; }
+      else { a.href = '#'; a.style.pointerEvents = 'none'; a.style.opacity = '0.5'; }
+    }
+    document.getElementById('res-config').innerHTML = '';
+  }
+
+  function vaciarSeccionUI() {
+    const sel = document.getElementById('cfg-seccion');
+    const clave = sel.value;
+    const label = sel.options[sel.selectedIndex].text;
+    confirmar('Se borrarán todos los datos de "' + label + '". Esta acción no se puede deshacer. ¿Continuar?', function() {
+      google.script.run
+        .withSuccessHandler(function() {
+          document.getElementById('res-config').innerHTML = '<div class="result ok">✓ Sección "' + label + '" vaciada.</div>';
+          refrescarEstado();
+        })
+        .withFailureHandler(function(err) { document.getElementById('res-config').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .vaciarSeccion(clave);
+    }, { peligro: true, aceptar: 'Vaciar', titulo: 'Vaciar sección' });
+  }
+
+  function reiniciarCentroUI() {
+    confirmar('Se borrarán TODOS los datos del centro y volverás al alta guiada. Esta acción no se puede deshacer. ¿Seguro?', function() {
+      google.script.run
+        .withSuccessHandler(function() { mostrarOnboarding(); })
+        .withFailureHandler(function(err) { document.getElementById('res-config').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .reiniciarCentro();
+    }, { peligro: true, aceptar: 'Reiniciar', titulo: 'Reiniciar centro' });
+  }
+</script>

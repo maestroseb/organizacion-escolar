@@ -24,9 +24,21 @@ const NIVELES_PRIMARIA = [
   { nivel: '6P', nombre: '6º', largo: '6º de Primaria', orden: 16 }
 ];
 
+/**
+ * Rango de orden canónico de un nivel: Infantil (3,4,5 años) y luego
+ * Primaria (1º…6º). Los cursos se muestran siempre en este orden.
+ */
+function ordenNivel(nivel) {
+  const r = { INF3: 1, INF4: 2, INF5: 3, '1P': 11, '2P': 12, '3P': 13, '4P': 14, '5P': 15, '6P': 16 };
+  return r[nivel] || 50;
+}
+
 function listarGrupos() {
   const grupos = getAll(SHEETS.GRUPOS);
-  grupos.sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
+  grupos.sort(function(a, b) {
+    return (ordenNivel(a.nivel) - ordenNivel(b.nivel)) ||
+           String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es');
+  });
   return grupos;
 }
 
@@ -68,7 +80,7 @@ function plantillaGrupos() {
   return resultado;
 }
 
-function guardarGrupos(grupos) {
+function guardarGrupos(grupos, modo) {
   if (!Array.isArray(grupos)) throw new Error('Formato inválido.');
 
   grupos.forEach(function(g, i) {
@@ -103,8 +115,8 @@ function guardarGrupos(grupos) {
       color: g.color || ''
     };
   });
-  bulkReplace(SHEETS.GRUPOS, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.GRUPOS, filas, ['nombre_corto'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }
 
 function nivelesDisponibles() {

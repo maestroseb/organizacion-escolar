@@ -10,15 +10,29 @@ el documento de diseño completo.
 - La **base de datos** es una hoja de cálculo que el propio script **crea
   automáticamente** la primera vez que se abre, en el Drive de quien despliega.
   Su id se guarda en las propiedades del script (`01_Bootstrap.gs`).
-- La UI son páginas HTML servidas por `doGet()` (`09_Web.gs`): portada
-  (`app.html`), asistente de configuración (`setup.html`) e importador de
-  horarios (`csv.html`).
+- La UI es una **única app con pestañas** (SPA). `doGet()` (`09_Web.gs`) sirve
+  siempre el mismo shell (`app.html`), evaluado como plantilla de HtmlService y
+  compuesto con parciales mediante `include()`:
+  - `partial_estilos.html` — sistema de diseño único (claro/oscuro).
+  - `partial_onboarding.html` — alta guiada del primer arranque.
+  - `partial_secciones.html` — editores de centro, tramos, grupos, docentes,
+    tutorías, localizaciones, materias y roles (una pestaña cada uno).
+  - `partial_importar.html` — importación de Séneca (XML), CSV del Gem y texto
+    libre, con modo de fusión (añadir / combinar / reemplazar).
+  - `partial_config.html` — pestaña de Configuración (abrir la hoja, vaciar
+    secciones, reiniciar el centro).
+- Al abrir por primera vez (centro sin configurar), la app muestra el **alta
+  guiada**: pide el **código de centro** (con buscador contra el catálogo de
+  `maestroseb/contactos-g.educaand`), ofrece importar datos y luego repasa lo
+  que falta para completarlo sección por sección. Una vez configurado, aparecen
+  las pestañas del espacio de trabajo.
 
 ## Estado
 
-Fase 1 (MVP): configuración del centro, importación de Séneca (XML) e
-importación de horarios (CSV con revisión). Pendientes: vistas (sábana,
-horario por docente/grupo), módulo "Ahora" y sustituciones.
+Fase 1: alta guiada, configuración del centro por pestañas, importación de
+Séneca (XML), CSV (con revisión) y texto libre, y reimportación con fusión
+(añadir/combinar/reemplazar). Pendientes: vistas (sábana, horario por
+docente/grupo), módulo "Ahora" y sustituciones.
 
 ## Cómo desplegar
 

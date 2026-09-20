@@ -15,7 +15,7 @@ function listarDocentes() {
   return docentes;
 }
 
-function guardarDocentes(docentes) {
+function guardarDocentes(docentes, modo) {
   if (!Array.isArray(docentes)) throw new Error('Formato inválido.');
 
   docentes.forEach(function(d, i) {
@@ -43,9 +43,10 @@ function guardarDocentes(docentes) {
       email: d.email || '',
       activo: d.activo === false ? false : true,
       orden: i + 1,
-      color: d.color || ''
+      color: d.color || '',
+      sustituto: d.sustituto || ''
     };
   });
-  bulkReplace(SHEETS.DOCENTES, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }

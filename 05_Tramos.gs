@@ -16,7 +16,7 @@ function listarTramos() {
   return tramos;
 }
 
-function guardarTramos(tramos) {
+function guardarTramos(tramos, modo) {
   if (!Array.isArray(tramos)) throw new Error('Formato inválido.');
 
   tramos.forEach(function(t, i) {
@@ -43,11 +43,12 @@ function guardarTramos(tramos) {
       hora_inicio: t.hora_inicio,
       hora_fin: t.hora_fin,
       es_recreo: !!t.es_recreo,
-      etiqueta: t.etiqueta || ''
+      etiqueta: t.etiqueta || '',
+      color: t.color || ''
     };
   });
-  bulkReplace(SHEETS.TRAMOS, filas);
-  return { ok: true, total: filas.length };
+  const resumen = bulkMerge(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo || 'reemplazar');
+  return { ok: true, total: resumen.total, resumen: resumen };
 }
 
 /**
