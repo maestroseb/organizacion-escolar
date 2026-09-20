@@ -110,14 +110,25 @@
     var rows = cursos.map(function(c){
       var oc;
       if (c.vacio) oc = '<span class="sb-sin">sin cubrir</span>';
-      else oc = c.ocupantes.map(function(o){
-        var mat = o.materia ? ('<span class="sb-ocup" style="' + _sbTint(o.color) + '">' + _esc(o.materia) + '</span>')
-                            : (o.tutor ? '<span class="sb-tutor">tutoría</span>' : '');
-        return '<div class="sb-line"><span class="sb-doc">' + _esc(o.docente || '—') + '</span> ' + mat + '</div>';
-      }).join('');
+      else oc = c.ocupantes.map(_sbSegmento).join('');
       return '<tr><td class="sb-curso">' + _esc(c.grupo.nombre) + '</td><td>' + oc + '</td></tr>';
     }).join('');
     return '<table class="sb"><thead><tr><th>Curso</th><th>Docente · Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  // Un segmento = un docente y sus áreas. Alternancia de semana o desdoble en
+  // dos mitades se muestran en la MISMA línea, separadas por "/", y el docente
+  // solo una vez. La casilla de la semana que toca hoy va en negrita.
+  function _sbSegmento(o){
+    var contenido;
+    if (o.tutor) {
+      contenido = '<span class="sb-tutor">tutoría</span>';
+    } else {
+      var partes = (o.partes || []).filter(function(p){ return p.materia; });
+      contenido = partes.map(function(p){
+        return '<span class="sb-ocup' + (p.actual ? ' now' : '') + '" style="' + _sbTint(p.color) + '">' + _esc(p.materia) + '</span>';
+      }).join('<span class="sb-alt">/</span>');
+    }
+    return '<div class="sb-line"><span class="sb-doc">' + _esc(o.docente || '—') + '</span> ' + contenido + '</div>';
   }
   function _sbTablaApoyos(apoyos) {
     var rows = apoyos.map(function(a){

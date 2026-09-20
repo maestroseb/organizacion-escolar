@@ -58,6 +58,11 @@
         <?!= include('partial_horario') ?>
       </section>
 
+      <!-- Ahora -->
+      <section class="view" id="view-ahora">
+        <?!= include('partial_ahora') ?>
+      </section>
+
       <!-- Secciones de datos (centro, tramos, grupos, docentes, tutorías, localizaciones, materias, roles) -->
       <?!= include('partial_secciones') ?>
 
@@ -94,8 +99,8 @@
       { key: 'resumen',        label: 'Resumen' },
       { key: 'sabana',         label: 'Sábana' },
       { key: 'horario',        label: 'Horario docente' },
+      { key: 'ahora',          label: 'Ahora' },
       { key: 'config',         label: 'Configuración' },
-      { key: 'ahora',          label: 'Ahora',         soon: true },
       { key: 'sustituciones',  label: 'Sustituciones', soon: true }
     ];
 
@@ -191,10 +196,11 @@
       resumen: function() { renderResumen(); },
       sabana: function() { renderSabana(); },
       horario: function() { renderHorario(); },
+      ahora: function() { renderAhora(); },
       importar: function() { prepararImportar(); },
       ajustes: function() { renderConfig(); },
       centro: function() { cargarCentro(); },
-      tramos: function() { cargarTramos(); },
+      tramos: function() { cargarTramos(); cargarSemanas(); },
       grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
       areas: function() { cargarMaterias(); cargarRoles(); }

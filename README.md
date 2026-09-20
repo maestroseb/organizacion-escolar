@@ -29,10 +29,12 @@ el documento de diseño completo.
 
 ## Estado
 
-Fase 1: alta guiada, configuración del centro por pestañas, importación de
-Séneca (XML), CSV (con revisión) y texto libre, y reimportación con fusión
-(añadir/combinar/reemplazar). Pendientes: vistas (sábana, horario por
-docente/grupo), módulo "Ahora" y sustituciones.
+Fase 1: alta guiada, configuración del centro por pestañas (incluidas semanas
+alternas A/B con importador), importación de Séneca (XML), CSV (con revisión) y
+texto libre, y reimportación con fusión (añadir/combinar/reemplazar). Vistas:
+sábana (por día y semana completa, con alternancias A/B y desdobles en una sola
+línea) y horario por docente. Módulo "Ahora" (tramo activo según fecha/hora).
+Pendiente: sustituciones.
 
 ## Cómo desplegar
 

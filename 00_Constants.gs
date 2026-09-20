@@ -17,6 +17,7 @@ const NOMBRE_BD = 'Gestor de Horarios y Sustituciones — Base de datos';
 const SHEETS = {
   CENTRO:          '_Centro',
   TRAMOS:          '_Tramos',
+  SEMANAS:         '_SemanasAlternas',
   GRUPOS:          '_Grupos',
   DOCENTES:        '_Docentes',
   LOCALIZACIONES:  '_Localizaciones',
@@ -33,6 +34,9 @@ const SCHEMA = {
   ],
   [SHEETS.TRAMOS]: [
     'id', 'orden', 'hora_inicio', 'hora_fin', 'es_recreo', 'etiqueta', 'color'
+  ],
+  [SHEETS.SEMANAS]: [
+    'id', 'orden', 'fecha_inicio', 'fecha_fin', 'tipo', 'etiqueta'
   ],
   [SHEETS.GRUPOS]: [
     'id', 'nombre_corto', 'nombre_largo', 'nivel', 'etapa', 'orden',
@@ -67,6 +71,7 @@ const SCHEMA = {
 const SHEET_ORDER = [
   SHEETS.CENTRO,
   SHEETS.TRAMOS,
+  SHEETS.SEMANAS,
   SHEETS.GRUPOS,
   SHEETS.DOCENTES,
   SHEETS.LOCALIZACIONES,
