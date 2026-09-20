@@ -29,13 +29,13 @@ function catalogoImportacion() {
       return { id: g.id, nombre: g.nombre_corto, extra: g.nombre_largo || '' };
     }),
     materias: listarMaterias().map(function(m) {
-      return { id: m.id, nombre: m.nombre, extra: m.abreviatura || '' };
+      return { id: m.id, nombre: m.nombre, extra: m.abreviatura || '', abreviatura: m.abreviatura || '', color: m.color || '' };
     }),
     roles: listarRoles().map(function(r) {
-      return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '' };
+      return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '', color: r.color || '' };
     }),
     tramos: listarTramos().map(function(t) {
-      return { id: t.id, orden: t.orden, etiqueta: t.etiqueta || '',
+      return { id: t.id, orden: t.orden, etiqueta: t.etiqueta || '', es_recreo: !!t.es_recreo,
                horas: (t.hora_inicio || '') + '-' + (t.hora_fin || '') };
     })
   };

@@ -96,7 +96,10 @@ function _sabanaContexto() {
     docentes: docentes, grupos: grupos, tramos: tramos,
     ocupaciones: getAll(SHEETS.OCUPACIONES),
     docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById,
-    colorTramo: colorTramo
+    colorTramo: colorTramo,
+    // Tipo de semana (A/B) que toca hoy: sirve para resaltar en negrita la que
+    // corresponde cuando un tramo alterna entre dos áreas por semanas.
+    semanaActual: semanaActualTipo()
   };
 }
 
@@ -129,22 +132,40 @@ function _sabanaTramoData(t, ocupDia, ctx) {
   };
 
   // --- Cursos (panel izquierdo) ---
+  // Las ocupaciones del mismo docente en un grupo (alternancia de semana A/B,
+  // o desdoble en dos mitades a/b) se agrupan en UNA sola línea: el docente
+  // aparece una vez y sus áreas van separadas por " / ". Si la semana que toca
+  // hoy es A o B, se marca en negrita el área de esa semana.
+  const semAct = ctx.semanaActual || '';
   const cursos = ctx.grupos.map(function(g) {
-    const clases = ocs
-      .filter(function(o) { return o.tipo === 'grupo' && _incluyeId(o.grupo_id, g.id); })
-      .map(function(o) {
-        const m = ctx.materiaById[o.materia_id];
-        return {
-          docente: nombreDoc(o.docente_id),
-          materia: m ? (m.abreviatura || m.nombre) : '',
-          color: m ? (m.color || '') : '',
-          mitad: o.mitad || '', semana: o.semana || ''
-        };
-      });
+    const clases = ocs.filter(function(o) { return o.tipo === 'grupo' && _incluyeId(o.grupo_id, g.id); });
 
-    let ocupantes = clases, fallback = false;
+    const porDoc = {}; const ordenDoc = [];
+    clases.forEach(function(o) {
+      const k = o.docente_id || ('_' + ordenDoc.length);
+      if (!porDoc[k]) { porDoc[k] = { docente: nombreDoc(o.docente_id), partes: [] }; ordenDoc.push(k); }
+      const m = ctx.materiaById[o.materia_id];
+      porDoc[k].partes.push({
+        materia: m ? (m.abreviatura || m.nombre) : '',
+        color: m ? (m.color || '') : '',
+        semana: String(o.semana || '').trim().toUpperCase(),
+        mitad: String(o.mitad || '').trim()
+      });
+    });
+
+    let ocupantes = ordenDoc.map(function(k) {
+      const seg = porDoc[k];
+      seg.partes.sort(function(a, b) {
+        return String(a.semana).localeCompare(String(b.semana)) ||
+               String(a.mitad).localeCompare(String(b.mitad));
+      });
+      seg.partes.forEach(function(p) { p.actual = !!(semAct && p.semana && p.semana === semAct); });
+      return seg;
+    });
+
+    let fallback = false;
     if (!ocupantes.length && g.tutor_id) {
-      ocupantes = [{ docente: nombreDoc(g.tutor_id), materia: '', color: '', tutor: true }];
+      ocupantes = [{ docente: nombreDoc(g.tutor_id), partes: [], tutor: true }];
       fallback = true;
     }
     return {
@@ -215,7 +236,8 @@ function _diaCanon(d) {
 }
 
 function _diaLargo(d) {
-  return { L: 'Lunes', M: 'Martes', X: 'Miércoles', J: 'Jueves', V: 'Viernes' }[d] || d;
+  return { L: 'Lunes', M: 'Martes', X: 'Miércoles', J: 'Jueves', V: 'Viernes',
+           S: 'Sábado', D: 'Domingo' }[d] || d;
 }
 
 function _hhmm(v) {

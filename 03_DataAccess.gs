@@ -270,6 +270,7 @@ function _idPrefix(sheetName) {
   const prefijos = {
     '_Centro': 'centro',
     '_Tramos': 'tramo',
+    '_SemanasAlternas': 'sem',
     '_Grupos': 'grupo',
     '_Docentes': 'doc',
     '_Localizaciones': 'loc',

@@ -1,0 +1,103 @@
+<div class="page-head">
+  <h2>Ahora</h2>
+  <p>Qué toca en este momento: el tramo activo con cada docente en su sitio. Se actualiza solo según la hora.</p>
+</div>
+
+<div id="ahora-body"></div>
+
+<script>
+  var AHORA_TIMER = null;
+
+  function renderAhora() {
+    _ahoraCargar(true);
+    // Auto-refresco cada minuto mientras la pestaña esté abierta.
+    if (AHORA_TIMER) { clearInterval(AHORA_TIMER); AHORA_TIMER = null; }
+    AHORA_TIMER = setInterval(function() {
+      if (VISTA_ACTUAL === 'ahora') _ahoraCargar(false);
+      else { clearInterval(AHORA_TIMER); AHORA_TIMER = null; }
+    }, 60000);
+  }
+
+  function _ahoraCargar(conSpinner) {
+    const cont = document.getElementById('ahora-body');
+    if (conSpinner) cont.innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
+    google.script.run
+      .withSuccessHandler(_pintarAhora)
+      .withFailureHandler(function(err){ cont.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .ahoraDatos();
+  }
+
+  function _pintarAhora(res) {
+    const cont = document.getElementById('ahora-body');
+    if (!res) { cont.innerHTML = '<div class="empty">No se pudo cargar.</div>'; return; }
+
+    var html = _ahoraCabecera(res);
+
+    if (res.finde) {
+      html += '<div class="empty">Hoy es ' + _esc(res.diaLargo.toLowerCase()) + ': no hay clase. Vuelve un día lectivo para ver el tramo activo.</div>';
+      cont.innerHTML = html; return;
+    }
+    if (!res.hayTramos) {
+      html += '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos</b>.</div>';
+      cont.innerHTML = html; return;
+    }
+
+    html += _ahoraAgenda(res.agenda);
+
+    if (res.tramoActual) {
+      html += _ahoraTramo(res.estado === 'recreo' ? 'Recreo ahora' : 'Ahora mismo', res.tramoActual, res.diaLargo);
+    } else {
+      var msg = (res.estado === 'antes') ? 'Todavía no ha empezado la jornada.'
+              : (res.estado === 'despues') ? 'La jornada lectiva ya ha terminado por hoy.'
+              : 'Ahora mismo estás entre dos tramos (cambio de clase).';
+      html += '<div class="result info" style="margin-top:14px;">' + msg + '</div>';
+    }
+
+    if (res.tramoSiguiente) {
+      html += _ahoraTramo('A continuación', res.tramoSiguiente, res.diaLargo);
+    }
+
+    cont.innerHTML = html;
+  }
+
+  function _ahoraCabecera(res) {
+    var sem = '';
+    if (res.semana && res.semana.tipo) {
+      sem = '<span class="ahora-sem sem-' + _esc(res.semana.tipo) + '" title="' + _esc(res.semana.etiqueta || '') + '">Semana ' + _esc(res.semana.tipo) + '</span>';
+    }
+    return '<div class="ahora-top">' +
+      '<div class="ahora-hora">' + _esc(res.horaActual) + '</div>' +
+      '<div class="ahora-fecha">' + _esc(res.fechaLarga || res.diaLargo) + sem + '</div>' +
+    '</div>';
+  }
+
+  function _ahoraAgenda(agenda) {
+    if (!agenda || !agenda.length) return '';
+    var items = agenda.map(function(a){
+      var cls = 'ahora-chip' + (a.actual ? ' es-actual' : '') + (a.siguiente ? ' es-siguiente' : '');
+      var st = a.actual ? ('background:' + a.color + ';color:' + _sbTxt(a.color) + ';border-color:' + a.color + ';') : '';
+      var etq = a.es_recreo ? 'Recreo' : ('TR ' + a.orden);
+      return '<div class="' + cls + '" style="' + st + '"><b>' + _esc(etq) + '</b><span>' + _esc(a.horas) + '</span></div>';
+    }).join('');
+    return '<div class="ahora-agenda">' + items + '</div>';
+  }
+
+  function _ahoraTramo(titulo, t, diaLargo) {
+    var col = t.tramo.color || '#4f9d84', st = _sbHeadStyle(col);
+    if (t.tramo.es_recreo) {
+      return '<div class="ahora-bloque"><div class="ahora-bloque-tit">' + _esc(titulo) + '</div>' +
+        _sbRecreo(t.tramo) + '</div>';
+    }
+    var cab = _esc(diaLargo.toUpperCase()) + ' · TRAMO ' + t.tramo.orden + ' · ' + _esc(t.tramo.horas);
+    return '<div class="ahora-bloque">' +
+      '<div class="ahora-bloque-tit">' + _esc(titulo) + '</div>' +
+      '<div class="sb-tramo">' +
+        '<div class="sb-head" style="' + st + '">' + cab + '</div>' +
+        '<div class="sb-bodyrow">' +
+          '<div class="sb-rail" style="' + st + '">TR ' + t.tramo.orden + '</div>' +
+          _sbCols(t.cursos, t.apoyos) +
+        '</div>' + _sbLibres(t.libres) +
+      '</div>' +
+    '</div>';
+  }
+</script>

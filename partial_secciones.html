@@ -71,27 +71,70 @@
   </div>
 </section>
 
-<!-- Tramos -->
+<!-- Tramos + Semanas alternas -->
 <section class="view" id="view-tramos">
   <div class="page-head">
-    <h2>Tramos horarios</h2>
-    <p>Los tramos en los que se divide la jornada, incluidos los recreos. El orden se calcula por la hora de inicio.</p>
+    <h2>Tramos y semanas</h2>
+    <p>A la izquierda, los tramos en los que se divide la jornada (incluidos los recreos). A la derecha, el calendario de semanas alternas A/B, si tu centro alterna actividades semana a semana.</p>
   </div>
-  <div class="toolbar">
-    <button class="secondary" onclick="cargarPlantillaTramos()">Cargar plantilla</button>
-    <button class="secondary" onclick="anadirTramo()">+ Añadir tramo</button>
+  <div class="two-col">
+
+    <!-- Columna izquierda: Tramos -->
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Tramos horarios</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="cargarPlantillaTramos()">Plantilla</button>
+          <button class="secondary" onclick="anadirTramo()">+ Tramo</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr>
+            <th class="col-num">#</th><th class="col-center" style="width:46px">Color</th><th style="width:88px">Inicio</th><th style="width:88px">Fin</th>
+            <th class="col-center" style="width:64px">Recreo</th><th>Etiqueta</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="tramos-body"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar tramos</button></div>
+      <div id="res-tramos"></div>
+    </div>
+
+    <!-- Columna derecha: Semanas alternas -->
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Semanas alternas (A/B)</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="toggleImportarSemanas()">Importar…</button>
+          <button class="secondary" onclick="anadirSemana()">+ Semana</button>
+          <button class="danger" onclick="vaciarSemanas()">Vaciar</button>
+        </div>
+      </div>
+
+      <div id="sem-importador" class="panelbox" style="display:none;margin-bottom:14px;">
+        <p class="hint" style="margin-top:0;">Pega el cuadro de semanas que te pasa jefatura (por trimestres). Las semanas <b>rojas</b> se toman como <b>A</b> y las <b>negras</b> como <b>B</b> (alternando de arriba abajo en cada trimestre). Se <b>fusiona</b> con lo que ya haya: las semanas con la misma fecha de inicio se sobrescriben y las nuevas se añaden. Puedes ajustar lo que haga falta antes de guardar.</p>
+        <textarea id="sem-texto" rows="6" placeholder="14 SEP A 18 SEP&#9;8 ENERO&#9;29 MARZO A 2 ABRIL&#10;21 SEP A 25 SEP&#9;11 ENE A 15 ENE&#9;5 ABRIL A 9 ABRIL&#10;…"></textarea>
+        <div class="toolbar" style="margin-bottom:0;">
+          <button class="primary" id="btn-analizar-semanas" onclick="analizarSemanas()">Analizar y añadir</button>
+          <button class="secondary" onclick="toggleImportarSemanas()">Cancelar</button>
+        </div>
+        <div id="res-sem-import"></div>
+      </div>
+
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr>
+            <th class="col-num">#</th><th class="col-center" style="width:70px">Tipo</th><th style="width:130px">Inicio</th><th style="width:130px">Fin</th><th>Etiqueta</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="semanas-body"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-semanas" onclick="enviarSemanas()">Guardar semanas</button></div>
+      <div id="res-semanas"></div>
+    </div>
+
   </div>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th class="col-center" style="width:56px">Color</th><th style="width:110px">Inicio</th><th style="width:110px">Fin</th>
-        <th class="col-center" style="width:80px">Recreo</th><th>Etiqueta</th><th class="col-acc"></th>
-      </tr></thead>
-      <tbody id="tramos-body"></tbody>
-    </table>
-  </div>
-  <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar cambios</button></div>
-  <div id="res-tramos"></div>
 </section>
 
 <!-- Grupos y aulas (Grupos + Localizaciones) -->
@@ -153,7 +196,7 @@
     <table class="data">
       <thead><tr>
         <th class="col-num">#</th><th style="width:140px">Nombre corto *</th><th style="width:140px">Sustituto/a</th><th>Nombre completo</th>
-        <th>Puesto</th><th style="width:180px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-acc"></th>
+        <th>Puesto</th><th style="width:180px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-center" style="width:64px" title="Jornada parcial: no se avisa de horario incompleto en Revisión">Parcial</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="docentes-body"></tbody>
     </table>
@@ -328,6 +371,107 @@
       .guardarTramos(tramosLocal);
   }
 
+  // ================= Semanas alternas (A/B) =================
+  let semanasLocal = [];
+  function cargarSemanas() {
+    google.script.run.withSuccessHandler(function(semanas) {
+      semanasLocal = (semanas || []).map(function(s) {
+        return { id: s.id, fecha_inicio: s.fecha_inicio || '', fecha_fin: s.fecha_fin || '', tipo: (s.tipo || 'A'), etiqueta: s.etiqueta || '' };
+      });
+      renderSemanas();
+    }).withFailureHandler(mostrarErrorGenerico).listarSemanas();
+  }
+  function renderSemanas() {
+    const tb = document.getElementById('semanas-body'); if (!tb) return;
+    tb.innerHTML = '';
+    if (!semanasLocal.length) {
+      tb.innerHTML = '<tr><td colspan="6" style="padding:12px;color:var(--faint)">Sin semanas. Usa <b>Importar…</b> o <b>+ Semana</b> si tu centro alterna A/B.</td></tr>';
+      return;
+    }
+    semanasLocal.forEach(function(s, i) {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td class="col-num">' + (i+1) + '</td>' +
+        '<td class="col-center">' +
+          '<select onchange="actualizarSemana(' + i + ',\'tipo\',this.value)">' +
+            '<option value="A"' + (s.tipo === 'A' ? ' selected' : '') + '>A</option>' +
+            '<option value="B"' + (s.tipo === 'B' ? ' selected' : '') + '>B</option>' +
+          '</select></td>' +
+        '<td><input type="date" value="' + _esc(s.fecha_inicio) + '" oninput="actualizarSemana(' + i + ',\'fecha_inicio\',this.value)"></td>' +
+        '<td><input type="date" value="' + _esc(s.fecha_fin) + '" oninput="actualizarSemana(' + i + ',\'fecha_fin\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(s.etiqueta) + '" placeholder="14 SEP A 18 SEP" oninput="actualizarSemana(' + i + ',\'etiqueta\',this.value)"></td>' +
+        '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarSemana(' + i + ')">×</button></td>';
+      tb.appendChild(tr);
+    });
+  }
+  function anadirSemana() {
+    const ult = semanasLocal[semanasLocal.length - 1];
+    const tipo = ult ? (ult.tipo === 'A' ? 'B' : 'A') : 'A';
+    semanasLocal.push({ id: null, fecha_inicio: '', fecha_fin: '', tipo: tipo, etiqueta: '' });
+    renderSemanas();
+  }
+  function eliminarSemana(i) { semanasLocal.splice(i,1); renderSemanas(); }
+  function actualizarSemana(i, c, v) { semanasLocal[i][c] = v; }
+
+  function toggleImportarSemanas() {
+    const box = document.getElementById('sem-importador');
+    box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+    document.getElementById('res-sem-import').innerHTML = '';
+  }
+  function analizarSemanas() {
+    const texto = document.getElementById('sem-texto').value;
+    if (!texto.trim()) { document.getElementById('res-sem-import').innerHTML = '<div class="result err">✗ Pega primero el cuadro de semanas.</div>'; return; }
+    const btn = document.getElementById('btn-analizar-semanas'); _cargando(btn,'Analizando…');
+    google.script.run
+      .withSuccessHandler(function(res) {
+        _restaurar(btn,'Analizar y añadir');
+        // Fusiona con lo que ya hay: misma fecha de inicio → sobrescribe
+        // (conservando el id); fecha nueva → se añade.
+        var nuevas = 0, actualizadas = 0;
+        (res.semanas || []).forEach(function(s) {
+          var idx = -1;
+          if (s.fecha_inicio) {
+            for (var i = 0; i < semanasLocal.length; i++) {
+              if (semanasLocal[i].fecha_inicio === s.fecha_inicio) { idx = i; break; }
+            }
+          }
+          if (idx >= 0) {
+            var prev = semanasLocal[idx];
+            prev.fecha_fin = s.fecha_fin || prev.fecha_fin;
+            prev.tipo = s.tipo || prev.tipo;
+            prev.etiqueta = s.etiqueta || prev.etiqueta;
+            actualizadas++;
+          } else {
+            semanasLocal.push({ id: null, fecha_inicio: s.fecha_inicio || '', fecha_fin: s.fecha_fin || '', tipo: s.tipo || 'A', etiqueta: s.etiqueta || '' });
+            nuevas++;
+          }
+        });
+        semanasLocal.sort(function(a, b) {
+          return String(a.fecha_inicio) < String(b.fecha_inicio) ? -1 : String(a.fecha_inicio) > String(b.fecha_inicio) ? 1 : 0;
+        });
+        renderSemanas();
+        var av = (res.avisos && res.avisos.length) ? (' Revisa: ' + res.avisos.join('; ') + '.') : '';
+        document.getElementById('res-sem-import').innerHTML = '<div class="result ' + (av ? 'info' : 'ok') + '">✓ ' + nuevas + ' añadidas, ' + actualizadas + ' actualizadas.' + av + ' Ajusta lo que quieras y pulsa <b>Guardar semanas</b>.</div>';
+      })
+      .withFailureHandler(function(err) { _restaurar(btn,'Analizar y añadir'); document.getElementById('res-sem-import').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .importarSemanas(texto, {});
+  }
+  function vaciarSemanas() {
+    if (!semanasLocal.length) { _res('semanas','info','No hay semanas que vaciar.'); return; }
+    confirmar('Se quitarán las ' + semanasLocal.length + ' semanas de la tabla. Se aplicará al pulsar Guardar semanas. ¿Continuar?', function() {
+      semanasLocal = [];
+      renderSemanas();
+      _res('semanas','ok','✓ Tabla vaciada. Pulsa <b>Guardar semanas</b> para aplicarlo.');
+    }, { peligro: true, aceptar: 'Vaciar', titulo: 'Vaciar semanas' });
+  }
+  function enviarSemanas() {
+    const btn = document.getElementById('btn-guardar-semanas'); _cargando(btn,'Guardando…'); document.getElementById('res-semanas').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar semanas'); _res('semanas','ok','✓ Guardadas ' + res.total + ' semanas.'); cargarSemanas(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar semanas'); _res('semanas','err','✗ ' + (err.message || err)); })
+      .guardarSemanas(semanasLocal);
+  }
+
   // ================= Grupos =================
   let gruposLocal = [];
   const NIVELES = [
@@ -398,7 +542,7 @@
 
   // ================= Docentes =================
   let docentesLocal = [];
-  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '' }; }
+  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, parcial: d.parcial === true, color: d.color || '' }; }
   function cargarDocentes() {
     google.script.run.withSuccessHandler(function(docs) {
       if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); }
@@ -420,6 +564,7 @@
         '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (d.parcial?' checked':'') + ' title="Jornada parcial" onchange="actualizarDocente(' + i + ',\'parcial\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });

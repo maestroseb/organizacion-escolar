@@ -108,16 +108,31 @@
   }
   function _sbTablaCursos(cursos) {
     var rows = cursos.map(function(c){
-      var oc;
-      if (c.vacio) oc = '<span class="sb-sin">sin cubrir</span>';
-      else oc = c.ocupantes.map(function(o){
-        var mat = o.materia ? ('<span class="sb-ocup" style="' + _sbTint(o.color) + '">' + _esc(o.materia) + '</span>')
-                            : (o.tutor ? '<span class="sb-tutor">tutoría</span>' : '');
-        return '<div class="sb-line"><span class="sb-doc">' + _esc(o.docente || '—') + '</span> ' + mat + '</div>';
+      var curso = _esc(c.grupo.nombre);
+      if (c.vacio) {
+        return '<tr><td class="sb-curso">' + curso + '</td><td class="sb-doc">—</td><td><span class="sb-sin">sin cubrir</span></td></tr>';
+      }
+      // Cada docente del grupo va en su propia fila (Docente | Ocup.); el
+      // nombre del curso ocupa (rowspan) todas las filas de ese grupo.
+      var segs = c.ocupantes;
+      return segs.map(function(o, i){
+        var cursoCell = (i === 0) ? ('<td class="sb-curso" rowspan="' + segs.length + '">' + curso + '</td>') : '';
+        return '<tr>' + cursoCell +
+          '<td class="sb-doc">' + _esc(o.docente || '—') + '</td>' +
+          '<td class="sb-ocupcell">' + _sbOcupCelda(o) + '</td></tr>';
       }).join('');
-      return '<tr><td class="sb-curso">' + _esc(c.grupo.nombre) + '</td><td>' + oc + '</td></tr>';
     }).join('');
-    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente · Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+  // La ocupación de un docente en su celda: alternancia de semana A/B o
+  // desdoble en dos mitades, separadas por "/". En negrita la semana de hoy.
+  function _sbOcupCelda(o){
+    if (o.tutor) return '<span class="sb-tutor">tutoría</span>';
+    var partes = (o.partes || []).filter(function(p){ return p.materia; });
+    if (!partes.length) return '';
+    return partes.map(function(p){
+      return '<span class="sb-ocup' + (p.actual ? ' now' : '') + '" style="' + _sbTint(p.color) + '">' + _esc(p.materia) + '</span>';
+    }).join('<span class="sb-alt">/</span>');
   }
   function _sbTablaApoyos(apoyos) {
     var rows = apoyos.map(function(a){
