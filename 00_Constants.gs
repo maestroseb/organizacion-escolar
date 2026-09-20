@@ -44,7 +44,7 @@ const SCHEMA = {
   ],
   [SHEETS.DOCENTES]: [
     'id', 'nombre_corto', 'nombre_completo', 'puesto', 'email',
-    'activo', 'orden', 'color', 'sustituto'
+    'activo', 'orden', 'color', 'sustituto', 'parcial'
   ],
   [SHEETS.LOCALIZACIONES]: [
     'id', 'codigo', 'descripcion', 'orden'

@@ -1,0 +1,122 @@
+<div class="page-head">
+  <h2>Revisión</h2>
+  <p>Comprueba la integridad del horario: referencias rotas, docentes con huecos, solapes y grupos sin tutor. Resuelve cada problema desde aquí o salta al editor correspondiente.</p>
+</div>
+
+<div class="toolbar">
+  <button class="secondary" onclick="renderRevision()">Volver a analizar</button>
+  <span id="rev-resumen" class="hint"></span>
+</div>
+
+<div id="rev-body"></div>
+
+<script>
+  var REV_CAT = null;
+
+  function renderRevision() {
+    const cont = document.getElementById('rev-body');
+    cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
+    document.getElementById('rev-resumen').textContent = '';
+    google.script.run
+      .withSuccessHandler(_pintarRevision)
+      .withFailureHandler(function(err){ cont.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .revisarProblemas();
+  }
+
+  function _pintarRevision(res) {
+    const cont = document.getElementById('rev-body');
+    REV_CAT = res.catalogo || {};
+    const r = res.resumen || { errores: 0, avisos: 0 };
+    document.getElementById('rev-resumen').textContent = r.total ? (r.errores + ' error(es), ' + r.avisos + ' aviso(s)') : '';
+
+    if (!res.grupos || !res.grupos.length) {
+      cont.innerHTML = '<div class="result ok" style="margin-top:0;">✓ Todo correcto. No se han detectado problemas en el horario.</div>';
+      return;
+    }
+    cont.innerHTML = res.grupos.map(_pintarGrupo).join('');
+  }
+
+  function _pintarGrupo(gp) {
+    var badge = '<span class="badge ' + (gp.gravedad === 'error' ? 'vacio' : 'incompleto') + '">' + (gp.gravedad === 'error' ? 'error' : 'aviso') + '</span>';
+    var items = gp.items.map(function(it){ return _pintarItem(gp.tipo, it); }).join('');
+    return '<div class="rev-group">' +
+      '<div class="rev-group-head"><h3>' + _esc(gp.titulo) + ' <span class="rev-count">' + gp.items.length + '</span></h3>' + badge + '</div>' +
+      '<p class="hint" style="margin-top:0;">' + _esc(gp.descripcion) + '</p>' +
+      '<div class="rev-items">' + items + '</div>' +
+    '</div>';
+  }
+
+  function _pintarItem(tipo, it) {
+    if (tipo === 'ref') return _itemRef(it);
+    if (tipo === 'incompleto') return _itemIncompleto(it);
+    if (tipo === 'solape') return _itemSolape(it);
+    if (tipo === 'sin_tutor') return _itemSinTutor(it);
+    return '';
+  }
+
+  function _revRow(texto, acciones) {
+    return '<div class="rev-item"><div class="rev-item-txt">' + texto + '</div><div class="rev-item-acc">' + acciones + '</div></div>';
+  }
+  function _btn(txt, fn, cls) { return '<button class="' + (cls || 'secondary') + ' btn-sm" onclick="' + fn + '">' + txt + '</button>'; }
+
+  function _itemRef(it) {
+    var txt = '<b>' + _esc(it.docente) + '</b> · ' + _esc(it.dia || '') + ' ' + _esc(it.tramo || '') +
+      ' — <span class="rev-bad">' + _esc(it.campoLabel) + ' inexistente</span> <code>' + _esc(it.valor) + '</code>';
+    var acc = '';
+    if (it.reasignable) acc += _revSelectReasignar(it);
+    acc += _btn('Borrar ocupación', "revBorrar('" + it.ocup_id + "')", 'danger');
+    return _revRow(txt, acc);
+  }
+  function _revSelectReasignar(it) {
+    var opts = _revOpcionesCampo(it.campo);
+    var sel = '<select class="btn-sm" onchange="revReasignar(\'' + it.ocup_id + '\',\'' + it.campo + '\',this.value)">' +
+      '<option value="">Reasignar ' + _esc(it.campoLabel.toLowerCase()) + '…</option>' + opts + '</select>';
+    return sel;
+  }
+  function _revOpcionesCampo(campo) {
+    var arr = [], label = function(x){ return x.nombre; };
+    if (campo === 'docente_id') arr = REV_CAT.docentes || [];
+    else if (campo === 'materia_id') arr = REV_CAT.materias || [];
+    else if (campo === 'rol_loc_id' || campo === 'rol_especial_id') arr = REV_CAT.roles || [];
+    else if (campo === 'tramo_id') { arr = REV_CAT.tramos || []; label = function(t){ return (t.etiqueta || ('T' + t.orden)) + ' ' + (t.horas || ''); }; }
+    return arr.map(function(x){ return '<option value="' + x.id + '">' + _esc(label(x)) + '</option>'; }).join('');
+  }
+
+  function _itemIncompleto(it) {
+    var txt = '<b>' + _esc(it.docente) + '</b> — le faltan <b>' + it.huecos + '</b> hueco(s) ' +
+      '<span class="rev-dim">(' + it.ocupados + '/' + it.esperado + ' tramos lectivos)</span>';
+    var acc = _btn('Marcar parcial', "revParcial('" + it.docente_id + "')", 'secondary') +
+      _btn('Editar horario', "abrirHorarioDocente('" + it.docente_id + "')", 'secondary');
+    return _revRow(txt, acc);
+  }
+
+  function _itemSolape(it) {
+    var txt = '<b>' + _esc(it.docente) + '</b> · ' + _esc(it.dia) + ' ' + _esc(it.tramo) +
+      ' — ' + it.detalles.map(function(d){ return '<span class="rev-chip">' + _esc(d) + '</span>'; }).join(' + ');
+    var acc = _btn('Editar horario', "abrirHorarioDocente('" + it.docente_id + "')", 'secondary');
+    return _revRow(txt, acc);
+  }
+
+  function _itemSinTutor(it) {
+    var txt = '<b>' + _esc(it.grupo) + '</b> — sin tutor/a asignado';
+    var acc = _btn('Asignar tutor', "irConfig('grupos')", 'secondary');
+    return _revRow(txt, acc);
+  }
+
+  // ---- Acciones ----
+  function revReasignar(ocupId, campo, valor) {
+    if (!valor) return;
+    google.script.run.withSuccessHandler(renderRevision).withFailureHandler(mostrarErrorGenerico)
+      .reasignarOcupacion(ocupId, campo, valor);
+  }
+  function revBorrar(ocupId) {
+    confirmar('¿Borrar esta ocupación? No se puede deshacer.', function() {
+      google.script.run.withSuccessHandler(renderRevision).withFailureHandler(mostrarErrorGenerico)
+        .eliminarOcupacion(ocupId);
+    }, { peligro: true, aceptar: 'Borrar', titulo: 'Borrar ocupación' });
+  }
+  function revParcial(docenteId) {
+    google.script.run.withSuccessHandler(function(){ refrescarEstado(); renderRevision(); }).withFailureHandler(mostrarErrorGenerico)
+      .marcarDocenteParcial(docenteId, true);
+  }
+</script>

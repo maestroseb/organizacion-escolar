@@ -35,6 +35,12 @@
   var HD_SLOT = null; // { dia, tramo, working: [...] }
   var HD_DIAS = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
 
+  // Abre el horario de un docente concreto (usado desde la Revisión).
+  function abrirHorarioDocente(id) {
+    HD_DOC = id || '';
+    irPestana('horario');
+  }
+
   function renderHorario() {
     const sel = document.getElementById('hd-select');
     // Cargar docentes en el selector (una vez).

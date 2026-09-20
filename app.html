@@ -71,6 +71,11 @@
         <?!= include('partial_importar') ?>
       </section>
 
+      <!-- Configuración → Revisión (resolución de problemas) -->
+      <section class="view" id="view-revision">
+        <?!= include('partial_revision') ?>
+      </section>
+
       <!-- Configuración → Ajustes generales -->
       <section class="view" id="view-ajustes">
         <?!= include('partial_config') ?>
@@ -112,7 +117,8 @@
       { key: 'grupos',         label: 'Grupos y aulas',  cont: 'grupos' },
       { key: 'docentes',       label: 'Docentes',        cont: 'docentes' },
       { key: 'areas',          label: 'Áreas y cargos',  cont: 'materias' },
-      { key: 'importar',       label: 'Importar' }
+      { key: 'importar',       label: 'Importar' },
+      { key: 'revision',       label: 'Revisión' }
     ];
     var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
 
@@ -203,7 +209,8 @@
       tramos: function() { cargarTramos(); cargarSemanas(); },
       grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
-      areas: function() { cargarMaterias(); cargarRoles(); }
+      areas: function() { cargarMaterias(); cargarRoles(); },
+      revision: function() { renderRevision(); }
     };
 
     function irPestana(key) {

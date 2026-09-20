@@ -196,7 +196,7 @@
     <table class="data">
       <thead><tr>
         <th class="col-num">#</th><th style="width:140px">Nombre corto *</th><th style="width:140px">Sustituto/a</th><th>Nombre completo</th>
-        <th>Puesto</th><th style="width:180px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-acc"></th>
+        <th>Puesto</th><th style="width:180px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-center" style="width:64px" title="Jornada parcial: no se avisa de horario incompleto en Revisión">Parcial</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="docentes-body"></tbody>
     </table>
@@ -542,7 +542,7 @@
 
   // ================= Docentes =================
   let docentesLocal = [];
-  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '' }; }
+  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, parcial: d.parcial === true, color: d.color || '' }; }
   function cargarDocentes() {
     google.script.run.withSuccessHandler(function(docs) {
       if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); }
@@ -564,6 +564,7 @@
         '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (d.parcial?' checked':'') + ' title="Jornada parcial" onchange="actualizarDocente(' + i + ',\'parcial\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });
