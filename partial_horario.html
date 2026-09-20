@@ -33,7 +33,7 @@
         </div>
 
         <div class="section-label">Apoyos y cargos</div>
-        <p class="hint" style="margin:0 0 6px;">Un cargo solo: coordinación, dirección… Con un grupo seleccionado: apoyo/refuerzo a ese grupo.</p>
+        <p class="hint" style="margin:0 0 6px;">Los cargos y apoyos (refuerzos, AL, PT…) no necesitan grupo. Si quieres, añade uno en la columna Grupo para asignar el apoyo a ese curso.</p>
         <div id="hd-roles" class="hp-list hp-list-wrap"></div>
       </aside>
 
@@ -195,7 +195,10 @@
     }).join('') || '<div class="hint">Sin cargos.</div>';
   }
   function _pbPickMat(id) { PB.matSel = (PB.matSel===id?'':id); if (PB.matSel) PB.rolSel=''; _pbRenderBrushes(); _pbActualizarBrush(); }
-  function _pbPickRol(id) { PB.rolSel = (PB.rolSel===id?'':id); if (PB.rolSel) PB.matSel=''; _pbRenderBrushes(); _pbActualizarBrush(); }
+  // Al elegir un cargo/apoyo se limpia el grupo: los roles van sin curso por
+  // defecto (solo las áreas exigen grupo). Se le puede añadir uno después
+  // —p. ej. AL/PT a un curso— seleccionándolo en la columna Grupo.
+  function _pbPickRol(id) { PB.rolSel = (PB.rolSel===id?'':id); if (PB.rolSel) { PB.matSel=''; PB.gruSel=''; } _pbRenderBrushes(); _pbActualizarBrush(); }
   function _pbPickGru(id) { PB.gruSel = (PB.gruSel===id?'':id); _pbRenderBrushes(); _pbActualizarBrush(); }
 
   function _pbActualizarBrush() {
