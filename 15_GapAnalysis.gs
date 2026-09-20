@@ -3,13 +3,12 @@
  *
  * No hay IA en tiempo de ejecución dentro de Apps Script: "que piense lo que
  * falta" se resuelve como una comprobación heurística de qué secciones están
- * vacías o incompletas. El resultado alimenta:
- *   - el paso "preguntar lo que falta" del alta guiada (formulario paso a paso),
- *   - el panel Resumen del espacio de trabajo.
+ * vacías o incompletas. Alimenta el paso "repaso" del alta guiada y el panel
+ * Resumen.
  *
- * Cada sección devuelve:
- *   { clave, titulo, estado: 'vacio'|'incompleto'|'ok', total, aviso }
- * donde `clave` coincide con la pestaña correspondiente de la app.
+ * Cada sección devuelve { clave, titulo, estado, total, aviso, tab } donde
+ * `tab` es la pestaña donde se edita (varias secciones comparten pestaña tras
+ * unificarlas: localizaciones vive en "grupos"; materias y roles en "areas").
  */
 
 function analizarConfiguracion() {
@@ -34,64 +33,53 @@ function analizarConfiguracion() {
       estado = 'incompleto';
       aviso = !tieneCurso ? 'Falta el curso académico.' : 'Indica las etapas educativas.';
     }
-    secciones.push({ clave: 'centro', titulo: 'Datos del centro', estado: estado,
+    secciones.push({ clave: 'centro', titulo: 'Datos del centro', tab: 'centro', estado: estado,
                      total: tieneNombre ? 1 : 0, aviso: aviso });
   })();
 
-  // Tramos
-  secciones.push(_seccionSimple('tramos', 'Tramos horarios', tramos.length,
+  secciones.push(_seccion('tramos', 'Tramos horarios', 'tramos', tramos.length,
     'Define la jornada en tramos (incluidos los recreos).'));
 
-  // Grupos
-  secciones.push(_seccionSimple('grupos', 'Grupos', grupos.length,
-    'Añade las clases del centro (INF 3, 1º, 2º…).'));
-
-  // Docentes
-  secciones.push(_seccionSimple('docentes', 'Docentes', docentes.length,
-    'Añade el claustro. El nombre corto es el que verás en las vistas.'));
-
-  // Tutorías (depende de grupos)
+  // Grupos: además avisa si hay grupos sin tutor (el tutor se asigna aquí).
   (function() {
     if (grupos.length === 0) {
-      secciones.push({ clave: 'tutorias', titulo: 'Tutorías', estado: 'vacio', total: 0,
-                       aviso: 'Primero necesitas grupos.' });
+      secciones.push({ clave: 'grupos', titulo: 'Grupos', tab: 'grupos', estado: 'vacio', total: 0,
+                       aviso: 'Añade las clases del centro (INF 3, 1º, 2º…).' });
       return;
     }
-    const conTutor = grupos.filter(function(g) { return String(g.tutor_id || '').trim(); }).length;
-    let estado = 'ok', aviso = '';
-    if (conTutor === 0) { estado = 'vacio'; aviso = 'Asigna tutores a los grupos.'; }
-    else if (conTutor < grupos.length) {
-      estado = 'incompleto';
-      aviso = (grupos.length - conTutor) + ' grupo(s) sin tutor.';
-    }
-    secciones.push({ clave: 'tutorias', titulo: 'Tutorías', estado: estado,
-                     total: conTutor, aviso: aviso });
+    const sinTutor = grupos.filter(function(g) { return !String(g.tutor_id || '').trim(); }).length;
+    secciones.push({ clave: 'grupos', titulo: 'Grupos', tab: 'grupos',
+                     estado: sinTutor ? 'incompleto' : 'ok', total: grupos.length,
+                     aviso: sinTutor ? (sinTutor + ' grupo(s) sin tutor asignado.') : '' });
   })();
 
-  // Localizaciones
-  secciones.push(_seccionSimple('localizaciones', 'Localizaciones', locs.length,
+  secciones.push(_seccion('docentes', 'Docentes', 'docentes', docentes.length,
+    'Añade el claustro. El nombre corto es el que verás en las vistas.'));
+
+  secciones.push(_seccion('localizaciones', 'Localizaciones', 'grupos', locs.length,
     'Espacios del centro: aulas, biblioteca, patios, aula de PT…'));
 
-  // Materias
-  secciones.push(_seccionSimple('materias', 'Materias', materias.length,
+  secciones.push(_seccion('materias', 'Materias', 'areas', materias.length,
     'Asignaturas que se imparten (los recreos también cuentan).'));
 
-  // Roles
-  secciones.push(_seccionSimple('roles', 'Cargos y roles', roles.length,
+  secciones.push(_seccion('roles', 'Cargos y roles', 'areas', roles.length,
     'Cargos y perfiles: dirección, coordinaciones, PT, AL, guardias…'));
 
-  const pendientes = secciones.filter(function(s) { return s.estado !== 'ok'; });
+  const pendientesTabs = [];
+  secciones.forEach(function(s) {
+    if (s.estado !== 'ok' && pendientesTabs.indexOf(s.tab) === -1) pendientesTabs.push(s.tab);
+  });
+
   return {
     secciones: secciones,
-    completo: pendientes.length === 0,
-    pendientes: pendientes.map(function(s) { return s.clave; })
+    completo: pendientesTabs.length === 0,
+    pendientes: pendientesTabs
   };
 }
 
-function _seccionSimple(clave, titulo, total, avisoVacio) {
+function _seccion(clave, titulo, tab, total, avisoVacio) {
   return {
-    clave: clave,
-    titulo: titulo,
+    clave: clave, titulo: titulo, tab: tab,
     estado: total > 0 ? 'ok' : 'vacio',
     total: total,
     aviso: total > 0 ? '' : avisoVacio

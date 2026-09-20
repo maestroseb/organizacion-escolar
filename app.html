@@ -103,13 +103,10 @@
     var CONFIG_SUBTABS = [
       { key: 'ajustes',        label: 'Ajustes' },
       { key: 'centro',         label: 'Centro' },
-      { key: 'tramos',         label: 'Tramos',        cont: 'tramos' },
-      { key: 'grupos',         label: 'Grupos',        cont: 'grupos' },
-      { key: 'docentes',       label: 'Docentes',      cont: 'docentes' },
-      { key: 'tutorias',       label: 'Tutorías',      cont: 'tutorias' },
-      { key: 'localizaciones', label: 'Localizaciones',cont: 'localizaciones' },
-      { key: 'materias',       label: 'Materias',      cont: 'materias' },
-      { key: 'roles',          label: 'Cargos',        cont: 'roles' },
+      { key: 'tramos',         label: 'Tramos',          cont: 'tramos' },
+      { key: 'grupos',         label: 'Grupos y aulas',  cont: 'grupos' },
+      { key: 'docentes',       label: 'Docentes',        cont: 'docentes' },
+      { key: 'areas',          label: 'Áreas y cargos',  cont: 'materias' },
       { key: 'importar',       label: 'Importar' }
     ];
     var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
@@ -198,12 +195,9 @@
       ajustes: function() { renderConfig(); },
       centro: function() { cargarCentro(); },
       tramos: function() { cargarTramos(); },
-      grupos: function() { cargarGrupos(); },
+      grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
-      tutorias: function() { cargarTutorias(); },
-      localizaciones: function() { cargarLocalizaciones(); },
-      materias: function() { cargarMaterias(); },
-      roles: function() { cargarRoles(); }
+      areas: function() { cargarMaterias(); cargarRoles(); }
     };
 
     function irPestana(key) {
@@ -342,7 +336,7 @@
       const c = (ESTADO && ESTADO.contadores) || {};
       const secc = (an && an.secciones) || [];
       const mapaCont = {
-        tramos: c.tramos, grupos: c.grupos, docentes: c.docentes, tutorias: c.tutorias,
+        tramos: c.tramos, grupos: c.grupos, docentes: c.docentes,
         localizaciones: c.localizaciones, materias: c.materias, roles: c.roles, centro: (secc[0] && secc[0].total) || 0
       };
 
@@ -359,7 +353,7 @@
 
       html += '<div class="stats">';
       secc.forEach(function(s) {
-        html += '<button class="stat" style="text-align:left;cursor:pointer;border-color:var(--border);" onclick="irPestana(\'' + s.clave + '\')">' +
+        html += '<button class="stat" style="text-align:left;cursor:pointer;border-color:var(--border);" onclick="irPestana(\'' + (s.tab || s.clave) + '\')">' +
           '<div class="n">' + (mapaCont[s.clave] != null ? mapaCont[s.clave] : (s.total || 0)) + '</div>' +
           '<div class="l">' + s.titulo + '</div>' +
           '<div class="badge-estado"><span class="badge ' + s.estado + '">' +

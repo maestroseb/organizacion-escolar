@@ -191,6 +191,13 @@
   .actions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 22px; }
   .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 4px 0 14px; }
 
+  /* Vistas en dos columnas (Grupos+Localizaciones, Materias+Cargos) */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+  .col-sec .col-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .col-sec .col-head h3 { margin: 0; font-size: 15px; font-weight: 640; }
+  .col-sec .col-head .toolbar { margin: 0; }
+  @media (max-width: 860px) { .two-col { grid-template-columns: 1fr; gap: 30px; } }
+
   /* ---------- Formularios ---------- */
   .panelbox { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow-sm); }
   .form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }

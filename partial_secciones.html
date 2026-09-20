@@ -94,27 +94,52 @@
   <div id="res-tramos"></div>
 </section>
 
-<!-- Grupos -->
+<!-- Grupos y aulas (Grupos + Localizaciones) -->
 <section class="view" id="view-grupos">
   <div class="page-head">
-    <h2>Grupos</h2>
-    <p>Cada grupo es una clase del centro (INF 3, 1º, 2º…, con letra de línea si las hay).</p>
+    <h2>Grupos y aulas</h2>
+    <p>Las clases del centro con su tutor/a, y los espacios (localizaciones) donde ocurren refuerzos, apoyos y guardias.</p>
   </div>
-  <div class="toolbar">
-    <button class="secondary" onclick="cargarPlantillaGrupos()">Generar plantilla</button>
-    <button class="secondary" onclick="anadirGrupo()">+ Añadir grupo</button>
+  <div class="two-col">
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Grupos</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="cargarPlantillaGrupos()">Plantilla</button>
+          <button class="secondary" onclick="anadirGrupo()">+ Grupo</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr>
+            <th class="col-num">#</th><th style="width:110px">Nombre</th><th style="width:120px">Nivel</th><th>Tutor/a</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="grupos-body"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-grupos" onclick="enviarGrupos()">Guardar grupos</button></div>
+      <div id="res-grupos"></div>
+    </div>
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Localizaciones</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="cargarPlantillaLocalizaciones()">Plantilla</button>
+          <button class="secondary" onclick="anadirLocalizacion()">+ Localización</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr>
+            <th class="col-num">#</th><th style="width:170px">Código *</th><th>Descripción</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="locs-body"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-locs" onclick="enviarLocalizaciones()">Guardar localizaciones</button></div>
+      <div id="res-localizaciones"></div>
+    </div>
   </div>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th style="width:170px">Nombre corto</th><th>Nombre largo</th>
-        <th style="width:150px">Nivel</th><th class="col-acc"></th>
-      </tr></thead>
-      <tbody id="grupos-body"></tbody>
-    </table>
-  </div>
-  <div class="actions"><button class="primary" id="btn-guardar-grupos" onclick="enviarGrupos()">Guardar cambios</button></div>
-  <div id="res-grupos"></div>
 </section>
 
 <!-- Docentes -->
@@ -137,91 +162,54 @@
   <div id="res-docentes"></div>
 </section>
 
-<!-- Tutorías -->
-<section class="view" id="view-tutorias">
+<!-- Áreas y cargos (Materias + Roles) -->
+<section class="view" id="view-areas">
   <div class="page-head">
-    <h2>Tutorías</h2>
-    <p>Asigna un tutor a cada grupo. Es opcional: deja <em>— sin asignar —</em> si aún no lo sabes.</p>
+    <h2>Áreas y cargos</h2>
+    <p>Las materias/áreas que se imparten y los cargos/roles del centro, con sus colores (que usan la sábana y las vistas).</p>
   </div>
-  <div id="tutorias-aviso"></div>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th style="width:200px">Grupo</th><th style="width:180px">Nivel</th><th>Tutor</th>
-      </tr></thead>
-      <tbody id="tutorias-body"></tbody>
-    </table>
+  <div class="two-col">
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Materias</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="cargarPlantillaMaterias()">Plantilla</button>
+          <button class="secondary" onclick="anadirMateria()">+ Materia</button>
+        </div>
+      </div>
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr>
+            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:110px">Abrev.</th>
+            <th class="col-center" style="width:64px">Recreo</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="materias-body"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-materias" onclick="enviarMaterias()">Guardar materias</button></div>
+      <div id="res-materias"></div>
+    </div>
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Cargos y roles</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="cargarPlantillaRoles()">Plantilla</button>
+          <button class="secondary" onclick="anadirRol()">+ Rol</button>
+        </div>
+      </div>
+      <p class="hint" style="margin:-2px 0 10px;">El <strong>orden</strong> (arrastra <span style="cursor:grab">⠿</span>) marca la prioridad de sustitución y numera las localizaciones de la sábana.</p>
+      <div class="tablewrap">
+        <table class="data">
+          <thead><tr>
+            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="roles-body"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-roles" onclick="enviarRoles()">Guardar cargos</button></div>
+      <div id="res-roles"></div>
+    </div>
   </div>
-  <div class="actions"><button class="primary" id="btn-guardar-tutorias" onclick="enviarTutorias()">Guardar cambios</button></div>
-  <div id="res-tutorias"></div>
-</section>
-
-<!-- Localizaciones -->
-<section class="view" id="view-localizaciones">
-  <div class="page-head">
-    <h2>Localizaciones</h2>
-    <p>Espacios del centro: aulas, biblioteca, gimnasio, aulas de PT/AL, patios… Se usan en refuerzos, apoyos y guardias.</p>
-  </div>
-  <div class="toolbar">
-    <button class="secondary" onclick="cargarPlantillaLocalizaciones()">Generar plantilla</button>
-    <button class="secondary" onclick="anadirLocalizacion()">+ Añadir localización</button>
-  </div>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th style="width:240px">Código *</th><th>Descripción</th><th class="col-acc"></th>
-      </tr></thead>
-      <tbody id="locs-body"></tbody>
-    </table>
-  </div>
-  <div class="actions"><button class="primary" id="btn-guardar-locs" onclick="enviarLocalizaciones()">Guardar cambios</button></div>
-  <div id="res-localizaciones"></div>
-</section>
-
-<!-- Materias -->
-<section class="view" id="view-materias">
-  <div class="page-head">
-    <h2>Materias</h2>
-    <p>Asignaturas que se imparten. La plantilla se genera según las etapas y el bilingüismo. Los recreos también cuentan como materia.</p>
-  </div>
-  <div class="toolbar">
-    <button class="secondary" onclick="cargarPlantillaMaterias()">Generar plantilla</button>
-    <button class="secondary" onclick="anadirMateria()">+ Añadir materia</button>
-  </div>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:130px">Abreviatura</th>
-        <th class="col-center" style="width:70px">Recreo</th><th class="col-acc"></th>
-      </tr></thead>
-      <tbody id="materias-body"></tbody>
-    </table>
-  </div>
-  <div class="actions"><button class="primary" id="btn-guardar-materias" onclick="enviarMaterias()">Guardar cambios</button></div>
-  <div id="res-materias"></div>
-</section>
-
-<!-- Cargos y roles -->
-<section class="view" id="view-roles">
-  <div class="page-head">
-    <h2>Cargos y roles especiales</h2>
-    <p>Cargos directivos, coordinaciones y perfiles de apoyo (PT, AL, Refuerzo, ATEDU…) y guardias.</p>
-  </div>
-  <div class="toolbar">
-    <button class="secondary" onclick="cargarPlantillaRoles()">Generar plantilla</button>
-    <button class="secondary" onclick="anadirRol()">+ Añadir rol</button>
-  </div>
-  <p class="hint" style="margin:-6px 0 10px;">El <strong>orden</strong> marca la prioridad de sustitución (quién entra antes a cubrir) y numera las localizaciones en la sábana. Arrastra <span style="cursor:grab">⠿</span> para reordenar.</p>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th style="width:150px">Nombre corto *</th><th>Nombre largo</th><th class="col-acc"></th>
-      </tr></thead>
-      <tbody id="roles-body"></tbody>
-    </table>
-  </div>
-  <div class="actions"><button class="primary" id="btn-guardar-roles" onclick="enviarRoles()">Guardar cambios</button></div>
-  <div id="res-roles"></div>
 </section>
 
 <script>
@@ -347,12 +335,17 @@
     { v:'1P', t:'1º de Primaria' }, { v:'2P', t:'2º de Primaria' }, { v:'3P', t:'3º de Primaria' },
     { v:'4P', t:'4º de Primaria' }, { v:'5P', t:'5º de Primaria' }, { v:'6P', t:'6º de Primaria' }
   ];
+  var GRUPOS_DOCENTES = [];
   function _mapearGrupo(g) { return { id: g.id || null, nombre_corto: g.nombre_corto || '', nombre_largo: g.nombre_largo || '', nivel: g.nivel || '', tutor_id: g.tutor_id || '', color: g.color || '' }; }
   function cargarGrupos() {
-    google.script.run.withSuccessHandler(function(grupos) {
-      if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
-      else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
-    }).withFailureHandler(mostrarErrorGenerico).listarGrupos();
+    // Cargamos docentes (para el desplegable de tutor) y luego los grupos.
+    google.script.run.withSuccessHandler(function(docs) {
+      GRUPOS_DOCENTES = (docs || []).filter(function(d){ return d.activo !== false; });
+      google.script.run.withSuccessHandler(function(grupos) {
+        if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
+        else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
+      }).withFailureHandler(mostrarErrorGenerico).listarGrupos();
+    }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
   function cargarPlantillaGrupos() {
     const aplicar = function() {
@@ -382,12 +375,14 @@
     gruposLocal.forEach(function(g, i) {
       let opts = '<option value="">—</option>';
       NIVELES.forEach(function(n) { opts += '<option value="' + n.v + '"' + (g.nivel===n.v?' selected':'') + '>' + n.t + '</option>'; });
+      let tut = '<option value="">— sin tutor —</option>';
+      GRUPOS_DOCENTES.forEach(function(d) { tut += '<option value="' + d.id + '"' + (g.tutor_id===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; });
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
         '<td><input type="text" value="' + _esc(g.nombre_corto) + '" placeholder="1º A" oninput="actualizarGrupo(' + i + ',\'nombre_corto\',this.value)"></td>' +
-        '<td><input type="text" value="' + _esc(g.nombre_largo) + '" placeholder="1º de Primaria A" oninput="actualizarGrupo(' + i + ',\'nombre_largo\',this.value)"></td>' +
         '<td><select onchange="actualizarGrupo(' + i + ',\'nivel\',this.value)">' + opts + '</select></td>' +
+        '<td><select onchange="actualizarGrupo(' + i + ',\'tutor_id\',this.value)">' + tut + '</select></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Duplicar" onclick="duplicarGrupo(' + i + ')">⎘</button><button class="btn-icon" title="Eliminar" onclick="eliminarGrupo(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });
@@ -396,8 +391,8 @@
     if (gruposLocal.length === 0) { _res('grupos','err','Debes definir al menos un grupo.'); return; }
     const btn = document.getElementById('btn-guardar-grupos'); _cargando(btn,'Guardando…'); document.getElementById('res-grupos').innerHTML = '';
     google.script.run
-      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('grupos','ok','✓ Guardados ' + res.total + ' grupos.'); cargarGrupos(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('grupos','err','✗ ' + (err.message || err)); })
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar grupos'); _res('grupos','ok','✓ Guardados ' + res.total + ' grupos.'); cargarGrupos(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar grupos'); _res('grupos','err','✗ ' + (err.message || err)); })
       .guardarGrupos(gruposLocal);
   }
 
@@ -438,47 +433,6 @@
       .guardarDocentes(docentesLocal);
   }
 
-  // ================= Tutorías =================
-  let tutoriasGrupos = [], tutoriasDocentes = [], tutoriasAsignacion = {};
-  function cargarTutorias() {
-    google.script.run.withSuccessHandler(function(res) {
-      tutoriasGrupos = res.grupos || []; tutoriasDocentes = res.docentes || []; tutoriasAsignacion = {};
-      tutoriasGrupos.forEach(function(g) { tutoriasAsignacion[g.id] = g.tutor_id || ''; });
-      renderTutorias();
-    }).withFailureHandler(mostrarErrorGenerico).datosTutorias();
-  }
-  function actualizarTutoria(gid, tid) { tutoriasAsignacion[gid] = tid; renderTutorias(); }
-  function renderTutorias() {
-    const tb = document.getElementById('tutorias-body'); const aviso = document.getElementById('tutorias-aviso'); tb.innerHTML = '';
-    if (tutoriasDocentes.length === 0) { aviso.innerHTML = '<div class="result err">No hay docentes activos. Ve a la pestaña Docentes para añadirlos.</div>'; return; }
-    if (tutoriasGrupos.length === 0) { aviso.innerHTML = '<div class="result err">No hay grupos. Ve a la pestaña Grupos para crearlos.</div>'; return; }
-    aviso.innerHTML = '';
-    const asignados = {};
-    Object.keys(tutoriasAsignacion).forEach(function(gid) { const tid = tutoriasAsignacion[gid]; if (tid) asignados[tid] = gid; });
-    tutoriasGrupos.forEach(function(g, i) {
-      const actual = tutoriasAsignacion[g.id] || '';
-      let opts = '<option value="">— sin asignar —</option>';
-      tutoriasDocentes.forEach(function(d) {
-        if (asignados[d.id] && asignados[d.id] !== g.id) return;
-        opts += '<option value="' + d.id + '"' + (actual===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>';
-      });
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        '<td class="col-num">' + (i+1) + '</td>' +
-        '<td><strong>' + _esc(g.nombre_corto) + '</strong></td>' +
-        '<td class="hint">' + _esc(g.nombre_largo || g.nivel || '') + '</td>' +
-        '<td><select onchange="actualizarTutoria(\'' + g.id + '\',this.value)">' + opts + '</select></td>';
-      tb.appendChild(tr);
-    });
-  }
-  function enviarTutorias() {
-    const btn = document.getElementById('btn-guardar-tutorias'); _cargando(btn,'Guardando…'); document.getElementById('res-tutorias').innerHTML = '';
-    google.script.run
-      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('tutorias','ok','✓ Actualizadas ' + res.total + ' tutorías.'); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('tutorias','err','✗ ' + (err.message || err)); })
-      .guardarTutorias(tutoriasAsignacion);
-  }
-
   // ================= Localizaciones =================
   let locsLocal = [];
   function _mapearLocalizacion(l) { return { id: l.id || null, codigo: l.codigo || '', descripcion: l.descripcion || '' }; }
@@ -514,8 +468,8 @@
     if (locsLocal.length === 0) { _res('localizaciones','err','Debes definir al menos una localización.'); return; }
     const btn = document.getElementById('btn-guardar-locs'); _cargando(btn,'Guardando…'); document.getElementById('res-localizaciones').innerHTML = '';
     google.script.run
-      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('localizaciones','ok','✓ Guardadas ' + res.total + ' localizaciones.'); cargarLocalizaciones(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('localizaciones','err','✗ ' + (err.message || err)); })
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','ok','✓ Guardadas ' + res.total + ' localizaciones.'); cargarLocalizaciones(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','err','✗ ' + (err.message || err)); })
       .guardarLocalizaciones(locsLocal);
   }
 
@@ -556,8 +510,8 @@
     if (materiasLocal.length === 0) { _res('materias','err','Debes definir al menos una materia.'); return; }
     const btn = document.getElementById('btn-guardar-materias'); _cargando(btn,'Guardando…'); document.getElementById('res-materias').innerHTML = '';
     google.script.run
-      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('materias','ok','✓ Guardadas ' + res.total + ' materias.'); cargarMaterias(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('materias','err','✗ ' + (err.message || err)); })
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar materias'); _res('materias','ok','✓ Guardadas ' + res.total + ' materias.'); cargarMaterias(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar materias'); _res('materias','err','✗ ' + (err.message || err)); })
       .guardarMaterias(materiasLocal);
   }
 
@@ -643,8 +597,8 @@
     if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
     const btn = document.getElementById('btn-guardar-roles'); _cargando(btn,'Guardando…'); document.getElementById('res-roles').innerHTML = '';
     google.script.run
-      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('roles','ok','✓ Guardados ' + res.total + ' roles.'); cargarRoles(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('roles','err','✗ ' + (err.message || err)); })
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cargos'); _res('roles','ok','✓ Guardados ' + res.total + ' cargos.'); cargarRoles(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cargos'); _res('roles','err','✗ ' + (err.message || err)); })
       .guardarRoles(rolesLocal);
   }
 </script>
