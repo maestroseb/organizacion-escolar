@@ -457,6 +457,11 @@
   .hp-brush.flash { animation: hpflash .5s; }
   @keyframes hpflash { 0%,100% { background: var(--surface-2); } 30% { background: var(--warn-weak); } }
   .hp-warn { color: var(--warn); font-weight: 600; }
+  .hp-semana { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .hp-semana-lbl { font-size: 12px; font-weight: 700; color: var(--muted); }
+  .hp-seg button { padding: 3px 12px; font-size: 12px; }
+  .pb-sem { position: absolute; top: 2px; left: 3px; font-size: 9.5px; font-weight: 800; background: rgba(0,0,0,.22); color: #fff; border-radius: 4px; padding: 0 4px; letter-spacing: .02em; }
+  .pb-block.sem-A, .pb-block.sem-B { padding-left: 6px; }
   .hp-ag { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
   .hp-ag-h { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
   .hp-list { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }

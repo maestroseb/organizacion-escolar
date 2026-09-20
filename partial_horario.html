@@ -26,6 +26,16 @@
       <aside class="hp-left">
         <div id="hd-brush-actual" class="hp-brush"></div>
 
+        <div class="hp-semana">
+          <span class="hp-semana-lbl">Semana</span>
+          <div class="segmented hp-seg" id="hd-sem-modo">
+            <button type="button" data-s="" class="active" onclick="_pbSemMode('')">Todas</button>
+            <button type="button" data-s="A" onclick="_pbSemMode('A')">A</button>
+            <button type="button" data-s="B" onclick="_pbSemMode('B')">B</button>
+          </div>
+        </div>
+        <p class="hint" style="margin:0 0 12px;">Para alternancia quincenal: pon <b>Semana A</b> y pinta un área; luego <b>Semana B</b> y pinta la otra en el mismo hueco (quedan lado a lado, A a la izquierda y B a la derecha).</p>
+
         <div class="section-label">Áreas y grupos</div>
         <div class="hp-ag">
           <div class="hp-ag-col"><div class="hp-ag-h">Área</div><div id="hd-materias" class="hp-list"></div></div>
@@ -139,11 +149,11 @@
   function abrirPaint() {
     if (!HD_DOC || !HD_CAT) return;
     if (!HD_CAT.tramos || !HD_CAT.tramos.length) { document.getElementById('hd-res').innerHTML = '<div class="result err">Configura tramos antes de editar el horario.</div>'; return; }
-    PB = { bloques: _pbDesdeOcups(HD_OCUPS), matSel:'', gruSel:'', rolSel:'', brush:null, sel:null };
+    PB = { bloques: _pbDesdeOcups(HD_OCUPS), matSel:'', gruSel:'', rolSel:'', brush:null, sel:null, semana:'' };
     var d = HD_DOCS.filter(function(x){ return x.id === HD_DOC; })[0];
     document.getElementById('hd-paint-doc').textContent = d ? d.nombre_corto : '';
     _pbRenderBrushes(); _pbActualizarBrush(); _pbRenderGrid();
-    _pbRenderSelBar();
+    _pbRenderSelBar(); _pbSemMode('');
     document.getElementById('hd-paint-modal').classList.add('show');
   }
   function cerrarPaint() { document.getElementById('hd-paint-modal').classList.remove('show'); PB = null; _pbDrag = null; }
@@ -200,6 +210,11 @@
   // —p. ej. AL/PT a un curso— seleccionándolo en la columna Grupo.
   function _pbPickRol(id) { PB.rolSel = (PB.rolSel===id?'':id); if (PB.rolSel) { PB.matSel=''; PB.gruSel=''; } _pbRenderBrushes(); _pbActualizarBrush(); }
   function _pbPickGru(id) { PB.gruSel = (PB.gruSel===id?'':id); _pbRenderBrushes(); _pbActualizarBrush(); }
+  // Semana del pincel: los bloques nuevos se crean con esta semana (''/A/B).
+  function _pbSemMode(s) {
+    PB.semana = s;
+    document.querySelectorAll('#hd-sem-modo button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-s') === s); });
+  }
 
   function _pbActualizarBrush() {
     var b = null, txt = '', color = '';
@@ -242,15 +257,19 @@
       var day = _pbDiaEl(b.dia); if (!day) return;
       var info = _pbInfo(b);
       var el = document.createElement('div');
-      el.className = 'pb-block' + (PB.sel===b.id?' sel':'');
+      el.className = 'pb-block' + (PB.sel===b.id?' sel':'') + (b.semana?(' sem-'+b.semana):'');
       el.setAttribute('data-id', b.id);
       el.style.top = (b.ini*PB_ROWH) + 'px';
       el.style.height = ((b.fin-b.ini+1)*PB_ROWH - 4) + 'px';
+      // Semana A → mitad izquierda; B → mitad derecha; sin semana → ancho completo.
+      if (b.semana === 'A') { el.style.left = '3px'; el.style.right = 'calc(50% + 1px)'; }
+      else if (b.semana === 'B') { el.style.left = 'calc(50% + 1px)'; el.style.right = '3px'; }
+      else { el.style.left = '3px'; el.style.right = '3px'; }
       if (info.color) { el.style.background = info.color; el.style.color = _sbTxt(info.color); }
       var suf = [];
       if (b.mitad) suf.push(b.mitad==='1'?'½a':'½b');
-      if (b.semana) suf.push('sem '+b.semana);
       el.innerHTML = '<button class="pb-del" title="Quitar" data-del="' + b.id + '">✕</button>' +
+        (b.semana ? '<span class="pb-sem">' + b.semana + '</span>' : '') +
         '<div class="pb-label">' + _esc(info.label) + '</div>' +
         (info.sub ? '<div class="pb-sub">' + _esc(info.sub) + '</div>' : '') +
         (suf.length ? '<div class="pb-suf">' + suf.join(' · ') + '</div>' : '') +
@@ -334,7 +353,7 @@
       var ini = Math.min(drag.a, drag.b), fin = Math.max(drag.a, drag.b);
       var nb = { id:'b'+(PB_SEQ++), dia:drag.dia, ini:ini, fin:fin, tipo:PB.brush.tipo,
         materia_id:PB.brush.materia_id||'', grupo_id:PB.brush.grupo_id||'', rol_id:PB.brush.rol_id||'',
-        grupo_destino_id:PB.brush.grupo_destino_id||'', mitad:'', semana:'' };
+        grupo_destino_id:PB.brush.grupo_destino_id||'', mitad:'', semana:PB.semana||'' };
       PB.bloques.push(nb);
       PB.sel = nb.id;
       _pbPintarBloques(); _pbRenderSelBar();
@@ -352,6 +371,8 @@
     g.className = 'pb-ghost';
     g.style.top = (ini*PB_ROWH) + 'px';
     g.style.height = ((fin-ini+1)*PB_ROWH - 4) + 'px';
+    if (PB.semana === 'A') { g.style.left = '3px'; g.style.right = 'calc(50% + 1px)'; }
+    else if (PB.semana === 'B') { g.style.left = 'calc(50% + 1px)'; g.style.right = '3px'; }
     day.appendChild(g);
   }
   function _pbClearGhost() { document.querySelectorAll('#hd-paint-grid .pb-ghost').forEach(function(el){ el.remove(); }); }
