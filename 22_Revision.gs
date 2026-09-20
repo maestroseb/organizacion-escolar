@@ -7,11 +7,18 @@
  * ocupación, o un enlace al editor correspondiente).
  *
  * Comprobaciones:
- *   - ref:        ocupaciones que apuntan a docente, tramo, grupo, materia o
- *                 rol/cargo inexistente (referencias rotas / no definidas).
- *   - incompleto: docente activo (no parcial) con huecos en tramos lectivos.
- *   - solape:     un docente con dos ocupaciones a la vez (día/tramo/mitad/semana).
- *   - sin_tutor:  grupos sin tutor (sus huecos salen "sin cubrir" en la sábana).
+ *   - ref:              ocupaciones que apuntan a docente, tramo, grupo, materia
+ *                       o rol/cargo inexistente (referencias rotas / no definidas).
+ *   - incompleto:       docente activo (no parcial) con huecos en tramos lectivos.
+ *   - solape:           un docente con dos ocupaciones a la vez (día/tramo/mitad/semana).
+ *   - sin_tutor:        grupos sin tutor (sus huecos salen "sin cubrir" en la sábana).
+ *   - tutor_roto:       grupos cuyo tutor apunta a un docente inexistente.
+ *   - ocup_incompleta:  ocupaciones a las que les faltan datos (materia, grupo, rol…).
+ *   - clase_recreo:     clases asignadas en un tramo marcado como recreo.
+ *   - tramos_solapados: tramos que comparten franja horaria.
+ *   - semanas_solapadas / sin_calendario: incidencias del calendario A/B.
+ *   - duplicados:       nombres repetidos en el catálogo.
+ *   - sin_color:        materias o cargos sin color propio.
  */
 
 const _DIAS_REV = ['L', 'M', 'X', 'J', 'V'];
@@ -141,6 +148,127 @@ function revisarProblemas() {
     });
   }
 
+  // ---- E) Tutores inexistentes (grupo con tutor_id roto) ----
+  const tutorRoto = grupos
+    .filter(function(g) { return String(g.tutor_id || '').trim() && !docSet[g.tutor_id]; })
+    .map(function(g) { return _gen(g.nombre_corto + ' — tutor/a inexistente (' + g.tutor_id + ')', [{ t: 'tab', label: 'Editar grupos', tab: 'grupos' }]); });
+  if (tutorRoto.length) gruposProblemas.push({
+    tipo: 'tutor_roto', gravedad: 'error', titulo: 'Tutores inexistentes',
+    descripcion: 'Grupos cuyo tutor/a apunta a un docente que ya no existe. Reasigna el tutor en Grupos.', items: tutorRoto
+  });
+
+  // ---- F) Ocupaciones incompletas (faltan datos, no referencias rotas) ----
+  const incompletas = [];
+  ocup.forEach(function(o) {
+    const faltas = [];
+    if (!o.docente_id) faltas.push('sin docente');
+    if (!o.dia) faltas.push('sin día');
+    if (!o.tramo_id) faltas.push('sin tramo');
+    if (o.tipo === 'grupo') {
+      if (!o.materia_id) faltas.push('sin materia');
+      if (!String(o.grupo_id || '').trim()) faltas.push('sin grupo');
+    } else if (o.tipo === 'localizacion') {
+      if (!o.rol_loc_id) faltas.push('sin rol/apoyo');
+    } else if (o.tipo === 'especial') {
+      if (!o.rol_especial_id) faltas.push('sin cargo');
+    } else if (!o.tipo) {
+      faltas.push('sin tipo');
+    }
+    if (!faltas.length) return;
+    const acc = [];
+    if (o.docente_id && docSet[o.docente_id]) acc.push({ t: 'horario', docente_id: o.docente_id });
+    acc.push({ t: 'borrar', ocup_id: o.id });
+    incompletas.push(_gen(nombreDoc(o.docente_id) + ' · ' + (o.dia || '¿día?') + ' ' + etqTramo(o.tramo_id) + ' — ' + faltas.join(', '), acc));
+  });
+  if (incompletas.length) gruposProblemas.push({
+    tipo: 'ocup_incompleta', gravedad: 'aviso', titulo: 'Ocupaciones incompletas',
+    descripcion: 'Ocupaciones a las que les faltan datos (docente, materia, grupo, rol…). Complétalas en el horario del docente o bórralas.', items: incompletas
+  });
+
+  // ---- G) Clases en tramo de recreo ----
+  const enRecreo = [];
+  ocup.forEach(function(o) {
+    const t = tramoById[o.tramo_id];
+    if (t && t.es_recreo && o.tipo === 'grupo') {
+      const acc = [];
+      if (o.docente_id && docSet[o.docente_id]) acc.push({ t: 'horario', docente_id: o.docente_id });
+      acc.push({ t: 'borrar', ocup_id: o.id });
+      enRecreo.push(_gen(nombreDoc(o.docente_id) + ' · ' + (o.dia || '') + ' ' + etqTramo(o.tramo_id) + ' — clase en un tramo marcado como recreo', acc));
+    }
+  });
+  if (enRecreo.length) gruposProblemas.push({
+    tipo: 'clase_recreo', gravedad: 'aviso', titulo: 'Clases en tramo de recreo',
+    descripcion: 'Hay clases asignadas en un tramo marcado como recreo. Revisa si el tramo no debería ser lectivo o mueve la clase.', items: enRecreo
+  });
+
+  // ---- H) Tramos solapados en horario ----
+  const solTramos = [];
+  for (let i = 0; i < tramos.length; i++) {
+    for (let j = i + 1; j < tramos.length; j++) {
+      const a = tramos[i], b = tramos[j];
+      const ai = _horaAMin(a.hora_inicio), af = _horaAMin(a.hora_fin), bi = _horaAMin(b.hora_inicio), bf = _horaAMin(b.hora_fin);
+      if (ai < 0 || af < 0 || bi < 0 || bf < 0) continue;
+      if (ai < bf && bi < af) {
+        solTramos.push(_gen(etqTramo(a.id) + ' se solapa con ' + etqTramo(b.id), [{ t: 'tab', label: 'Editar tramos', tab: 'tramos' }]));
+      }
+    }
+  }
+  if (solTramos.length) gruposProblemas.push({
+    tipo: 'tramos_solapados', gravedad: 'aviso', titulo: 'Tramos solapados',
+    descripcion: 'Dos tramos comparten franja horaria. Ajusta sus horas en Tramos.', items: solTramos
+  });
+
+  // ---- I) Semanas alternas: solapes de fechas y alternancia sin calendario ----
+  const semanas = getAll(SHEETS.SEMANAS).sort(function(a, b) {
+    return String(a.fecha_inicio) < String(b.fecha_inicio) ? -1 : String(a.fecha_inicio) > String(b.fecha_inicio) ? 1 : 0;
+  });
+  const solSemanas = [];
+  for (let i = 0; i < semanas.length; i++) {
+    for (let j = i + 1; j < semanas.length; j++) {
+      const a = semanas[i], b = semanas[j];
+      if (a.fecha_inicio && a.fecha_fin && b.fecha_inicio && b.fecha_fin &&
+          String(a.fecha_inicio) <= String(b.fecha_fin) && String(b.fecha_inicio) <= String(a.fecha_fin)) {
+        solSemanas.push(_gen('«' + (a.etiqueta || (a.fecha_inicio + '…' + a.fecha_fin)) + '» y «' + (b.etiqueta || (b.fecha_inicio + '…' + b.fecha_fin)) + '» comparten fechas',
+          [{ t: 'tab', label: 'Editar semanas', tab: 'tramos' }]));
+      }
+    }
+  }
+  if (solSemanas.length) gruposProblemas.push({
+    tipo: 'semanas_solapadas', gravedad: 'aviso', titulo: 'Semanas alternas solapadas',
+    descripcion: 'Dos semanas del calendario A/B cubren fechas comunes; una fecha podría resolverse a la semana equivocada.', items: solSemanas
+  });
+
+  const conAlternancia = ocup.filter(function(o) { const s = String(o.semana || '').trim().toUpperCase(); return s === 'A' || s === 'B'; }).length;
+  if (conAlternancia > 0 && semanas.length === 0) {
+    gruposProblemas.push({
+      tipo: 'sin_calendario', gravedad: 'aviso', titulo: 'Alternancia sin calendario',
+      descripcion: 'Hay ocupaciones marcadas con semana A/B pero no hay calendario de semanas alternas; no se podrá saber qué semana toca cada día.',
+      items: [_gen(conAlternancia + ' ocupación(es) con semana A/B y ningún calendario configurado', [{ t: 'tab', label: 'Configurar semanas', tab: 'tramos' }])]
+    });
+  }
+
+  // ---- J) Nombres duplicados en el catálogo ----
+  const dups = [];
+  _dupNombres(docentes, 'nombre_corto').forEach(function(n) { dups.push(_gen('Docentes: «' + n + '» aparece más de una vez', [{ t: 'tab', label: 'Editar docentes', tab: 'docentes' }])); });
+  _dupNombres(grupos, 'nombre_corto').forEach(function(n) { dups.push(_gen('Grupos: «' + n + '» aparece más de una vez', [{ t: 'tab', label: 'Editar grupos', tab: 'grupos' }])); });
+  _dupNombres(materias, 'nombre').forEach(function(n) { dups.push(_gen('Materias: «' + n + '» aparece más de una vez', [{ t: 'tab', label: 'Editar áreas', tab: 'areas' }])); });
+  _dupNombres(roles, 'nombre').forEach(function(n) { dups.push(_gen('Cargos: «' + n + '» aparece más de una vez', [{ t: 'tab', label: 'Editar cargos', tab: 'areas' }])); });
+  if (dups.length) gruposProblemas.push({
+    tipo: 'duplicados', gravedad: 'aviso', titulo: 'Nombres duplicados',
+    descripcion: 'Hay entradas repetidas en el catálogo; el emparejamiento por nombre puede volverse ambiguo. Deja una sola.', items: dups
+  });
+
+  // ---- K) Áreas y cargos sin color ----
+  const sinColor = [];
+  const matSinCol = materias.filter(function(m) { return !String(m.color || '').trim(); }).map(function(m) { return m.abreviatura || m.nombre; });
+  const rolSinCol = roles.filter(function(r) { return !String(r.color || '').trim(); }).map(function(r) { return r.nombre; });
+  if (matSinCol.length) sinColor.push(_gen('Materias sin color: ' + _muestra(matSinCol), [{ t: 'tab', label: 'Editar áreas', tab: 'areas' }]));
+  if (rolSinCol.length) sinColor.push(_gen('Cargos sin color: ' + _muestra(rolSinCol), [{ t: 'tab', label: 'Editar cargos', tab: 'areas' }]));
+  if (sinColor.length) gruposProblemas.push({
+    tipo: 'sin_color', gravedad: 'aviso', titulo: 'Áreas o cargos sin color',
+    descripcion: 'Sin color propio, la sábana usa colores por defecto. Asigna uno para que se distingan mejor.', items: sinColor
+  });
+
   let errores = 0, avisos = 0;
   gruposProblemas.forEach(function(gp) {
     if (gp.gravedad === 'error') errores += gp.items.length; else avisos += gp.items.length;
@@ -151,6 +279,30 @@ function revisarProblemas() {
     resumen: { errores: errores, avisos: avisos, total: errores + avisos, grupos: gruposProblemas.length },
     grupos: gruposProblemas
   };
+}
+
+// Item genérico para los chequeos simples: un texto y una lista de acciones
+// que el frontend sabe pintar (enlace a pestaña, editar horario, o borrar).
+function _gen(texto, acc) {
+  return { texto: texto, acc: acc || [] };
+}
+
+// Nombres (normalizados) que aparecen más de una vez en una lista.
+function _dupNombres(lista, campo) {
+  const cuenta = {}, original = {};
+  (lista || []).forEach(function(o) {
+    const k = _keyNorm(o[campo]);
+    if (!k) return;
+    cuenta[k] = (cuenta[k] || 0) + 1;
+    if (!original[k]) original[k] = String(o[campo]);
+  });
+  return Object.keys(cuenta).filter(function(k) { return cuenta[k] > 1; }).map(function(k) { return original[k]; });
+}
+
+// Muestra corta de una lista de nombres (para no saturar el aviso).
+function _muestra(arr) {
+  const n = arr.length;
+  return arr.slice(0, 8).join(', ') + (n > 8 ? (' … (+' + (n - 8) + ')') : '');
 }
 
 function _ref(base, campo, campoLabel, valor) {

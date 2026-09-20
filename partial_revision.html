@@ -1,6 +1,6 @@
 <div class="page-head">
   <h2>Revisión</h2>
-  <p>Comprueba la integridad del horario: referencias rotas, docentes con huecos, solapes y grupos sin tutor. Resuelve cada problema desde aquí o salta al editor correspondiente.</p>
+  <p>Comprueba la integridad del horario: referencias rotas, docentes con huecos, solapes, grupos sin tutor, tramos o semanas solapados, datos incompletos, duplicados y más. Resuelve cada problema desde aquí o salta al editor correspondiente.</p>
 </div>
 
 <div class="toolbar">
@@ -51,7 +51,18 @@
     if (tipo === 'incompleto') return _itemIncompleto(it);
     if (tipo === 'solape') return _itemSolape(it);
     if (tipo === 'sin_tutor') return _itemSinTutor(it);
-    return '';
+    return _itemGenerico(it);
+  }
+  // Render genérico para el resto de chequeos: un texto y una lista de acciones
+  // (enlace a una pestaña, editar el horario de un docente, o borrar una ocupación).
+  function _itemGenerico(it) {
+    var acc = (it.acc || []).map(function(a){
+      if (a.t === 'borrar') return _btn(a.label || 'Borrar ocupación', "revBorrar('" + a.ocup_id + "')", 'danger');
+      if (a.t === 'horario') return _btn(a.label || 'Editar horario', "abrirHorarioDocente('" + a.docente_id + "')", 'secondary');
+      if (a.t === 'tab') return _btn(a.label, "irConfig('" + a.tab + "')", 'secondary');
+      return '';
+    }).join('');
+    return _revRow(_esc(it.texto), acc);
   }
 
   function _revRow(texto, acciones) {
