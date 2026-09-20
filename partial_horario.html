@@ -66,6 +66,15 @@
 <script>
   var HD_DOC = '', HD_CAT = null, HD_OCUPS = [];
   var HD_DOCS = [];
+  var HD_AUTO_EDIT = false;   // abrir el editor automáticamente tras cargar (desde Revisión)
+
+  // Abre el horario de un docente concreto y, opcionalmente, el editor
+  // (usado desde la pestaña Revisión).
+  function abrirHorarioDocente(id, editar) {
+    HD_DOC = id || '';
+    HD_AUTO_EDIT = !!editar;
+    irPestana('horario');
+  }
   var HD_DIAS = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
   var HD_DIAS_C = [{k:'L',n:'Lun'},{k:'M',n:'Mar'},{k:'X',n:'Mié'},{k:'J',n:'Jue'},{k:'V',n:'Vie'}];
 
@@ -90,6 +99,7 @@
       .withSuccessHandler(function(res) {
         HD_CAT = res.catalogo; HD_OCUPS = res.ocupaciones || [];
         _hdMapas(); renderGridRO(); editar.disabled = false;
+        if (HD_AUTO_EDIT) { HD_AUTO_EDIT = false; abrirPaint(); }
       })
       .withFailureHandler(function(err){ document.getElementById('hd-body').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
       .datosHorarioDocente(id);

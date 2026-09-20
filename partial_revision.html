@@ -116,7 +116,7 @@
   function _itemGenerico(it) {
     var acc = (it.acc || []).map(function(a){
       if (a.t === 'borrar') return _btn(a.label || 'Borrar ocupación', "revBorrar('" + a.ocup_id + "')", 'danger');
-      if (a.t === 'horario') return _btn(a.label || 'Editar horario', "abrirHorarioDocente('" + a.docente_id + "')", 'secondary');
+      if (a.t === 'horario') return _btn(a.label || 'Editar horario', "abrirHorarioDocente('" + a.docente_id + "', true)", 'secondary');
       if (a.t === 'tab') return _btn(a.label, "irConfig('" + a.tab + "')", 'secondary');
       return '';
     }).join('');
@@ -155,14 +155,14 @@
     var txt = '<b>' + _esc(it.docente) + '</b> — le faltan <b>' + it.huecos + '</b> hueco(s) ' +
       '<span class="rev-dim">(' + it.ocupados + '/' + it.esperado + ' tramos lectivos)</span>';
     var acc = _btn('Marcar parcial', "revParcial('" + it.docente_id + "')", 'secondary') +
-      _btn('Editar horario', "abrirHorarioDocente('" + it.docente_id + "')", 'secondary');
+      _btn('Editar horario', "abrirHorarioDocente('" + it.docente_id + "', true)", 'secondary');
     return _revRow(txt, acc);
   }
 
   function _itemSolape(it) {
     var txt = '<b>' + _esc(it.docente) + '</b> · ' + _esc(it.dia) + ' ' + _esc(it.tramo) +
       ' — ' + it.detalles.map(function(d){ return '<span class="rev-chip">' + _esc(d) + '</span>'; }).join(' + ');
-    var acc = _btn('Editar horario', "abrirHorarioDocente('" + it.docente_id + "')", 'secondary');
+    var acc = _btn('Editar horario', "abrirHorarioDocente('" + it.docente_id + "', true)", 'secondary');
     return _revRow(txt, acc);
   }
 
