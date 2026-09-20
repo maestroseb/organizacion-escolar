@@ -29,6 +29,34 @@ function sabanaDia(dia) {
   };
 }
 
+/**
+ * Toda la semana de una vez: una matriz tramos × días. Cada celda trae los
+ * cursos, apoyos y libres de ese (día, tramo). Para la vista "semana completa".
+ */
+function sabanaSemana() {
+  const ctx = _sabanaContexto();
+  const dias = ['L', 'M', 'X', 'J', 'V'];
+  const ocupPorDia = {};
+  dias.forEach(function(d) { ocupPorDia[d] = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === d; }); });
+
+  const tramos = ctx.tramos.map(function(t) {
+    const porDia = {};
+    let meta = null;
+    dias.forEach(function(d) {
+      const data = _sabanaTramoData(t, ocupPorDia[d], ctx);
+      if (!meta) meta = data.tramo;
+      porDia[d] = { cursos: data.cursos, apoyos: data.apoyos, libres: data.libres };
+    });
+    return { tramo: meta, porDia: porDia };
+  });
+
+  return {
+    dias: dias.map(function(d) { return { k: d, n: _diaLargo(d) }; }),
+    hayTramos: ctx.tramos.length > 0,
+    tramos: tramos
+  };
+}
+
 function sabanaTramo(dia, tramoId) {
   dia = _diaCanon(dia);
   const ctx = _sabanaContexto();

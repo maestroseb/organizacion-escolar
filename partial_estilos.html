@@ -342,7 +342,7 @@
   .sb-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
   .sb-tramo { background: var(--surface); border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); margin-bottom: 18px; }
   .sb-head { background: #4f9d84; color: #fff; text-align: center; font-weight: 800; letter-spacing: .04em; font-size: 14px; padding: 6px 12px; }
-  .sb-tramo.recreo .sb-head, .sb-tramo.recreo .sb-rail { background: #8a8f98; }
+  .sb-recreo { background: #3a3a41; color: #fff; text-align: center; font-weight: 800; letter-spacing: .12em; font-size: 11px; padding: 5px; border-radius: 8px; margin: 4px 0 14px; }
   .sb-bodyrow { display: flex; align-items: stretch; }
   .sb-rail { background: #4f9d84; color: #fff; font-weight: 800; letter-spacing: .1em; font-size: 12px; display: flex; align-items: center; justify-content: center; writing-mode: vertical-rl; transform: rotate(180deg); padding: 6px 3px; }
   .sb-cols { flex: 1; display: grid; grid-template-columns: 1fr 1fr; min-width: 0; }
@@ -360,8 +360,15 @@
   .sb-pill { display: inline-block; border-radius: 6px; padding: 1px 8px; font-weight: 700; font-size: 11.5px; }
   .sb-tutor { font-size: 11.5px; color: var(--faint); font-style: italic; }
   .sb-sin { color: var(--warn); font-weight: 600; font-size: 12px; }
-  .sb-libres { padding: 8px 12px; border-top: 1px solid var(--border); font-size: 12.5px; color: var(--muted); background: var(--surface-2); }
+  .sb-libres { padding: 6px 12px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); background: var(--surface-2); }
   .sb-libres b { color: var(--text); }
+  /* Semana completa: filas por tramo con columnas por día (scroll horizontal). */
+  .sb-weekscroll { overflow-x: auto; }
+  .sb-weekrow { display: flex; align-items: stretch; min-width: min-content; }
+  .sb-daycol { flex: 1 0 340px; min-width: 340px; border-left: 2px solid var(--border-strong); }
+  .sb-daycol:first-of-type { border-left: none; }
+  .sb-daycol .sb-cols { border-top: 1px solid var(--border); }
+  .sb-dayhead { text-align: center; font-weight: 800; font-size: 12px; letter-spacing: .03em; padding: 4px; }
   @media (max-width: 720px) {
     .sb-cols { grid-template-columns: 1fr; }
     .sb-pane + .sb-pane { border-left: none; border-top: 2px solid var(--border-strong); }
