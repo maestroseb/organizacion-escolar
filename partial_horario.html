@@ -6,7 +6,7 @@
 <div class="toolbar">
   <div>
     <label style="display:inline">Docente</label>
-    <select id="hd-select" style="min-width:220px" onchange="cargarHorario(this.value)"></select>
+    <select id="hd-select" style="min-width:220px" onchange="cambiarDocenteHorario(this)"></select>
   </div>
   <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
   <span id="hd-estado" class="hint"></span>
@@ -35,32 +35,52 @@
   var HD_SLOT = null; // { dia, tramo, working: [...] }
   var HD_DIAS = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
 
+  var HD_DOCS_VERSION = -1; // DATOS_VERSION con la que se cargó el selector
   function renderHorario() {
     const sel = document.getElementById('hd-select');
-    // Cargar docentes en el selector (una vez).
+    // Con cambios sin guardar no se recarga nada (se perderían las ediciones).
+    if (HD_DIRTY) return;
+    // Selector ya cargado y datos sin cambios: solo refrescamos el horario.
+    if (HD_DOCS_VERSION === DATOS_VERSION && sel.options.length) {
+      if (HD_DOC) cargarHorario(HD_DOC);
+      return;
+    }
     google.script.run.withSuccessHandler(function(docs) {
+      HD_DOCS_VERSION = DATOS_VERSION;
       const activos = (docs || []).filter(function(d){ return d.activo !== false; });
       sel.innerHTML = '<option value="">— elige docente —</option>' +
-        activos.map(function(d){ return '<option value="' + d.id + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
+        activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
       if (HD_DOC) cargarHorario(HD_DOC);
       else document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente para ver y editar su horario.</div>';
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
 
+  function cambiarDocenteHorario(sel) {
+    if (!HD_DIRTY) { cargarHorario(sel.value); return; }
+    const nuevo = sel.value;
+    sel.value = HD_DOC; // se mantiene hasta confirmar
+    confirmar('Hay cambios sin guardar en este horario. Si cambias de docente se perderán. ¿Continuar?', function() {
+      HD_DIRTY = false; sel.value = nuevo; cargarHorario(nuevo);
+    }, { peligro: true, aceptar: 'Descartar cambios' });
+  }
+
+  var _hdSeq = 0;
   function cargarHorario(id) {
     HD_DOC = id;
     if (!id) { document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente.</div>'; return; }
     document.getElementById('hd-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
     document.getElementById('hd-res').innerHTML = '';
+    const seq = ++_hdSeq; // ignora respuestas de un docente anterior
     google.script.run
       .withSuccessHandler(function(res) {
-        HD_CAT = res.catalogo;
+        if (seq !== _hdSeq) return;
+        HD_CAT = (res && res.catalogo) || {};
         HD_OCUPS = res.ocupaciones || [];
         HD_DIRTY = false; _hdActualizarGuardar();
         _hdMapas();
         renderGrid();
       })
-      .withFailureHandler(function(err){ document.getElementById('hd-body').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
+      .withFailureHandler(function(err){ if (seq === _hdSeq) document.getElementById('hd-body').innerHTML = _errHtml(err); })
       .datosHorarioDocente(id);
   }
 
@@ -91,25 +111,25 @@
       var celdas = HD_DIAS.map(function(d){
         var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; });
         var cont = ocs.length
-          ? ocs.map(function(o){ return '<div class="hd-oc t-'+o.tipo+'">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
+          ? ocs.map(function(o){ return '<div class="hd-oc t-'+_esc(o.tipo)+'">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
           : '<span class="hd-add">+</span>';
-        return '<td class="hd-cell" onclick="abrirSlot(\'' + d.k + '\',\'' + t.id + '\')">' + cont + '</td>';
+        return '<td class="hd-cell" onclick="abrirSlot(\'' + d.k + '\',' + _jsAttr(t.id) + ')">' + cont + '</td>';
       }).join('');
-      var etq = t.etiqueta ? (' · ' + _esc(t.etiqueta)) : '';
-      return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + t.orden)) + '<span class="hd-horas">' + _esc(t.horas||'') + '</span></th>' + celdas + '</tr>';
+      return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + _esc(t.orden))) + '<span class="hd-horas">' + _esc(t.horas||'') + '</span></th>' + celdas + '</tr>';
     }).join('');
     document.getElementById('hd-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
   }
   function _hdSufijo(o) {
     var s = [];
-    if (o.mitad) s.push(o.mitad === '1' ? '½a' : (o.mitad === '2' ? '½b' : o.mitad));
-    if (o.semana) s.push('sem ' + o.semana);
+    if (o.mitad) s.push(o.mitad === '1' ? '½a' : (o.mitad === '2' ? '½b' : _esc(o.mitad)));
+    if (o.semana) s.push('sem ' + _esc(o.semana));
     return s.length ? (' <span class="hd-suf">' + s.join(' · ') + '</span>') : '';
   }
 
   // ---------- Modal de edición de un hueco ----------
   function abrirSlot(dia, tramoId) {
     var t = HD_CAT.tramos.filter(function(x){ return x.id === tramoId; })[0];
+    if (!t) return;
     var diaN = (HD_DIAS.filter(function(d){ return d.k === dia; })[0] || {}).n || dia;
     var working = HD_OCUPS.filter(function(o){ return o.dia === dia && o.tramo_id === tramoId; })
       .map(function(o){ return _hdClon(o); });
@@ -131,7 +151,7 @@
     body.innerHTML = HD_SLOT.working.map(function(o, i){ return _hdOcEditor(o, i); }).join('');
   }
   function _optList(arr, sel) {
-    return '<option value="">—</option>' + arr.map(function(x){ return '<option value="' + x.id + '"' + (x.id===sel?' selected':'') + '>' + _esc(x.nombre) + '</option>'; }).join('');
+    return '<option value="">—</option>' + arr.map(function(x){ return '<option value="' + _esc(x.id) + '"' + (x.id===sel?' selected':'') + '>' + _esc(x.nombre) + '</option>'; }).join('');
   }
   function _hdOcEditor(o, i) {
     var tipoSel = '<select onchange="hdSet(' + i + ',\'tipo\',this.value)">' +
@@ -162,11 +182,11 @@
     var h = '<div class="chips">';
     o._grupos.forEach(function(id){
       var g = (HD_CAT.grupos.filter(function(x){return x.id===id;})[0]) || {nombre:id};
-      h += '<span class="chip">' + _esc(g.nombre) + '<button type="button" onclick="hdDelGrupo(' + i + ',\'' + id + '\')">×</button></span>';
+      h += '<span class="chip">' + _esc(g.nombre) + '<button type="button" onclick="hdDelGrupo(' + i + ',' + _jsAttr(id) + ')">×</button></span>';
     });
     var disp = HD_CAT.grupos.filter(function(x){ return o._grupos.indexOf(x.id) === -1; });
     h += '<select class="add-grupo" onchange="hdAddGrupo(' + i + ',this.value)"><option value="">＋</option>' +
-      disp.map(function(x){ return '<option value="'+x.id+'">'+_esc(x.nombre)+'</option>'; }).join('') + '</select></div>';
+      disp.map(function(x){ return '<option value="'+_esc(x.id)+'">'+_esc(x.nombre)+'</option>'; }).join('') + '</select></div>';
     return h;
   }
 
@@ -178,6 +198,7 @@
   function hdCerrar() { document.getElementById('hd-modal').classList.remove('show'); HD_SLOT = null; }
 
   function hdAceptar() {
+    if (!HD_SLOT) return;
     // Quita las ocupaciones previas de este hueco y añade las del working.
     HD_OCUPS = HD_OCUPS.filter(function(o){ return !(o.dia === HD_SLOT.dia && o.tramo_id === HD_SLOT.tramo); });
     HD_SLOT.working.forEach(function(w){
@@ -206,10 +227,10 @@
     google.script.run
       .withSuccessHandler(function(res){
         btn.innerHTML = 'Guardar horario'; HD_DIRTY = false; _hdActualizarGuardar();
-        document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + res.total + ' ocupaciones).</div>';
+        document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + ((res && res.total) || 0) + ' ocupaciones).</div>';
         refrescarEstado();
       })
-      .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; document.getElementById('hd-res').innerHTML = '<div class="result err">✗ ' + (err.message||err) + '</div>'; })
+      .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; document.getElementById('hd-res').innerHTML = _errHtml(err); })
       .guardarHorarioDocente(HD_DOC, HD_OCUPS);
   }
 </script>

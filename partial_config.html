@@ -59,10 +59,11 @@
     confirmar('Se borrarán todos los datos de "' + label + '". Esta acción no se puede deshacer. ¿Continuar?', function() {
       google.script.run
         .withSuccessHandler(function() {
-          document.getElementById('res-config').innerHTML = '<div class="result ok">✓ Sección "' + label + '" vaciada.</div>';
+          document.getElementById('res-config').innerHTML = '<div class="result ok">✓ Sección "' + _esc(label) + '" vaciada.</div>';
+          if (typeof resetSeccionesLocal === 'function') resetSeccionesLocal();
           refrescarEstado();
         })
-        .withFailureHandler(function(err) { document.getElementById('res-config').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .withFailureHandler(function(err) { document.getElementById('res-config').innerHTML = _errHtml(err); })
         .vaciarSeccion(clave);
     }, { peligro: true, aceptar: 'Vaciar', titulo: 'Vaciar sección' });
   }
@@ -70,8 +71,13 @@
   function reiniciarCentroUI() {
     confirmar('Se borrarán TODOS los datos del centro y volverás al alta guiada. Esta acción no se puede deshacer. ¿Seguro?', function() {
       google.script.run
-        .withSuccessHandler(function() { mostrarOnboarding(); })
-        .withFailureHandler(function(err) { document.getElementById('res-config').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .withSuccessHandler(function() {
+          // Olvida el estado del centro anterior (cachés de secciones, guiado…).
+          ESTADO = null; GUIADO = false; PENDIENTES = []; datosCambiados();
+          if (typeof resetSeccionesLocal === 'function') resetSeccionesLocal();
+          mostrarOnboarding();
+        })
+        .withFailureHandler(function(err) { document.getElementById('res-config').innerHTML = _errHtml(err); })
         .reiniciarCentro();
     }, { peligro: true, aceptar: 'Reiniciar', titulo: 'Reiniciar centro' });
   }

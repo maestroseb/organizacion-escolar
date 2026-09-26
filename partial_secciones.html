@@ -273,7 +273,7 @@
     _cargando(btn,'Guardando…'); document.getElementById('res-centro').innerHTML = '';
     google.script.run
       .withSuccessHandler(function() { _restaurar(btn,'Guardar cambios'); _res('centro','ok','✓ Datos del centro guardados.'); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('centro','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('centro','err','✗ ' + _errMsg(err)); })
       .guardarCentro(datos);
   }
 
@@ -324,7 +324,7 @@
     const btn = document.getElementById('btn-guardar-tramos'); _cargando(btn,'Guardando…'); document.getElementById('res-tramos').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('tramos','ok','✓ Guardados ' + res.total + ' tramos.'); cargarTramos(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('tramos','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('tramos','err','✗ ' + _errMsg(err)); })
       .guardarTramos(tramosLocal);
   }
 
@@ -338,14 +338,20 @@
   var GRUPOS_DOCENTES = [];
   function _mapearGrupo(g) { return { id: g.id || null, nombre_corto: g.nombre_corto || '', nombre_largo: g.nombre_largo || '', nivel: g.nivel || '', tutor_id: g.tutor_id || '', color: g.color || '' }; }
   function cargarGrupos() {
-    // Cargamos docentes (para el desplegable de tutor) y luego los grupos.
+    // Docentes (para el desplegable de tutor) y grupos se piden en paralelo.
+    let grupos = null, pendientes = 2, fallo = false;
+    const fin = function() {
+      if (--pendientes > 0 || fallo) return;
+      if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
+      else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
+    };
+    const error = function(err) { if (!fallo) { fallo = true; mostrarErrorGenerico(err); } };
     google.script.run.withSuccessHandler(function(docs) {
       GRUPOS_DOCENTES = (docs || []).filter(function(d){ return d.activo !== false; });
-      google.script.run.withSuccessHandler(function(grupos) {
-        if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
-        else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
-      }).withFailureHandler(mostrarErrorGenerico).listarGrupos();
-    }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
+      fin();
+    }).withFailureHandler(error).listarDocentes();
+    google.script.run.withSuccessHandler(function(gs) { grupos = gs; fin(); })
+      .withFailureHandler(error).listarGrupos();
   }
   function cargarPlantillaGrupos() {
     const aplicar = function() {
@@ -376,7 +382,7 @@
       let opts = '<option value="">—</option>';
       NIVELES.forEach(function(n) { opts += '<option value="' + n.v + '"' + (g.nivel===n.v?' selected':'') + '>' + n.t + '</option>'; });
       let tut = '<option value="">— sin tutor —</option>';
-      GRUPOS_DOCENTES.forEach(function(d) { tut += '<option value="' + d.id + '"' + (g.tutor_id===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; });
+      GRUPOS_DOCENTES.forEach(function(d) { tut += '<option value="' + _esc(d.id) + '"' + (g.tutor_id===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; });
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
@@ -392,7 +398,7 @@
     const btn = document.getElementById('btn-guardar-grupos'); _cargando(btn,'Guardando…'); document.getElementById('res-grupos').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar grupos'); _res('grupos','ok','✓ Guardados ' + res.total + ' grupos.'); cargarGrupos(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar grupos'); _res('grupos','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar grupos'); _res('grupos','err','✗ ' + _errMsg(err)); })
       .guardarGrupos(gruposLocal);
   }
 
@@ -429,7 +435,7 @@
     const btn = document.getElementById('btn-guardar-docentes'); _cargando(btn,'Guardando…'); document.getElementById('res-docentes').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('docentes','ok','✓ Guardados ' + res.total + ' docentes.'); cargarDocentes(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + _errMsg(err)); })
       .guardarDocentes(docentesLocal);
   }
 
@@ -469,7 +475,7 @@
     const btn = document.getElementById('btn-guardar-locs'); _cargando(btn,'Guardando…'); document.getElementById('res-localizaciones').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','ok','✓ Guardadas ' + res.total + ' localizaciones.'); cargarLocalizaciones(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','err','✗ ' + _errMsg(err)); })
       .guardarLocalizaciones(locsLocal);
   }
 
@@ -511,7 +517,7 @@
     const btn = document.getElementById('btn-guardar-materias'); _cargando(btn,'Guardando…'); document.getElementById('res-materias').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar materias'); _res('materias','ok','✓ Guardadas ' + res.total + ' materias.'); cargarMaterias(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar materias'); _res('materias','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar materias'); _res('materias','err','✗ ' + _errMsg(err)); })
       .guardarMaterias(materiasLocal);
   }
 
@@ -546,39 +552,47 @@
         '<td><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(r.nombre_largo) + '" placeholder="Dirección" oninput="actualizarRol(' + i + ',\'nombre_largo\',this.value)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarRol(' + i + ')">×</button></td>';
-      _hacerArrastrable(tr, i);
       tb.appendChild(tr);
     });
   }
 
-  // Arrastrar y soltar filas de roles para reordenarlas.
+  // Arrastrar y soltar filas de roles para reordenarlas (listeners delegados
+  // en el <tbody>, registrados una sola vez: no se acumulan en cada render).
   var _dragFrom = null;
-  function _hacerArrastrable(tr, i) {
-    tr.addEventListener('dragstart', function(e) {
-      _dragFrom = i; tr.classList.add('dragging');
-      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); } catch (err) {}
+  (function() {
+    const tb = document.getElementById('roles-body');
+    const fila = function(e) { return e.target.closest ? e.target.closest('tr[data-i]') : null; };
+    tb.addEventListener('dragstart', function(e) {
+      const tr = fila(e); if (!tr) return;
+      _dragFrom = +tr.getAttribute('data-i'); tr.classList.add('dragging');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(_dragFrom)); } catch (err) {}
     });
-    tr.addEventListener('dragend', function() { tr.classList.remove('dragging'); document.querySelectorAll('#roles-body tr').forEach(function(x){x.classList.remove('drop-target');}); });
-    tr.addEventListener('dragover', function(e) { e.preventDefault(); tr.classList.add('drop-target'); });
-    tr.addEventListener('dragleave', function() { tr.classList.remove('drop-target'); });
-    tr.addEventListener('drop', function(e) {
+    tb.addEventListener('dragend', function() {
+      tb.querySelectorAll('tr').forEach(function(x){ x.classList.remove('dragging', 'drop-target'); });
+    });
+    tb.addEventListener('dragover', function(e) { const tr = fila(e); if (!tr) return; e.preventDefault(); tr.classList.add('drop-target'); });
+    tb.addEventListener('dragleave', function(e) { const tr = fila(e); if (tr) tr.classList.remove('drop-target'); });
+    tb.addEventListener('drop', function(e) {
+      const tr = fila(e); if (!tr) return;
       e.preventDefault();
-      const to = i;
+      const to = +tr.getAttribute('data-i');
       if (_dragFrom == null || _dragFrom === to) return;
       const item = rolesLocal.splice(_dragFrom, 1)[0];
       rolesLocal.splice(to, 0, item);
       _dragFrom = null;
       renderRoles();
     });
-  }
-  function setColorRol(i, v) { rolesLocal[i].color = v; renderRoles(); }
-  function setColorMateria(i, v) { materiasLocal[i].color = v; renderMaterias(); }
+  })();
+  // `soloDato`: mientras se arrastra en el selector (input) solo se guarda el
+  // valor; re-renderizar ahí destruiría el <input type=color> abierto.
+  function setColorRol(i, v, soloDato) { rolesLocal[i].color = v; if (!soloDato) renderRoles(); }
+  function setColorMateria(i, v, soloDato) { materiasLocal[i].color = v; if (!soloDato) renderMaterias(); }
 
   // Celda de selector de color reutilizable (materias, roles y tramos).
   // `fallback` es el color que muestra el selector cuando aún no hay uno propio.
   function _colorCell(color, fn, i, fallback) {
-    const val = color || fallback || '#cccccc';
-    let h = '<span class="colorpick"><input type="color" value="' + val + '" oninput="' + fn + '(' + i + ', this.value)">';
+    const val = /^#[0-9a-f]{6}$/i.test(color) ? color : (fallback || '#cccccc');
+    let h = '<span class="colorpick"><input type="color" value="' + _esc(val) + '" oninput="' + fn + '(' + i + ', this.value, true)" onchange="' + fn + '(' + i + ', this.value)">';
     if (color) h += '<button class="colorclear" title="Color por defecto" onclick="' + fn + '(' + i + ', \'\')">×</button>';
     h += '</span>';
     return h;
@@ -592,13 +606,21 @@
     if (total >= L) return PALETA_TRAMOS[i % L];
     return PALETA_TRAMOS[Math.round(i * (L - 1) / (total - 1))];
   }
-  function setColorTramo(i, v) { tramosLocal[i].color = v; renderTramos(); }
+  function setColorTramo(i, v, soloDato) { tramosLocal[i].color = v; if (!soloDato) renderTramos(); }
+
+  // Olvida las listas locales (tras vaciar una sección o reiniciar el centro),
+  // para que la próxima carga no muestre datos que ya no existen.
+  function resetSeccionesLocal() {
+    tramosLocal = []; gruposLocal = []; docentesLocal = []; locsLocal = []; materiasLocal = []; rolesLocal = [];
+    GRUPOS_DOCENTES = [];
+    const f = document.getElementById('form-centro'); if (f) f.reset();
+  }
   function enviarRoles() {
     if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
     const btn = document.getElementById('btn-guardar-roles'); _cargando(btn,'Guardando…'); document.getElementById('res-roles').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cargos'); _res('roles','ok','✓ Guardados ' + res.total + ' cargos.'); cargarRoles(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cargos'); _res('roles','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cargos'); _res('roles','err','✗ ' + _errMsg(err)); })
       .guardarRoles(rolesLocal);
   }
 </script>

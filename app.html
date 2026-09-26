@@ -87,7 +87,8 @@
 
   <script>
     // Pestaña inicial pasada por el servidor (deep-link ?page=).
-    var PESTANA_INICIAL = <?!= JSON.stringify(pestanaInicial || '') ?>;
+    // Escapamos '<' para que un ?page= malicioso no pueda cerrar el <script> (XSS reflejado).
+    var PESTANA_INICIAL = <?!= JSON.stringify(String(pestanaInicial || '')).replace(/</g, '\\u003c') ?>;
 
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
@@ -117,26 +118,55 @@
     var OB_VOLCADO = null;     // volcado pendiente de revisar en Importar (puente onboarding→workspace)
     var VISTA_ACTUAL = 'resumen';
     var CONFIG_SUB_ACTUAL = 'ajustes';
+    var ESTADO_FRESCO = false; // ESTADO recién pedido: el siguiente Resumen no lo vuelve a pedir
+    var DATOS_VERSION = 0;     // se incrementa tras cada guardado (invalida cachés de vistas)
+    var _PREFETCH = {};        // nombre de función .gs -> resultado en vuelo (ver _prefetch)
 
-    window.addEventListener('load', function() {
-      aplicarTemaGuardado();
-      arrancar();
-    });
+    // El tema se aplica cuanto antes (evita el parpadeo claro→oscuro) y el
+    // arranque no espera a 'load': el shell entero ya está en el DOM.
+    aplicarTemaGuardado();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
+    else arrancar();
 
     function arrancar() {
+      // Si la pestaña inicial es el Resumen, pedimos su análisis en paralelo
+      // con estadoApp (1 ida y vuelta en lugar de 3 encadenadas).
+      const destino = _pestanaDesdeHash() || PESTANA_INICIAL || 'resumen';
+      if (destino === 'resumen') _prefetch('analizarConfiguracion');
       google.script.run
         .withSuccessHandler(function(estado) {
           ESTADO = estado;
+          ESTADO_FRESCO = true;
           if (estado && estado.configurado) {
             entrarWorkspace();
           } else {
+            delete _PREFETCH.analizarConfiguracion;
             mostrarOnboarding();
           }
         })
         .withFailureHandler(function(err) {
+          console.error(err);
           mostrarOnboarding();
         })
         .estadoApp();
+    }
+
+    // ---------- Prefetch de llamadas al servidor ----------
+    function _prefetch(nombre) {
+      const p = { done: false, err: null, res: null, cbs: [] };
+      _PREFETCH[nombre] = p;
+      const fin = function(err, res) { p.done = true; p.err = err; p.res = res; p.cbs.forEach(function(cb) { cb(err, res); }); };
+      google.script.run
+        .withSuccessHandler(function(r) { fin(null, r); })
+        .withFailureHandler(function(e) { fin(e || new Error('Error'), null); })[nombre]();
+    }
+    // Entrega el resultado prefetch (si lo hay) y lo consume. Devuelve false si no había.
+    function _consumirPrefetch(nombre, cb) {
+      const p = _PREFETCH[nombre];
+      if (!p) return false;
+      delete _PREFETCH[nombre];
+      if (p.done) cb(p.err, p.res); else p.cbs.push(cb);
+      return true;
     }
 
     // ---------- Workspace ----------
@@ -159,7 +189,6 @@
     }
 
     function construirTabs() {
-      const cont = (ESTADO && ESTADO.contadores) || {};
       const nav = document.getElementById('tabs');
       nav.innerHTML = '';
       TABS.forEach(function(t) {
@@ -171,9 +200,7 @@
           b.disabled = true;
           b.innerHTML = t.label + ' <span class="soon">pronto</span>';
         } else {
-          let pill = '';
-          if (t.cont && cont[t.cont] != null) pill = ' <span class="pill" id="pill-' + t.key + '">' + cont[t.cont] + '</span>';
-          b.innerHTML = t.label + pill;
+          b.textContent = t.label;
           b.onclick = function() { irPestana(t.key); };
         }
         nav.appendChild(b);
@@ -273,13 +300,18 @@
     function refrescarEstado(cb) {
       google.script.run
         .withSuccessHandler(function(estado) {
-          ESTADO = estado;
-          pintarCabecera();
-          actualizarPills();
+          _aplicarEstado(estado);
           if (cb) cb(estado);
         })
-        .withFailureHandler(function() { if (cb) cb(null); })
+        .withFailureHandler(function(err) { console.error(err); if (cb) cb(null); })
         .estadoApp();
+    }
+    function _aplicarEstado(estado) {
+      ESTADO = estado;
+      ESTADO_FRESCO = true;
+      DATOS_VERSION++;
+      pintarCabecera();
+      actualizarPills();
     }
 
     function actualizarPills() {
@@ -299,36 +331,36 @@
         // Quitar la sección actual (ya guardada) y saltar a la siguiente pendiente.
         const actual = VISTA_ACTUAL;
         const siguiente = PENDIENTES.filter(function(k) { return k !== actual; })[0];
-        pintarBannerGuia();
         if (siguiente) {
           irPestana(siguiente);
         } else {
           GUIADO = false;
-          pintarBannerGuia();
           irPestana('resumen');
         }
-      }).analizarConfiguracion();
-    }
-
-    function pintarBannerGuia() {
-      // El banner vive en el Resumen y en cada sección lo omitimos por simplicidad;
-      // aquí solo refrescamos el resumen si está visible.
-      const rv = document.getElementById('view-resumen');
-      if (rv && rv.classList.contains('active')) renderResumen();
+      }).withFailureHandler(function(err) { console.error(err); }).analizarConfiguracion();
     }
 
     // ---------- Resumen ----------
     function renderResumen() {
       const cont = document.getElementById('resumen-body');
       cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
-      google.script.run
-        .withSuccessHandler(function(an) {
-          refrescarEstado(function() { _pintarResumen(an); });
-        })
-        .withFailureHandler(function(err) {
-          cont.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>';
-        })
-        .analizarConfiguracion();
+      // analizarConfiguracion y estadoApp van en paralelo; si ESTADO se acaba de
+      // pedir (arranque o tras guardar) no se vuelve a pedir.
+      let an = null, error = null, pendientes = 2;
+      const fin = function() {
+        if (--pendientes > 0) return;
+        if (error) { cont.innerHTML = _errHtml(error); return; }
+        _pintarResumen(an);
+      };
+      const trasAnalisis = function(err, res) { if (err) error = err; else an = res; fin(); };
+      if (!_consumirPrefetch('analizarConfiguracion', trasAnalisis)) {
+        google.script.run
+          .withSuccessHandler(function(res) { trasAnalisis(null, res); })
+          .withFailureHandler(function(err) { trasAnalisis(err); })
+          .analizarConfiguracion();
+      }
+      if (ESTADO_FRESCO) { ESTADO_FRESCO = false; fin(); }
+      else refrescarEstado(function() { ESTADO_FRESCO = false; fin(); });
     }
 
     function _pintarResumen(an) {
@@ -345,7 +377,7 @@
       if (pend.length) {
         html += '<div class="result info" style="margin-top:0;margin-bottom:20px;">' +
           '<strong>Te quedan cosas por completar.</strong> ' +
-          pend.map(function(s) { return s.titulo.toLowerCase(); }).join(', ') + '. ' +
+          _esc(pend.map(function(s) { return s.titulo.toLowerCase(); }).join(', ')) + '. ' +
           'Pulsa una tarjeta para ir a esa sección.</div>';
       } else {
         html += '<div class="result ok" style="margin-top:0;margin-bottom:20px;">✓ Configuración completa. Ya puedes usar todas las secciones.</div>';
@@ -353,9 +385,9 @@
 
       html += '<div class="stats">';
       secc.forEach(function(s) {
-        html += '<button class="stat" style="text-align:left;cursor:pointer;border-color:var(--border);" onclick="irPestana(\'' + (s.tab || s.clave) + '\')">' +
+        html += '<button class="stat" style="text-align:left;cursor:pointer;border-color:var(--border);" onclick="irPestana(' + _jsAttr(s.tab || s.clave) + ')">' +
           '<div class="n">' + (mapaCont[s.clave] != null ? mapaCont[s.clave] : (s.total || 0)) + '</div>' +
-          '<div class="l">' + s.titulo + '</div>' +
+          '<div class="l">' + _esc(s.titulo) + '</div>' +
           '<div class="badge-estado"><span class="badge ' + s.estado + '">' +
             (s.estado === 'ok' ? 'completo' : s.estado === 'incompleto' ? 'incompleto' : 'pendiente') +
           '</span></div>' +
@@ -395,6 +427,26 @@
       });
     }
 
+    // Desde el onboarding: recalcula pendientes y estado (en paralelo) y entra
+    // al workspace en `destino` en modo guiado. `trasEntrar` es opcional.
+    function entrarGuiadoEn(destino, trasEntrar) {
+      let pendientes = 2;
+      const fin = function() {
+        if (--pendientes > 0) return;
+        entrarWorkspace(destino);
+        if (trasEntrar) trasEntrar();
+      };
+      google.script.run
+        .withSuccessHandler(function(an) {
+          PENDIENTES = (an && an.pendientes) || [];
+          GUIADO = PENDIENTES.length > 0;
+          fin();
+        })
+        .withFailureHandler(function(err) { console.error(err); fin(); })
+        .analizarConfiguracion();
+      refrescarEstado(fin);
+    }
+
     // ---------- Tema ----------
     function aplicarTemaGuardado() {
       let t = null;
@@ -413,8 +465,15 @@
     // ---------- Helpers compartidos ----------
     function _esc(s) {
       return String(s == null ? '' : s)
-        .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        .replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
+    // Literal JS seguro dentro de un atributo on*="…": f(' + _jsAttr(x) + ')
+    function _jsAttr(v) { return _esc(JSON.stringify(v == null ? '' : v)); }
+    // Mensaje de error de google.script.run, escapado.
+    function _errMsg(err) { return _esc((err && err.message) || err || 'Error desconocido'); }
+    function _errHtml(err) { return '<div class="result err">✗ ' + _errMsg(err) + '</div>'; }
+    // Invalida cachés de vistas (sábana, horario…) tras cambiar datos.
+    function datosCambiados() { DATOS_VERSION++; }
     function mostrarErrorGenerico(err) {
       console.error(err);
       alert('Error: ' + (err.message || err));
