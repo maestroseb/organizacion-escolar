@@ -119,10 +119,10 @@ function estadoApp() {
  * Session.getActiveUser() solo da el email dentro del mismo dominio.
  */
 function permisosUsuario() {
-  let email = '', admin = false, directivo = false;
+  let email = '', owner = '', admin = false, directivo = false;
   try { email = String(Session.getActiveUser().getEmail() || '').toLowerCase(); } catch (e) {}
   try {
-    const owner = String(Session.getEffectiveUser().getEmail() || '').toLowerCase();
+    owner = String(Session.getEffectiveUser().getEmail() || '').toLowerCase();
     admin = !!email && email === owner;
   } catch (e) {}
   if (email && !admin) {
@@ -133,7 +133,7 @@ function permisosUsuario() {
       });
     } catch (e) {}
   }
-  return { admin: admin, directivo: directivo, sustituciones: admin || directivo };
+  return { admin: admin, directivo: directivo, sustituciones: admin || directivo, email: email, propietario: owner };
 }
 
 function _contar(sheetName) {

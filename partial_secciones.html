@@ -150,7 +150,7 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><span class="hint" id="doc-sesion"></span></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
@@ -183,8 +183,7 @@
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:110px">Abrev.</th>
-            <th class="col-center" style="width:64px">Recreo</th><th class="col-acc"></th>
+            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:110px">Abrev.</th><th class="col-acc"></th>
           </tr></thead>
           <tbody id="materias-body"></tbody>
         </table>
@@ -200,11 +199,10 @@
           <button class="secondary" onclick="anadirRol()">+ Rol</button>
         </div>
       </div>
-      <p class="hint" style="margin:-2px 0 10px;">El <strong>orden</strong> (arrastra <span style="cursor:grab">⠿</span>) marca la prioridad de sustitución y numera las localizaciones de la sábana.</p>
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
+            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
           </tr></thead>
           <tbody id="roles-body"></tbody>
         </table>
@@ -216,13 +214,30 @@
 </section>
 
 <script>
+  // ---------- Bloques guardables (botón flotante «Guardar cambios») ----------
+  // (el módulo vive en app.html, que se evalúa después: se encolan)
+  function _regGuardable() { (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(arguments); }
+  function _estadoFormCentro() {
+    const f = document.getElementById('form-centro'); if (!f) return null;
+    return Array.prototype.map.call(f.elements, function(el) {
+      return el.name ? el.name + '=' + ((el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? el.value : '') : el.value) : '';
+    }).join('&');
+  }
+  _regGuardable('centro', 'centro', _estadoFormCentro, function() { enviarCentro({ preventDefault: function() {} }); });
+  _regGuardable('centro', 'tramos', function() { return tramosLocal; }, function() { enviarTramos(); });
+  _regGuardable('grupos', 'grupos', function() { return gruposLocal; }, function() { enviarGrupos(); });
+  _regGuardable('grupos', 'localizaciones', function() { return locsLocal; }, function() { enviarLocalizaciones(); });
+  _regGuardable('docentes', 'docentes', function() { return docentesLocal; }, function() { enviarDocentes(); });
+  _regGuardable('areas', 'materias', function() { return materiasLocal; }, function() { enviarMaterias(); });
+  _regGuardable('areas', 'roles', function() { return rolesLocal; }, function() { enviarRoles(); });
+
   // ---------- Helpers de resultado / botón ----------
   function _res(key, tipo, msg) {
     const el = document.getElementById('res-' + key);
     if (el) el.innerHTML = '<div class="result ' + tipo + '">' + msg + '</div>';
   }
   function _cargando(btn, txt) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + txt; }
-  function _restaurar(btn, txt) { btn.disabled = false; btn.textContent = txt; }
+  function _restaurar(btn, txt) { btn.disabled = false; btn.textContent = txt; if (typeof _fabListo === 'function') _fabListo(); }
   // Tras guardar una sección: refresca contadores y, en modo guiado, avanza.
   function _trasGuardar() {
     refrescarEstado(function() { if (GUIADO) setTimeout(avanzarGuiado, 500); });
@@ -241,7 +256,7 @@
   // ================= Centro =================
   function cargarCentro() {
     google.script.run
-      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); })
+      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); _snap('centro'); })
       .withFailureHandler(mostrarErrorGenerico)
       .obtenerCentro();
   }
@@ -287,7 +302,8 @@
       tramosLocal = (tramos || []).map(function(t) {
         return { id: t.id, hora_inicio: _fmtHora(t.hora_inicio), hora_fin: _fmtHora(t.hora_fin), es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || '', color: t.color || '' };
       });
-      if (tramosLocal.length === 0) anadirTramo(); else renderTramos();
+      renderTramos(); _snap('tramos');
+      if (tramosLocal.length === 0) anadirTramo();
     }).withFailureHandler(mostrarErrorGenerico).listarTramos();
   }
   function cargarPlantillaTramos() {
@@ -345,8 +361,9 @@
     let grupos = null, pendientes = 2, fallo = false;
     const fin = function() {
       if (--pendientes > 0 || fallo) return;
-      if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
-      else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
+      if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); _snap('grupos'); return; }
+      _SNAP.grupos = '[]';
+      if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
     };
     const error = function(err) { if (!fallo) { fallo = true; mostrarErrorGenerico(err); } };
     google.script.run.withSuccessHandler(function(docs) {
@@ -408,10 +425,19 @@
   // ================= Docentes =================
   let docentesLocal = [];
   function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '', acceso_sust: d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE' }; }
+  // Quién ha entrado y si ve Sustituciones (ayuda a diagnosticar permisos).
+  function _pintarSesion() {
+    const el = document.getElementById('doc-sesion'), p = (ESTADO && ESTADO.permisos) || {};
+    if (!el) return;
+    el.textContent = !p.email ? 'Google no identifica tu cuenta en esta sesión: la casilla «Sustituciones» no puede aplicarse.'
+      : 'Sesión: ' + p.email + (p.admin ? ' (administrador)' : '') + ' · Sustituciones: ' + (p.sustituciones ? 'sí' : 'no');
+  }
   function cargarDocentes() {
+    _pintarSesion();
     google.script.run.withSuccessHandler(function(docs) {
-      if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); }
-      else if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
+      if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); _snap('docentes'); return; }
+      _SNAP.docentes = '[]';
+      if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
   function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
@@ -448,8 +474,9 @@
   function _mapearLocalizacion(l) { return { id: l.id || null, codigo: l.codigo || '', descripcion: l.descripcion || '' }; }
   function cargarLocalizaciones() {
     google.script.run.withSuccessHandler(function(locs) {
-      if (locs && locs.length > 0) { locsLocal = locs.map(_mapearLocalizacion); renderLocalizaciones(); }
-      else if (locsLocal.length === 0) { cargarPlantillaLocalizaciones(); } else { renderLocalizaciones(); }
+      if (locs && locs.length > 0) { locsLocal = locs.map(_mapearLocalizacion); renderLocalizaciones(); _snap('localizaciones'); return; }
+      _SNAP.localizaciones = '[]';
+      if (locsLocal.length === 0) { cargarPlantillaLocalizaciones(); } else { renderLocalizaciones(); }
     }).withFailureHandler(mostrarErrorGenerico).listarLocalizaciones();
   }
   function cargarPlantillaLocalizaciones() {
@@ -488,8 +515,9 @@
   function _mapearMateria(m) { return { id: m.id || null, nombre: m.nombre || '', abreviatura: m.abreviatura || '', es_recreo: !!m.es_recreo, color: m.color || '' }; }
   function cargarMaterias() {
     google.script.run.withSuccessHandler(function(ms) {
-      if (ms && ms.length > 0) { materiasLocal = ms.map(_mapearMateria); renderMaterias(); }
-      else if (materiasLocal.length === 0) { cargarPlantillaMaterias(); } else { renderMaterias(); }
+      if (ms && ms.length > 0) { materiasLocal = ms.map(_mapearMateria); renderMaterias(); _snap('materias'); return; }
+      _SNAP.materias = '[]';
+      if (materiasLocal.length === 0) { cargarPlantillaMaterias(); } else { renderMaterias(); }
     }).withFailureHandler(mostrarErrorGenerico).listarMaterias();
   }
   function cargarPlantillaMaterias() {
@@ -511,7 +539,6 @@
         '<td class="col-center">' + _colorCell(m.color, 'setColorMateria', i) + '</td>' +
         '<td><input type="text" value="' + _esc(m.nombre) + '" placeholder="Lengua, Matemáticas…" oninput="actualizarMateria(' + i + ',\'nombre\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(m.abreviatura) + '" placeholder="LCL" oninput="actualizarMateria(' + i + ',\'abreviatura\',this.value)"></td>' +
-        '<td class="col-center"><input type="checkbox"' + (m.es_recreo?' checked':'') + ' onchange="actualizarMateria(' + i + ',\'es_recreo\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarMateria(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });
@@ -530,8 +557,9 @@
   function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '' }; }
   function cargarRoles() {
     google.script.run.withSuccessHandler(function(rs) {
-      if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); }
-      else if (rolesLocal.length === 0) { cargarPlantillaRoles(); } else { renderRoles(); }
+      if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); _snap('roles'); return; }
+      _SNAP.roles = '[]';
+      if (rolesLocal.length === 0) { cargarPlantillaRoles(); } else { renderRoles(); }
     }).withFailureHandler(mostrarErrorGenerico).listarRoles();
   }
   function cargarPlantillaRoles() {

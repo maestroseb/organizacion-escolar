@@ -17,6 +17,12 @@
 
 <script>
   var SU = null, SU_AUS = [], SU_ASIG = {}, SU_DIRTY = false; // SU_ASIG[ausente|tramo] = sustituto
+  function _suEstado() {
+    if (!SU) return null;
+    var a = {}; Object.keys(SU_ASIG).sort().forEach(function(k) { if (SU_ASIG[k]) a[k] = SU_ASIG[k]; });
+    return { f: SU.fecha, aus: SU_AUS.slice().sort(), a: a };
+  }
+  (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(['sustituciones', 'sustituciones', _suEstado, function() { suGuardar(); }]);
 
   function renderSustituciones() {
     var inp = document.getElementById('su-fecha');
@@ -37,10 +43,10 @@
           if (SU_AUS.indexOf(s.ausente) === -1) SU_AUS.push(s.ausente);
           SU_ASIG[s.ausente + '|' + s.tramo] = s.sustituto || '';
         });
-        _suPintar();
+        _suPintar(); _snap('sustituciones');
       }).withFailureHandler(function(err) { document.getElementById('su-body').innerHTML = _errHtml(err); }).datosSustituciones(fecha);
     };
-    if (SU_DIRTY) confirmar('Hay cambios sin guardar en este día. ¿Descartarlos?', go); else go();
+    if (hayCambios('sustituciones')) confirmar('Hay cambios sin guardar en este día. ¿Descartarlos?', go); else go();
   }
   function _suNombre(id) { var d = SU && SU._byId && SU._byId[id]; return d ? d.nombre : '¿?'; }
 
@@ -142,11 +148,11 @@
     });
     var btn = document.getElementById('su-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
     google.script.run.withSuccessHandler(function(r) {
-      btn.disabled = false; btn.textContent = 'Guardar'; SU_DIRTY = false;
+      btn.disabled = false; btn.textContent = 'Guardar'; SU_DIRTY = false; _snap('sustituciones');
       document.getElementById('su-res').innerHTML = '<div class="result ok">✓ Guardadas ' + r.total + ' sustituciones del ' + _esc(SU.fecha) + '.</div>';
       if (typeof AH !== 'undefined') { AH = null; if (typeof _CARGADO !== 'undefined') delete _CARGADO.ahora; }
     }).withFailureHandler(function(err) {
-      btn.disabled = false; btn.textContent = 'Guardar';
+      btn.disabled = false; btn.textContent = 'Guardar'; _fabListo();
       document.getElementById('su-res').innerHTML = _errHtml(err);
     }).guardarSustituciones(SU.fecha, lista);
   }

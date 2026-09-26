@@ -38,7 +38,7 @@
   function renderHorario() {
     const sel = document.getElementById('hd-select');
     // Con cambios sin guardar no se recarga nada (se perderían las ediciones).
-    if (HD_DIRTY) return;
+    if (hayCambios('horario')) return;
     // Selector ya cargado y datos sin cambios: solo refrescamos el horario.
     if (HD_DOCS_VERSION === DATOS_VERSION && sel.options.length) {
       if (HD_DOC) cargarHorario(HD_DOC);
@@ -56,7 +56,7 @@
   }
 
   function cambiarDocenteHorario(sel) {
-    if (!HD_DIRTY) { cargarHorario(sel.value); return; }
+    if (!hayCambios('horario')) { cargarHorario(sel.value); return; }
     const nuevo = sel.value;
     sel.value = HD_DOC; // se mantiene hasta confirmar
     confirmar('Hay cambios sin guardar en este horario. Si cambias de docente se perderán. ¿Continuar?', function() {
@@ -214,10 +214,11 @@
     renderGrid();
   }
 
+  (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(['horario', 'horario', function() { return HD_DOC ? HD_OCUPS : null; }, function() { guardarHorario(); }]);
   function _hdActualizarGuardar() {
+    if (!HD_DIRTY) _snap('horario');
     const btn = document.getElementById('hd-guardar');
     btn.disabled = !HD_DIRTY;
-    document.getElementById('hd-estado').textContent = HD_DIRTY ? 'Cambios sin guardar' : '';
   }
 
   function guardarHorario() {
@@ -230,7 +231,7 @@
         document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + ((res && res.total) || 0) + ' ocupaciones).</div>';
         refrescarEstado();
       })
-      .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; document.getElementById('hd-res').innerHTML = _errHtml(err); })
+      .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; _fabListo(); document.getElementById('hd-res').innerHTML = _errHtml(err); })
       .guardarHorarioDocente(HD_DOC, HD_OCUPS);
   }
 </script>

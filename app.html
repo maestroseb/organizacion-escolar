@@ -75,6 +75,8 @@
     </main>
   </div>
 
+  <button type="button" class="primary fab" id="fab-guardar" onclick="guardarPendientes()">Guardar cambios</button>
+
   <!-- ============ Modal de confirmación reutilizable ============ -->
   <div class="modal-overlay" id="modal-confirm">
     <div class="modal-box">
@@ -253,6 +255,7 @@
       try { history.replaceState(null, '', '#' + key); } catch (e) {}
 
       _ejecutarLoader(key);
+      revisarCambios();
       window.scrollTo(0, 0);
     }
 
@@ -274,6 +277,7 @@
       try { history.replaceState(null, '', '#' + sub); } catch (e) {}
 
       _ejecutarLoader(sub);
+      revisarCambios();
       window.scrollTo(0, 0);
     }
 
@@ -420,6 +424,60 @@
       console.error(err);
       aviso('Error: ' + ((err && err.message) || err), 'err');
     }
+    // ---------- Cambios pendientes: botón flotante «Guardar» ----------
+    // Cada vista declara sus bloques guardables (estado actual + cómo guardar).
+    // Al cargar un bloque se toma una foto (_snap); si el estado difiere de la
+    // foto aparece el botón; si se deshacen los cambios, desaparece.
+    var GUARDABLES = {}, _SNAP = {};
+    function registrarGuardable(vista, clave, estado, guardar) {
+      (GUARDABLES[vista] = GUARDABLES[vista] || []).push({ clave: clave, estado: estado, guardar: guardar });
+    }
+    (window._REG_GUARDABLES || []).forEach(function(a) { registrarGuardable.apply(null, a); });
+    window._REG_GUARDABLES = { push: function(a) { registrarGuardable.apply(null, a); } };
+    function _estadoDe(g) { try { return JSON.stringify(g.estado()); } catch (e) { return ''; } }
+    function _snap(clave) {
+      Object.keys(GUARDABLES).forEach(function(v) {
+        GUARDABLES[v].forEach(function(g) { if (g.clave === clave) _SNAP[clave] = _estadoDe(g); });
+      });
+      _fabListo(); revisarCambios();
+    }
+    function _pendientes(vista) {
+      return (GUARDABLES[vista] || []).filter(function(g) { return _SNAP[g.clave] !== _estadoDe(g); });
+    }
+    function hayCambios(clave) {
+      return Object.keys(GUARDABLES).some(function(v) {
+        return GUARDABLES[v].some(function(g) { return g.clave === clave && _SNAP[g.clave] !== _estadoDe(g); });
+      });
+    }
+    var _revTimer = null;
+    function revisarCambios() {
+      clearTimeout(_revTimer);
+      _revTimer = setTimeout(function() {
+        var fab = document.getElementById('fab-guardar');
+        if (!fab) return;
+        var n = _pendientes(VISTA_ACTUAL).length;
+        fab.classList.toggle('visible', n > 0 && document.getElementById('workspace').style.display !== 'none');
+      }, 0);
+    }
+    function guardarPendientes() {
+      var p = _pendientes(VISTA_ACTUAL);
+      if (!p.length) return;
+      var fab = document.getElementById('fab-guardar');
+      fab.disabled = true; fab.innerHTML = '<span class="spinner"></span> Guardando…';
+      p.forEach(function(g) { g.guardar(); });
+      setTimeout(_fabListo, 15000); // por si algún guardado no responde
+    }
+    function _fabListo() {
+      var fab = document.getElementById('fab-guardar');
+      if (fab) { fab.disabled = false; fab.textContent = 'Guardar cambios'; }
+      revisarCambios();
+    }
+    ['input', 'change', 'click', 'drop', 'dragend'].forEach(function(ev) { document.addEventListener(ev, revisarCambios, true); });
+    window.addEventListener('beforeunload', function(e) {
+      var sucio = Object.keys(GUARDABLES).some(function(v) { return _pendientes(v).length; });
+      if (sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+
     // Aviso breve (toast) en la esquina inferior; sustituye a alert().
     function aviso(msg, tipo) {
       var box = document.getElementById('toasts');
