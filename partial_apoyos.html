@@ -1,0 +1,70 @@
+<div class="page-head sb-head-row">
+  <div>
+    <h2>Refuerzo, PT y AL</h2>
+    <p>Por clase, los tramos en que recibe refuerzo, PT o AL: quién lo da, qué área y docente hay en el aula en ese momento, y las horas semanales.</p>
+  </div>
+  <div class="segmented" id="ap-filtro"></div>
+</div>
+<div id="ap-body"><p class="hint"><span class="spinner"></span> Cargando…</p></div>
+
+<script>
+  var AP = null, AP_V = -1, AP_FILTRO = '';
+
+  function renderApoyos() {
+    if (AP && AP_V === DATOS_VERSION) { _apPintar(); return; }
+    var v = DATOS_VERSION;
+    google.script.run.withSuccessHandler(function(res) { AP = res; AP_V = v; _apPintar(); })
+      .withFailureHandler(function(err) { document.getElementById('ap-body').innerHTML = _errHtml(err); })
+      .datosApoyos();
+  }
+  function setApFiltro(t) { AP_FILTRO = t; _apPintar(); }
+
+  // Minutos → "2:15 h"; si A y B difieren: "A 2:15 h · B 1:30 h".
+  function _apH(m) { return Math.floor(m / 60) + ':' + ('0' + (m % 60)).slice(-2) + ' h'; }
+  function _apTot(t) { if (!t) return '—'; return t.A === t.B ? _apH(t.A) : 'A ' + _apH(t.A) + ' · B ' + _apH(t.B); }
+  function _apSuma(tots, tipos) {
+    var s = { A: 0, B: 0 };
+    tipos.forEach(function(k) { if (tots[k]) { s.A += tots[k].A; s.B += tots[k].B; } });
+    return (s.A || s.B) ? s : null;
+  }
+
+  function _apPintar() {
+    var tipos = AP.tipos, sel = AP_FILTRO ? [AP_FILTRO] : tipos;
+    document.getElementById('ap-filtro').innerHTML = [''].concat(tipos).map(function(k) {
+      return '<button type="button" class="' + (k === AP_FILTRO ? 'active' : '') + '" onclick="setApFiltro(\'' + k + '\')">' + (k || 'Todos') + '</button>';
+    }).join('');
+    var body = document.getElementById('ap-body');
+    var grupos = AP.grupos.filter(function(g) { return g.filas.some(function(f) { return sel.indexOf(f.tipo) !== -1; }); });
+    if (!grupos.length) { body.innerHTML = '<div class="empty">Ninguna clase recibe ' + (AP_FILTRO || 'refuerzo, PT ni AL') + ' en los horarios.</div>'; return; }
+
+    // Resumen: horas por clase y tipo.
+    var tot = { A: 0, B: 0 }, totTipo = {};
+    var res = '<div class="tablewrap ap-resumen"><table class="sb"><thead><tr><th>Curso</th>' +
+      sel.map(function(k) { return '<th>' + k + '</th>'; }).join('') + (sel.length > 1 ? '<th>Total</th>' : '') + '</tr></thead><tbody>' +
+      grupos.map(function(g) {
+        var s = _apSuma(g.totales, sel); if (s) { tot.A += s.A; tot.B += s.B; }
+        sel.forEach(function(k) { var t = g.totales[k]; if (t) { var x = totTipo[k] || (totTipo[k] = { A: 0, B: 0 }); x.A += t.A; x.B += t.B; } });
+        return '<tr><td class="sb-curso">' + _esc(g.nombre) + '</td>' + sel.map(function(k) { return '<td>' + _apTot(g.totales[k]) + '</td>'; }).join('') +
+          (sel.length > 1 ? '<td><b>' + _apTot(s) + '</b></td>' : '') + '</tr>';
+      }).join('') +
+      '<tr class="ap-total"><td>Total</td>' + sel.map(function(k) { return '<td>' + _apTot(totTipo[k]) + '</td>'; }).join('') +
+      (sel.length > 1 ? '<td>' + _apTot(tot) + '</td>' : '') + '</tr></tbody></table></div>';
+
+    // Detalle por clase.
+    var det = '<div class="ap-grid">' + grupos.map(function(g) {
+      var filas = g.filas.filter(function(f) { return sel.indexOf(f.tipo) !== -1; });
+      return '<div class="ap-card"><div class="ap-card-h"><b>' + _esc(g.nombre) + '</b><span>' + _apTot(_apSuma(g.totales, sel)) + '</span></div>' +
+        '<table class="sb ap-t"><thead><tr><th>Día · tramo</th><th>Apoyo</th><th>En clase</th></tr></thead><tbody>' +
+        filas.map(function(f) {
+          var clase = f.clase.length ? f.clase.map(function(c) {
+            return '<span class="sb-pill" style="' + _sbPill(c.color) + '">' + _esc(c.area || '—') + '</span> ' + _esc(c.docente);
+          }).join('<br>') : '<span class="sb-tutor">—</span>';
+          return '<tr><td class="ap-when"><b>' + _esc(f.diaLargo.slice(0, 3)) + ' T' + _esc(f.tramo) + '</b> <span class="hd-horas" style="display:inline">' + _esc(f.horas) + '</span>' +
+            (f.semana ? ' <span class="sb-semb" style="writing-mode:horizontal-tb;transform:none;margin:0">' + _esc(f.semana) + '</span>' : '') + '</td>' +
+            '<td><span class="sb-pill" style="' + _sbPill(f.color) + '">' + _esc(f.rol) + '</span> ' + _esc(f.apoyo) + '</td>' +
+            '<td>' + clase + '</td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }).join('') + '</div>';
+    body.innerHTML = res + det;
+  }
+</script>

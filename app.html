@@ -44,6 +44,11 @@
         <?!= include('partial_sabana') ?>
       </section>
 
+      <!-- Refuerzo, PT y AL por clase -->
+      <section class="view" id="view-apoyos">
+        <?!= include('partial_apoyos') ?>
+      </section>
+
       <!-- Ahora (tramo en curso) -->
       <section class="view" id="view-ahora">
         <div class="page-head"><h2>Ahora</h2><p>Quién está dónde en el tramo en curso, con las sustituciones de hoy aplicadas.</p></div>
@@ -98,6 +103,7 @@
     var TABS = [
       { key: 'sabana',         label: 'Sábana' },
       { key: 'horario',        label: 'Horarios individuales' },
+      { key: 'apoyos',         label: 'Refuerzo, PT y AL' },
       { key: 'ahora',          label: 'Ahora' },
       { key: 'sustituciones',  label: 'Sustituciones', permiso: 'sustituciones' },
       { key: 'config',         label: 'Configuración' }
@@ -273,6 +279,7 @@
 
     var LOADERS = {
       sabana: function() { renderSabana(); },
+      apoyos: function() { renderApoyos(); },
       ahora: function() { renderAhora(); },
       sustituciones: function() { renderSustituciones(); },
       horario: function() { renderHorario(); },

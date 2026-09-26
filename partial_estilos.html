@@ -540,6 +540,22 @@
   .toast.err { background: var(--danger); color: var(--on-danger, #fff); }
   .toast.fuera { opacity: 0; transform: translateY(6px); }
 
+  /* ---------- Refuerzo, PT y AL ---------- */
+  #view-apoyos { font-family: var(--font-cond); }
+  .ap-resumen { width: fit-content; max-width: 100%; margin-bottom: var(--s4); }
+  .ap-resumen table.sb { table-layout: auto; width: auto; }
+  .ap-resumen td, .ap-resumen th { text-align: center; padding: 3px 10px; }
+  .ap-resumen td.sb-curso { text-align: left; }
+  .ap-resumen tr.ap-total td { font-weight: 700; border-top: 2px solid var(--border-strong); background: var(--surface-3); }
+  .ap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 10px; }
+  .ap-card { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+  .ap-card-h { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: var(--band); color: #fff; font-size: var(--fs-md); }
+  .ap-card-h span { font-size: var(--fs-sm); font-weight: 700; background: rgba(255,255,255,.9); color: #1f2430; border-radius: 999px; padding: 0 8px; }
+  table.sb.ap-t { table-layout: auto; width: 100%; }
+  table.sb.ap-t td { white-space: nowrap; overflow: visible; }
+  table.sb.ap-t thead th { text-align: left; }
+  .ap-when { width: 1%; }
+
   /* ---------- Sustituciones (parte diario) ---------- */
   .su-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: var(--s3); }
   .su-toolbar input[type=date] { width: auto; }
