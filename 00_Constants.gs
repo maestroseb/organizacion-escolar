@@ -12,6 +12,8 @@
 // automáticamente la primera vez y su id se guarda en las propiedades del
 // script (ver 01_Bootstrap.gs).
 const PROP_BD_ID = 'BD_ID';
+// Firma del esquema ya aplicado a la BD (evita reinicializar en cada carga).
+const PROP_ESQUEMA_OK = 'ESQUEMA_OK';
 const NOMBRE_BD = 'Gestor de Horarios y Sustituciones — Base de datos';
 
 const SHEETS = {

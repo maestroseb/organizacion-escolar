@@ -32,12 +32,3 @@ function include(nombre) {
   return HtmlService.createHtmlOutputFromFile(nombre).getContent();
 }
 
-/**
- * Permite componer URLs internas de la web app, usable desde el HTML.
- * Ahora todas las secciones viven en la misma página, así que el enlace
- * apunta a la raíz y, opcionalmente, a una pestaña vía hash.
- */
-function enlaceA(page) {
-  const base = ScriptApp.getService().getUrl();
-  return base + (page && page !== 'inicio' ? ('#' + encodeURIComponent(page)) : '');
-}

@@ -27,8 +27,10 @@ function datosHorarioDocente(docenteId) {
         grupo_id: o.grupo_id || '',
         rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
         grupo_destino_id: o.grupo_destino_id || '',
-        mitad: o.mitad || '',
-        semana: o.semana || '',
+        // Filas antiguas guardaron la mitad como número (1/2): el editor
+        // compara con '1'/'2'.
+        mitad: String(o.mitad || ''),
+        semana: String(o.semana || ''),
         notas: o.notas || ''
       };
     });

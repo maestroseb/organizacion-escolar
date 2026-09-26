@@ -5,9 +5,9 @@
  * Es idempotente: si una pestaña ya existe, no la borra; añade columnas
  * que falten al final y avisa de las que sobran.
  *
- * Se invoca desde el wizard HTML (setup.html) vía google.script.run.
- * Devuelve un objeto con el resumen para que el wizard lo muestre.
- * Opera sobre la base de datos del script (getBd()).
+ * Lo invoca asegurarBaseDatos() (01_Bootstrap.gs) solo cuando cambia el
+ * esquema o falta alguna pestaña. Opera sobre la base de datos del script
+ * (getBd()).
  */
 
 function inicializarLibro() {
@@ -16,8 +16,9 @@ function inicializarLibro() {
 
   SHEET_ORDER.forEach(function(nombre) {
     const cabeceras = SCHEMA[nombre];
-    const existia = ss.getSheetByName(nombre) !== null;
-    const sheet = ss.getSheetByName(nombre) || ss.insertSheet(nombre);
+    const previa = ss.getSheetByName(nombre);
+    const existia = previa !== null;
+    const sheet = previa || ss.insertSheet(nombre);
     const estado = aplicarCabeceras_(sheet, cabeceras);
     detalle.push({ pestana: nombre, columnas: cabeceras.length, nueva: !existia, estado: estado });
   });
@@ -28,20 +29,6 @@ function inicializarLibro() {
     ok: true,
     total: SHEET_ORDER.length,
     detalle: detalle
-  };
-}
-
-/**
- * Indica si el libro ya tiene todas las pestañas _* creadas.
- * Lo usa el wizard para marcar el paso 1 como completado al reabrir.
- */
-function estadoEstructura() {
-  const ss = getBd();
-  const faltan = SHEET_ORDER.filter(function(n) { return !ss.getSheetByName(n); });
-  return {
-    completo: faltan.length === 0,
-    faltan: faltan,
-    total: SHEET_ORDER.length
   };
 }
 
@@ -67,10 +54,18 @@ function aplicarCabeceras_(sheet, cabeceras) {
     formatearCabecera_(sheet, existentes.length + faltan.length);
   }
 
-  sheet.setFrozenRows(1);
+  if (sheet.getFrozenRows() !== 1) sheet.setFrozenRows(1);
 
-  if (!faltan.length && !sobran.length) return 'ya existía (sin cambios)';
+  // getAll()/bulkReplace() acceden por POSICIÓN según SCHEMA: si las columnas
+  // de la hoja no siguen ese orden (p.ej. alguien las movió a mano), avisar.
+  const desordenada = existentes.some(function(c, i) {
+    return i < cabeceras.length && cabeceras.indexOf(c) !== -1 && cabeceras[i] !== c;
+  });
+  if (desordenada) Logger.log('AVISO: columnas de ' + sheet.getName() + ' fuera del orden de SCHEMA.');
+
+  if (!faltan.length && !sobran.length && !desordenada) return 'ya existía (sin cambios)';
   const partes = [];
+  if (desordenada) partes.push('columnas fuera de orden');
   if (faltan.length) partes.push('añadidas: ' + faltan.join(', '));
   if (sobran.length) partes.push('sobran: ' + sobran.join(', '));
   return partes.join(' | ');

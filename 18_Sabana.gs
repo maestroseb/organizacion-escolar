@@ -57,15 +57,6 @@ function sabanaSemana() {
   };
 }
 
-function sabanaTramo(dia, tramoId) {
-  dia = _diaCanon(dia);
-  const ctx = _sabanaContexto();
-  const t = ctx.tramos.filter(function(x) { return x.id === tramoId; })[0];
-  if (!t) throw new Error('Tramo no encontrado.');
-  const ocupDia = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === dia; });
-  return { dia: dia, diaLargo: _diaLargo(dia), tramo: _sabanaTramoData(t, ocupDia, ctx) };
-}
-
 // ---------- Internos ----------
 
 function _sabanaContexto() {
@@ -138,7 +129,7 @@ function _sabanaTramoData(t, ocupDia, ctx) {
           docente: nombreDoc(o.docente_id),
           materia: m ? (m.abreviatura || m.nombre) : '',
           color: m ? (m.color || '') : '',
-          mitad: o.mitad || '', semana: o.semana || ''
+          mitad: String(o.mitad || ''), semana: String(o.semana || '')
         };
       });
 
@@ -211,6 +202,7 @@ function _nombresGrupos(csv, ctx) {
 
 function _diaCanon(d) {
   const s = String(d || '').trim().toUpperCase();
+  if (s.indexOf('MI') === 0) return 'X'; // 'MIÉRCOLES' no es martes
   return s.charAt(0); // 'LUNES'→'L', ya viene 'L'…'V'
 }
 
