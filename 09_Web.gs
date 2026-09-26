@@ -22,6 +22,7 @@ function doGet(e) {
     return ta.evaluate()
       .setTitle('Ahora · Sábana')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setFaviconUrl(FAVICON_URL)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
   }
 
@@ -31,7 +32,8 @@ function doGet(e) {
   return t.evaluate()
     .setTitle('Gestor de Horarios y Sustituciones')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setFaviconUrl(FAVICON_URL)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 /**
