@@ -1,0 +1,91 @@
+<div class="ah-toolbar" id="ah-toolbar">
+  <div class="segmented">
+    <button type="button" onclick="ahMover(-1)" title="Tramo anterior">‹</button>
+    <button type="button" onclick="ahMover(0)" title="Volver al tramo en curso">Ahora</button>
+    <button type="button" onclick="ahMover(1)" title="Tramo siguiente">›</button>
+  </div>
+  <span class="sb-grow"></span>
+  <button type="button" class="secondary" onclick="ahCopiarEnlace()" title="Enlace directo que muestra solo el tramo actual (para el Site del profesorado)">Copiar enlace directo</button>
+</div>
+<div id="ah-body"><p class="hint"><span class="spinner"></span> Cargando…</p></div>
+
+<script>
+  // AHORA: el tramo en curso de hoy (semana A/B y sustituciones aplicadas).
+  // Se usa en la pestaña de la app y en la página ligera ?vista=ahora.
+  var AH = null, AH_IDX = null, AH_FIJO = false, AH_TIMER = null;
+
+  function renderAhora() {
+    if (AH) { _ahPintar(); return; }
+    google.script.run.withSuccessHandler(ahDatos)
+      .withFailureHandler(function(err) { document.getElementById('ah-body').innerHTML = _errHtml(err); })
+      .datosAhora();
+  }
+  function ahDatos(res) {
+    AH = res; AH_FIJO = false; _ahPintar();
+    // El reloj avanza de tramo solo; los datos se refrescan cada 5 min.
+    if (!AH_TIMER) AH_TIMER = setInterval(function() {
+      if (!AH || document.getElementById('ah-body').offsetParent === null) return; // pestaña oculta
+      if (!AH_FIJO) _ahPintar();
+      if (Date.now() - (AH._t || 0) > 300000) google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); }).datosAhora();
+    }, 30000);
+    AH._t = Date.now();
+  }
+  function ahMover(d) {
+    if (!AH || !AH.tramos || !AH.tramos.length) return;
+    if (d === 0) { AH_FIJO = false; }
+    else { AH_FIJO = true; AH_IDX = Math.max(0, Math.min(AH.tramos.length - 1, (AH_IDX == null ? 0 : AH_IDX) + d)); }
+    _ahPintar();
+  }
+
+  function _ahMin(hhmm) { var m = String(hhmm || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  // Índice del tramo en curso; si no hay, el siguiente (o el último) y su estado.
+  function _ahActual() {
+    var d = new Date(), now = d.getHours() * 60 + d.getMinutes(), sig = null;
+    for (var i = 0; i < AH.tramos.length; i++) {
+      var p = String(AH.tramos[i].tramo.horas).split('–'), a = _ahMin(p[0]), b = _ahMin(p[1]);
+      if (a != null && b != null && now >= a && now < b) return { i: i, estado: 'ahora' };
+      if (sig == null && a != null && now < a) sig = i;
+    }
+    return sig != null ? { i: sig, estado: 'proximo' } : { i: AH.tramos.length - 1, estado: 'terminado' };
+  }
+
+  function _ahPintar() {
+    var cont = document.getElementById('ah-body');
+    if (!AH) return;
+    if (AH.finDeSemana || !AH.tramos || !AH.tramos.length) { cont.innerHTML = '<div class="empty">Hoy no hay clase.</div>'; return; }
+    var act = _ahActual(), estado = 'ahora';
+    if (AH_FIJO) estado = (AH_IDX === act.i && act.estado === 'ahora') ? 'ahora' : 'otro';
+    else { AH_IDX = act.i; estado = act.estado; }
+    var t = AH.tramos[AH_IDX], tr = t.tramo;
+    var col = _sbColor(tr.color) || '#4f9d84', st = _sbHeadStyle(col);
+    var etq = { ahora: 'AHORA', proximo: 'PRÓXIMO', terminado: 'ÚLTIMO TRAMO', otro: 'TRAMO' }[estado];
+    var html = '<div class="ah-card">' +
+      '<div class="ah-head" style="' + st + '"><span class="ah-etq">' + etq + '</span>' +
+        _esc(String(AH.diaLargo).toUpperCase() + ' · TRAMO ' + tr.orden + ' · ' + tr.horas) +
+        '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
+    if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
+    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>';
+    else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t) + '">' +
+      '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
+      '<div class="sb-pane">' + _sbTablaApoyos(t.apoyos) + '</div></div>' + _sbLibres(t.libres);
+    cont.innerHTML = html + '</div>';
+  }
+  function _ahAnchos(t) {
+    var cu = 3, doc = 4, oc = 4;
+    t.cursos.forEach(function(c) {
+      cu = Math.max(cu, String(c.grupo.nombre || '').length);
+      var ns = [];
+      c.ocupantes.forEach(function(o) { if (ns.indexOf(o.docente) === -1) ns.push(o.docente); oc = Math.max(oc, String(o.materia || '').length); });
+      doc = Math.max(doc, ns.join(' · ').length);
+    });
+    t.apoyos.forEach(function(a) { doc = Math.max(doc, String(a.docente || '').length + (a.cubre ? 6 : 0)); oc = Math.max(oc, String(a.rol || '').length + (a.destino && a.destino.length ? a.destino.join(' / ').length + 1 : 0)); });
+    return '--sb-cw:calc(' + cu + 'ch + 12px);--sb-docw:calc(' + doc + 'ch + 14px);--sb-ocw:calc(' + Math.min(oc, 16) + 'ch + 18px);';
+  }
+  function ahCopiarEnlace() {
+    var url = (ESTADO && ESTADO.urlApp) ? ESTADO.urlApp + '?vista=ahora' : '';
+    if (!url) { alert('No se pudo obtener la URL de la app.'); return; }
+    var ok = function() { alert('Enlace copiado:\n' + url + '\n\nPégalo en el Site del profesorado (Insertar → URL) o como botón.'); };
+    try { navigator.clipboard.writeText(url).then(ok, function() { prompt('Copia el enlace:', url); }); }
+    catch (e) { prompt('Copia el enlace:', url); }
+  }
+</script>

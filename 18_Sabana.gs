@@ -54,32 +54,36 @@ function sabanaSemana(semana) {
 }
 
 /**
- * Semana alterna en curso ('A' o 'B'). La semana A es la que contiene la
- * fecha de inicio del curso (Centro) y se alterna cada semana natural; sin
- * fecha, se usa la paridad de la semana ISO. Sábado y domingo cuentan ya
- * como la semana siguiente.
+ * Semana alterna ('A' o 'B') de una fecha (por defecto, hoy). La semana A es
+ * la que contiene la fecha de inicio del curso (Centro) y se alterna cada
+ * semana natural; sin fecha, se usa la paridad de la semana ISO. Sábado y
+ * domingo cuentan ya como la semana siguiente.
  */
-function semanaActual() {
+function semanaActual(fecha) {
   const DIA = 86400000;
   const lunes = function(d) {
     const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const wd = (x.getDay() + 6) % 7; // 0 = lunes
-    x.setDate(x.getDate() - wd);
+    x.setDate(x.getDate() - (x.getDay() + 6) % 7);
     return x;
   };
-  let hoy = new Date();
+  let hoy = fecha ? _fechaLocal(fecha) : new Date();
   if (hoy.getDay() === 0 || hoy.getDay() === 6) hoy = new Date(hoy.getTime() + 2 * DIA);
   const centro = findById(SHEETS.CENTRO, CENTRO_ID) || {};
-  let ini = centro.fecha_inicio;
-  if (ini && !(ini instanceof Date)) ini = new Date(String(ini));
+  const ini = centro.fecha_inicio ? _fechaLocal(centro.fecha_inicio) : null;
   let n;
-  if (ini instanceof Date && !isNaN(ini)) {
+  if (ini && !isNaN(ini)) {
     n = Math.round((lunes(hoy) - lunes(ini)) / (7 * DIA));
   } else {
-    const j = new Date(hoy.getFullYear(), 0, 4);
-    n = Math.round((lunes(hoy) - lunes(j)) / (7 * DIA)); // semana ISO - 1
+    n = Math.round((lunes(hoy) - lunes(new Date(hoy.getFullYear(), 0, 4))) / (7 * DIA));
   }
   return (((n % 2) + 2) % 2) === 0 ? 'A' : 'B';
+}
+
+/** 'yyyy-MM-dd' (o Date) → Date a medianoche local. */
+function _fechaLocal(v) {
+  if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(String(v));
 }
 
 // ---------- Internos ----------

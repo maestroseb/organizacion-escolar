@@ -1,0 +1,154 @@
+<div class="page-head">
+  <h2>Sustituciones</h2>
+  <p>Parte del día: marca quién falta, revisa su horario y asigna quién cubre cada tramo. Primero se proponen los apoyos (por prioridad de sustitución) y después los libres, con las sustituciones de los últimos 30 días entre paréntesis.</p>
+</div>
+
+<div class="su-toolbar">
+  <input type="date" id="su-fecha" onchange="suCargar(this.value)">
+  <span class="su-dia" id="su-dia"></span>
+  <select id="su-add" onchange="suAnadirAusente(this.value); this.value='';"><option value="">+ Añadir ausente…</option></select>
+  <span class="sb-grow"></span>
+  <button type="button" class="secondary" onclick="suAutoasignar()" title="Rellena los huecos sin asignar con la mejor opción disponible">Autoasignar</button>
+  <button type="button" class="secondary" onclick="window.print()">Imprimir</button>
+  <button type="button" class="primary" id="su-guardar" onclick="suGuardar()">Guardar</button>
+</div>
+<div id="su-res"></div>
+<div id="su-body"></div>
+
+<script>
+  var SU = null, SU_AUS = [], SU_ASIG = {}, SU_DIRTY = false; // SU_ASIG[ausente|tramo] = sustituto
+
+  function renderSustituciones() {
+    var inp = document.getElementById('su-fecha');
+    if (!inp.value) inp.value = _suHoyLaborable();
+    suCargar(inp.value);
+  }
+  function _suHoyLaborable() {
+    var d = new Date(); while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function suCargar(fecha) {
+    var go = function() {
+      document.getElementById('su-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
+      document.getElementById('su-res').innerHTML = '';
+      google.script.run.withSuccessHandler(function(res) {
+        SU = res; SU_DIRTY = false; SU_AUS = []; SU_ASIG = {};
+        (res.sustituciones || []).forEach(function(s) {
+          if (SU_AUS.indexOf(s.ausente) === -1) SU_AUS.push(s.ausente);
+          SU_ASIG[s.ausente + '|' + s.tramo] = s.sustituto || '';
+        });
+        _suPintar();
+      }).withFailureHandler(function(err) { document.getElementById('su-body').innerHTML = _errHtml(err); }).datosSustituciones(fecha);
+    };
+    if (SU_DIRTY) confirmar('Hay cambios sin guardar en este día. ¿Descartarlos?', go); else go();
+  }
+  function _suNombre(id) { var d = SU && SU._byId && SU._byId[id]; return d ? d.nombre : '¿?'; }
+
+  function _suPintar() {
+    var body = document.getElementById('su-body');
+    document.getElementById('su-dia').textContent = SU.finDeSemana ? 'Fin de semana' : (SU.diaLargo + ' · Semana ' + SU.semana);
+    if (SU.finDeSemana) { body.innerHTML = '<div class="empty">Ese día no hay clase.</div>'; return; }
+    SU._byId = {}; SU.docentes.forEach(function(d) { SU._byId[d.id] = d; });
+    // Selector de ausentes: docentes aún no marcados.
+    document.getElementById('su-add').innerHTML = '<option value="">+ Añadir ausente…</option>' +
+      SU.docentes.filter(function(d) { return SU_AUS.indexOf(d.id) === -1; })
+        .map(function(d) { return '<option value="' + _esc(d.id) + '">' + _esc(d.nombre) + '</option>'; }).join('');
+    if (!SU_AUS.length) { body.innerHTML = '<div class="empty">Nadie marcado como ausente este día. Añade un ausente arriba.</div>'; return; }
+
+    var h = '<div class="su-wrap"><table class="su"><thead><tr><th class="su-tr">Tramo</th>' +
+      SU_AUS.map(function(a) {
+        return '<th colspan="2" class="su-aus">' + _esc(_suNombre(a)) +
+          ' <button type="button" class="btn-icon" title="Quitar ausente" onclick="suQuitarAusente(' + _jsAttr(a) + ')">×</button></th>';
+      }).join('') + '</tr></thead><tbody>';
+    SU.tramos.forEach(function(t) {
+      if (t.es_recreo) { h += '<tr class="su-recreo"><td colspan="' + (1 + SU_AUS.length * 2) + '">RECREO · ' + _esc(t.horas) + '</td></tr>'; return; }
+      h += '<tr><td class="su-tr"><span class="su-bar" style="background:' + _esc(_sbColor(t.color) || '#999') + '"></span><b>' + _esc(t.orden) + '</b> ' + _esc(t.horas) + '</td>';
+      SU_AUS.forEach(function(a) {
+        var ocs = ((SU.horario[a] || {})[t.id]) || [];
+        if (!ocs.length) { h += '<td class="su-oc su-vacio">—</td><td class="su-sel"></td>'; return; }
+        var pill = ocs.map(function(o) {
+          return '<span class="sb-pill" style="' + _sbPill(o.color) + '">' + _esc(o.texto + (o.area ? ' | ' + o.area : '')) + '</span>';
+        }).join(' ');
+        h += '<td class="su-oc">' + pill + '</td><td class="su-sel">' + _suSelect(a, t.id) + '</td>';
+      });
+      h += '</tr>';
+    });
+    body.innerHTML = h + '</tbody></table></div>';
+  }
+
+  // Opciones: apoyos del tramo (prioridad), libres (menos cargados antes) y resto.
+  function _suSelect(aus, tramo) {
+    var k = aus + '|' + tramo, val = SU_ASIG[k] || '', c = SU.candidatos[tramo] || { apoyos: [], libres: [] };
+    var usados = {};
+    Object.keys(SU_ASIG).forEach(function(x) { if (x !== k && x.split('|')[1] === tramo && SU_ASIG[x]) usados[SU_ASIG[x]] = true; });
+    var vistos = {}, opt = function(id, txt) {
+      vistos[id] = true;
+      var dis = (usados[id] || SU_AUS.indexOf(id) !== -1) && id !== val;
+      return '<option value="' + _esc(id) + '"' + (id === val ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + _esc(txt) + (usados[id] ? ' (ya cubre)' : '') + '</option>';
+    };
+    var carga = function(id) { return (SU._byId[id] || {}).carga || 0; };
+    var g1 = c.apoyos.filter(function(x) { return SU_AUS.indexOf(x.id) === -1 && SU._byId[x.id]; })
+      .map(function(x) { return opt(x.id, _suNombre(x.id) + ' · ' + x.rol + ' (' + carga(x.id) + ')'); }).join('');
+    var g2 = c.libres.filter(function(id) { return SU_AUS.indexOf(id) === -1 && !vistos[id]; })
+      .sort(function(a, b) { return carga(a) - carga(b); })
+      .map(function(id) { return opt(id, _suNombre(id) + ' (' + carga(id) + ')'); }).join('');
+    var g3 = SU.docentes.filter(function(d) { return !vistos[d.id] && SU_AUS.indexOf(d.id) === -1; })
+      .map(function(d) { return opt(d.id, d.nombre); }).join('');
+    return '<select class="' + (val ? 'ok' : 'pend') + '" onchange="suAsignar(' + _jsAttr(k) + ', this.value)">' +
+      '<option value="">— sin cubrir —</option>' +
+      (g1 ? '<optgroup label="Apoyos (prioridad)">' + g1 + '</optgroup>' : '') +
+      (g2 ? '<optgroup label="Libres">' + g2 + '</optgroup>' : '') +
+      (g3 ? '<optgroup label="Con clase">' + g3 + '</optgroup>' : '') + '</select>';
+  }
+
+  function suAsignar(k, v) { SU_ASIG[k] = v; SU_DIRTY = true; _suPintar(); }
+  function suAnadirAusente(id) { if (!id || SU_AUS.indexOf(id) !== -1) return; SU_AUS.push(id); SU_DIRTY = true; _suPintar(); }
+  function suQuitarAusente(id) {
+    SU_AUS = SU_AUS.filter(function(a) { return a !== id; });
+    Object.keys(SU_ASIG).forEach(function(k) { if (k.split('|')[0] === id) delete SU_ASIG[k]; });
+    SU_DIRTY = true; _suPintar();
+  }
+
+  // Rellena huecos: primero apoyos por prioridad; luego libres con menos carga
+  // (contando también lo asignado hoy). Nunca repite persona en un tramo.
+  function suAutoasignar() {
+    if (!SU || !SU_AUS.length) return;
+    var hoy = {};
+    Object.keys(SU_ASIG).forEach(function(k) { if (SU_ASIG[k]) hoy[SU_ASIG[k]] = (hoy[SU_ASIG[k]] || 0) + 1; });
+    var carga = function(id) { return ((SU._byId[id] || {}).carga || 0) + (hoy[id] || 0) * 2; };
+    SU.tramos.forEach(function(t) {
+      if (t.es_recreo) return;
+      var c = SU.candidatos[t.id] || { apoyos: [], libres: [] }, usados = {};
+      SU_AUS.forEach(function(a) { var v = SU_ASIG[a + '|' + t.id]; if (v) usados[v] = true; });
+      SU_AUS.forEach(function(a) {
+        var k = a + '|' + t.id;
+        if (SU_ASIG[k] || !((SU.horario[a] || {})[t.id] || []).length) return;
+        var libre = function(id) { return !usados[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
+        var el = (c.apoyos.filter(function(x) { return libre(x.id); })[0] || {}).id ||
+                 c.libres.filter(libre).sort(function(x, y) { return carga(x) - carga(y); })[0];
+        if (el) { SU_ASIG[k] = el; usados[el] = true; hoy[el] = (hoy[el] || 0) + 1; SU_DIRTY = true; }
+      });
+    });
+    _suPintar();
+  }
+
+  function suGuardar() {
+    if (!SU || SU.finDeSemana) return;
+    var lista = [];
+    SU_AUS.forEach(function(a) {
+      SU.tramos.forEach(function(t) {
+        if (t.es_recreo || !((SU.horario[a] || {})[t.id] || []).length) return;
+        lista.push({ ausente: a, tramo: t.id, sustituto: SU_ASIG[a + '|' + t.id] || '' });
+      });
+    });
+    var btn = document.getElementById('su-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
+    google.script.run.withSuccessHandler(function(r) {
+      btn.disabled = false; btn.textContent = 'Guardar'; SU_DIRTY = false;
+      document.getElementById('su-res').innerHTML = '<div class="result ok">✓ Guardadas ' + r.total + ' sustituciones del ' + _esc(SU.fecha) + '.</div>';
+      if (typeof AH !== 'undefined') { AH = null; if (typeof _CARGADO !== 'undefined') delete _CARGADO.ahora; }
+    }).withFailureHandler(function(err) {
+      btn.disabled = false; btn.textContent = 'Guardar';
+      document.getElementById('su-res').innerHTML = _errHtml(err);
+    }).guardarSustituciones(SU.fecha, lista);
+  }
+</script>

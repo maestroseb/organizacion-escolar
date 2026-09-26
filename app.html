@@ -44,6 +44,17 @@
         <?!= include('partial_sabana') ?>
       </section>
 
+      <!-- Ahora (tramo en curso) -->
+      <section class="view" id="view-ahora">
+        <div class="page-head"><h2>Ahora</h2><p>Quién está dónde en el tramo en curso, con las sustituciones de hoy aplicadas.</p></div>
+        <?!= include('partial_ahora') ?>
+      </section>
+
+      <!-- Sustituciones (Equipo Directivo y Admin) -->
+      <section class="view" id="view-sustituciones">
+        <?!= include('partial_sustituciones') ?>
+      </section>
+
       <!-- Horario del docente -->
       <section class="view" id="view-horario">
         <?!= include('partial_horario') ?>
@@ -85,8 +96,8 @@
     var TABS = [
       { key: 'sabana',         label: 'Sábana' },
       { key: 'horario',        label: 'Horario docente' },
-      { key: 'ahora',          label: 'Ahora',         soon: true },
-      { key: 'sustituciones',  label: 'Sustituciones', soon: true, permiso: 'sustituciones' },
+      { key: 'ahora',          label: 'Ahora' },
+      { key: 'sustituciones',  label: 'Sustituciones', permiso: 'sustituciones' },
       { key: 'config',         label: 'Configuración' }
     ];
     var INICIO = 'sabana';
@@ -211,6 +222,8 @@
 
     var LOADERS = {
       sabana: function() { renderSabana(); },
+      ahora: function() { renderAhora(); },
+      sustituciones: function() { renderSustituciones(); },
       horario: function() { renderHorario(); },
       importar: function() { prepararImportar(); },
       ajustes: function() { renderConfig(); },

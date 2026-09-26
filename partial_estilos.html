@@ -475,15 +475,57 @@
   /* Exportación: copia sin recorte (PNG) e impresión apaisada (PDF). */
   .sb-weekscroll.sb-export { overflow: visible; max-height: none; width: max-content; border-radius: 0; box-shadow: none; }
   .sb-export .sb-rail, .sb-export > .sb-recreo { position: static; }
+  .sb-semb { display: inline-block; margin-inline-start: 6px; background: rgba(255,255,255,.92); color: #1f2430; border-radius: 3px; font-size: 10px; line-height: 13px; padding: 0 3px; letter-spacing: 0; }
+  #sb-print { display: none; }
+  /* En pantalla, mientras se prepara la impresión, fuera de la vista pero medible. */
+  body.print-sabana #sb-print { display: block; position: absolute; left: -100000px; top: 0; }
   @media print {
     @page { size: A4 landscape; margin: 6mm; }
     body.print-sabana { background: #fff; }
-    body.print-sabana .topbar, body.print-sabana .page-head, body.print-sabana .sb-toolbar, body.print-sabana #config-subnav { display: none !important; }
-    body.print-sabana .shell { padding: 0; max-width: none; }
+    body.print-sabana #workspace, body.print-sabana #onboarding { display: none !important; }
+    body.print-sabana #sb-print { display: block; position: static; }
+    body.print-sabana .sb-print-sem + .sb-print-sem { break-before: page; }
     body.print-sabana .sb-weekscroll { overflow: visible; max-height: none; width: max-content; border: none; box-shadow: none; zoom: var(--sb-print-zoom, 1); }
     body.print-sabana .sb-rail, body.print-sabana .sb-weekscroll > .sb-recreo { position: static; }
     body.print-sabana .sb-weekrow { break-inside: avoid; }
     body.print-sabana * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+
+  /* ---------- Ahora (tramo en curso) ---------- */
+  .ah-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: var(--s3); }
+  .ah-solo #ah-toolbar { display: none; }
+  .ah-solo .shell { padding: 10px; }
+  .ah-card { font-family: var(--font-cond); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); width: fit-content; max-width: 100%; }
+  .ah-head { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: .03em; padding: 6px 12px; }
+  .ah-etq { font-size: 11px; letter-spacing: .08em; background: rgba(0,0,0,.22); color: #fff; border-radius: 999px; padding: 2px 8px; }
+  .ah-sem { margin-left: auto; font-size: 11px; background: rgba(255,255,255,.92); color: #1f2430; border-radius: 4px; padding: 0 6px; line-height: 18px; }
+  .ah-aus { font-size: var(--fs-sm); padding: 4px 12px; background: var(--warn-weak, #fff4e0); color: var(--text); border-bottom: 1px solid var(--border); }
+  .ah-cols { overflow-x: auto; }
+  .ah-cols table.sb { font-size: 14px; }
+  .ah-recreo { padding: 10px; font-size: var(--fs-md); }
+  .sb-sus { background: var(--accent-weak); color: var(--accent-text); border-radius: 3px; padding: 0 4px; font-weight: 700; }
+  .sb-cubre { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--accent-text); }
+
+  /* ---------- Sustituciones (parte diario) ---------- */
+  .su-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: var(--s3); }
+  .su-toolbar input[type=date] { width: auto; }
+  .su-toolbar select { width: auto; min-width: 180px; }
+  .su-dia { font-family: var(--font-cond); font-weight: 700; font-size: var(--fs-md); }
+  .su-wrap { overflow: auto; max-width: 100%; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); width: fit-content; }
+  table.su { border-collapse: collapse; font-family: var(--font-cond); font-size: var(--fs-data); }
+  table.su th { position: sticky; top: 0; background: var(--surface-3); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .03em; padding: 4px 8px; text-align: left; white-space: nowrap; z-index: 1; }
+  table.su th.su-aus { text-align: center; border-left: 2px solid var(--border-strong); }
+  table.su td { padding: 2px 6px; border-top: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
+  table.su td.su-oc { border-left: 2px solid var(--border-strong); min-width: 120px; }
+  table.su td.su-vacio { color: var(--faint); text-align: center; }
+  table.su .su-tr { position: sticky; left: 0; background: var(--surface); z-index: 1; font-variant-numeric: tabular-nums; }
+  .su-bar { display: inline-block; width: 4px; height: 14px; border-radius: 2px; margin-right: 6px; vertical-align: -2px; }
+  table.su tr.su-recreo td { background: var(--recreo); color: #fff; text-align: center; font-weight: 700; font-size: var(--fs-xs); letter-spacing: .12em; padding: 2px; }
+  table.su select { min-height: 24px; padding: 0 4px; font-family: inherit; font-size: var(--fs-data); width: 150px; }
+  table.su select.pend { border-color: var(--warn); }
+  @media print {
+    body:not(.print-sabana) .topbar, body:not(.print-sabana) .su-toolbar, body:not(.print-sabana) #view-sustituciones .page-head { display: none !important; }
+    body:not(.print-sabana) table.su select { border: none; appearance: none; background: none; font-weight: 700; }
   }
 
   /* ---------- Horario del docente (cabecera y columna de tramo fijas) ---------- */

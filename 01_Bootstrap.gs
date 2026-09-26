@@ -97,6 +97,7 @@ function estadoApp() {
     centro: centro || null,
     bdUrl: bdUrl,
     permisos: permisosUsuario(),
+    urlApp: (function() { try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; } })(),
     contadores: {
       tramos:         _contar(SHEETS.TRAMOS),
       grupos:         _contar(SHEETS.GRUPOS),

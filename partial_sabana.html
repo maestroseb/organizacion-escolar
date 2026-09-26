@@ -48,8 +48,13 @@
   function _pintarSemana(res) {
     const cont = document.getElementById('sb-body');
     if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
-    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos</b>.</div>'; return; }
-    cont.innerHTML = res.tramos.map(function(t){
+    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Centro y horario</b>.</div>'; return; }
+    cont.innerHTML = _sbGridHtml(res);
+  }
+  // Rejilla completa de una semana; cada rail lleva un badge con la semana (A/B).
+  function _sbGridHtml(res) {
+    var badge = res.semana ? '<span class="sb-semb" title="Semana ' + _esc(res.semana) + '">' + _esc(res.semana) + '</span>' : '';
+    var html = res.tramos.map(function(t){
       if (t.tramo.es_recreo) return _sbRecreo(t.tramo);
       var col = _sbColor(t.tramo.color) || '#4f9d84', st = _sbHeadStyle(col);
       var cols = res.dias.map(function(d){
@@ -61,10 +66,10 @@
         '</div>';
       }).join('');
       return '<div class="sb-weekrow sb-tramo-w">' +
-          '<div class="sb-rail" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + '</div>' + cols +
+          '<div class="sb-rail" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + badge + '</div>' + cols +
         '</div>';
     }).join('');
-    cont.innerHTML = '<div class="sb-weekscroll" style="' + _sbAnchos(res) + '">' + cont.innerHTML + '</div>';
+    return '<div class="sb-weekscroll" style="' + _sbAnchos(res) + '">' + html + '</div>';
   }
 
   // Columnas Curso y Docente apenas más anchas que el nombre más largo (en ch de la
@@ -96,15 +101,30 @@
 
   // ---------- Exportar: PDF (impresión apaisada) y PNG ----------
   function _sbGrid() { return document.querySelector('#sb-body .sb-weekscroll'); }
+  // Imprime las DOS semanas (A y B) seguidas, cada una con su badge.
   function sbImprimir() {
-    var g = _sbGrid(); if (!g) return;
+    var falta = ['A', 'B'].filter(function(k) { return !_sbCache[k]; });
+    if (falta.length) {
+      var btn = event && event.target; if (btn) btn.disabled = true;
+      var pend = falta.length;
+      falta.forEach(function(k) {
+        google.script.run.withSuccessHandler(function(res) {
+          _sbCache[k] = res;
+          if (--pend === 0) { if (btn) btn.disabled = false; sbImprimir(); }
+        }).withFailureHandler(function(err) { if (btn) btn.disabled = false; alert('No se pudo cargar la semana ' + k + ': ' + ((err && err.message) || err)); })
+          .sabanaSemana(k);
+      });
+      return;
+    }
+    var pr = document.getElementById('sb-print') || document.body.appendChild(Object.assign(document.createElement('div'), { id: 'sb-print' }));
+    pr.innerHTML = ['A', 'B'].map(function(k) { return '<div class="sb-print-sem">' + _sbGridHtml(_sbCache[k]) + '</div>'; }).join('');
     // Ajusta al ancho útil de un A4 apaisado (≈ 1080 px) para que quepa la semana.
-    var z = Math.min(1, 1080 / g.scrollWidth);
-    document.documentElement.style.setProperty('--sb-print-zoom', z);
+    var g = pr.querySelector('.sb-weekscroll');
     document.body.classList.add('print-sabana');
-    var fin = function() { document.body.classList.remove('print-sabana'); window.removeEventListener('afterprint', fin); };
+    document.documentElement.style.setProperty('--sb-print-zoom', Math.min(1, 1080 / g.scrollWidth));
+    var fin = function() { document.body.classList.remove('print-sabana'); pr.innerHTML = ''; window.removeEventListener('afterprint', fin); };
     window.addEventListener('afterprint', fin);
-    setTimeout(function() { window.print(); setTimeout(fin, 1000); }, 50);
+    setTimeout(function() { window.print(); }, 50);
   }
   var _h2cEspera = null;
   function _cargarH2c(cb) {
@@ -129,7 +149,11 @@
       host.style.cssText = 'position:fixed;left:-100000px;top:0;';
       host.appendChild(copia); document.getElementById('sb-body').appendChild(host);
       var bg = getComputedStyle(document.body).backgroundColor;
-      html2canvas(copia, { scale: 2, backgroundColor: bg, windowWidth: copia.scrollWidth + 40 })
+      // Escala alta (hasta 4x) para que al hacer zoom se lea todo, sin pasar
+      // los límites del canvas (32 767 px por lado y ~250 Mpx de área).
+      var w = copia.scrollWidth, h = copia.scrollHeight;
+      var esc = Math.max(1, Math.min(4, 32000 / w, 32000 / h, Math.sqrt(250e6 / (w * h))));
+      html2canvas(copia, { scale: esc, backgroundColor: bg, windowWidth: w + 40 })
         .then(function(canvas) {
           var a = document.createElement('a');
           a.download = 'sabana-semana-' + (SB_SEM || '') + '.png';
@@ -155,6 +179,13 @@
     '</div>';
   }
   var _SB_COLS = '<colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>';
+  // Nombre de docente; en Ahora marca sustituciones (o.ausente) y huecos sin cubrir.
+  function _sbNombre(o) {
+    if (o.sinCubrir) return '<span class="sb-sin" title="Ausente: ' + _esc(o.ausente) + '">sin cubrir</span>';
+    if (o.ausente) return '<span class="sb-sus" title="Sustituye a ' + _esc(o.ausente) + '">' + _esc(o.docente) + '</span>';
+    return _esc(o.docente || '—') + (o.cubre ? ' <span class="sb-cubre" title="Está cubriendo una sustitución">sust.</span>' : '');
+  }
+
   // Orden dentro de un curso compartido: Religión, luego ATEDU, luego el resto.
   function _sbPrio(o) {
     var m = String(o.materia || '').toLowerCase();
@@ -169,8 +200,8 @@
       var ocs = c.ocupantes.map(function(o, i) { return { o: o, i: i }; })
         .sort(function(a, b) { return (_sbPrio(a.o) - _sbPrio(b.o)) || (a.i - b.i); })
         .map(function(x) { return x.o; });
-      var nombres = [];
-      ocs.forEach(function(o) { var n = o.docente || '—'; if (nombres.indexOf(n) === -1) nombres.push(n); });
+      var nombres = [], vistos = {};
+      ocs.forEach(function(o) { var k = (o.docente || '—') + '|' + (o.ausente || ''); if (!vistos[k]) { vistos[k] = 1; nombres.push(o); } });
       var detalle = ocs.map(function(o) { return (o.docente || '—') + (o.materia ? ': ' + o.materia : (o.tutor ? ': tutoría' : '')); }).join(' · ');
       var pills = ocs.filter(function(o) { return o.materia; }).map(function(o) {
         return '<span class="sb-pill" style="' + _sbPill(o.color) + '">' + _esc(o.materia) + '</span>';
@@ -179,7 +210,7 @@
              : pills.length ? pills[0]
              : (ocs[0].tutor ? '<span class="sb-tutor">tutoría</span>' : '');
       return '<tr title="' + _esc(detalle) + '">' + curso +
-        '<td class="sb-doc">' + nombres.map(_esc).join('<span class="sb-sep">·</span>') + '</td>' +
+        '<td class="sb-doc">' + nombres.map(_sbNombre).join('<span class="sb-sep">·</span>') + '</td>' +
         '<td class="sb-oc">' + oc + '</td></tr>';
     }).join('');
     return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
@@ -188,7 +219,7 @@
     var rows = apoyos.map(function(a){
       var dest = (a.destino && a.destino.length) ? (' ' + _esc(a.destino.join(' / '))) : '';
       return '<tr><td class="sb-loc">#' + _esc(('0' + a.loc).slice(-2)) + '</td>' +
-        '<td class="sb-doc">' + _esc(a.docente) + '</td>' +
+        '<td class="sb-doc">' + _sbNombre(a) + '</td>' +
         '<td class="sb-oc"><span class="sb-pill" style="' + _sbPill(a.color) + '" title="' + _esc(a.rolLargo || a.rol) + '">' + _esc(a.rol) + dest + '</span></td></tr>';
     }).join('') || '<tr><td colspan="3" style="padding:8px;color:var(--faint)">—</td></tr>';
     return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';

@@ -15,6 +15,16 @@ function doGet(e) {
 
   const page = (e && e.parameter && e.parameter.page) || '';
 
+  // Enlace directo para el Site del profesorado: solo el tramo en curso.
+  if (e && e.parameter && e.parameter.vista === 'ahora') {
+    const ta = HtmlService.createTemplateFromFile('ahora');
+    ta.datos = datosAhora();
+    return ta.evaluate()
+      .setTitle('Ahora · Sábana')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   const t = HtmlService.createTemplateFromFile('app');
   t.pestanaInicial = page;
 

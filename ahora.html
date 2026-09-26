@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <?!= include('partial_estilos') ?>
+</head>
+<body class="ah-solo">
+  <main class="shell">
+    <div id="view-sabana" style="display:none"><?!= include('partial_sabana') ?></div>
+    <?!= include('partial_ahora') ?>
+  </main>
+  <script>
+    // Página ligera para el Site del profesorado: los datos llegan incrustados
+    // (sin segunda ida y vuelta) y solo se muestra el tramo en curso.
+    function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function _errHtml(err) { return '<div class="result err">✗ ' + _esc((err && err.message) || err || 'Error') + '</div>'; }
+    var ESTADO = null, DATOS_VERSION = 0;
+    ahDatos(<?!= JSON.stringify(datos).replace(/</g, '\\u003c') ?>);
+  </script>
+</body>
+</html>
