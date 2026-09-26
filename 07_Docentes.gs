@@ -11,7 +11,9 @@
 
 function listarDocentes() {
   const docentes = getAll(SHEETS.DOCENTES);
-  docentes.sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
+  docentes.sort(function(a, b) {
+    return String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es', { sensitivity: 'base' });
+  });
   return docentes;
 }
 

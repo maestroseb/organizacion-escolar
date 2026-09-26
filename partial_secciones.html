@@ -438,7 +438,13 @@
   function cargarDocentes() {
     _pintarSesion();
     google.script.run.withSuccessHandler(function(docs) {
-      if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); _snap('docentes'); return; }
+      if (docs && docs.length > 0) {
+        // Orden alfabético por nombre corto (al guardar queda así en la hoja).
+        docentesLocal = docs.map(_mapearDocente).sort(function(a, b) {
+          return a.nombre_corto.localeCompare(b.nombre_corto, 'es', { sensitivity: 'base' });
+        });
+        renderDocentes(); _snap('docentes'); return;
+      }
       _SNAP.docentes = '[]';
       if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
