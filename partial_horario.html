@@ -46,7 +46,8 @@
     }
     google.script.run.withSuccessHandler(function(docs) {
       HD_DOCS_VERSION = DATOS_VERSION;
-      const activos = (docs || []).filter(function(d){ return d.activo !== false; });
+      const activos = (docs || []).filter(function(d){ return d.activo !== false; })
+        .sort(function(a, b){ return String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es', { sensitivity: 'base' }); });
       sel.innerHTML = '<option value="">— elige docente —</option>' +
         activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
       if (HD_DOC) cargarHorario(HD_DOC);

@@ -52,6 +52,7 @@
     // Selector de ausentes: docentes aún no marcados.
     document.getElementById('su-add').innerHTML = '<option value="">+ Añadir ausente…</option>' +
       SU.docentes.filter(function(d) { return SU_AUS.indexOf(d.id) === -1; })
+        .sort(function(a, b) { return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }); })
         .map(function(d) { return '<option value="' + _esc(d.id) + '">' + _esc(d.nombre) + '</option>'; }).join('');
     if (!SU_AUS.length) { body.innerHTML = '<div class="empty">Nadie marcado como ausente este día. Añade un ausente arriba.</div>'; return; }
 
