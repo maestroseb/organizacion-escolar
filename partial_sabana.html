@@ -4,86 +4,50 @@
 </div>
 
 <div class="sb-toolbar">
-  <div class="segmented" id="sb-modo">
-    <button type="button" data-m="dia" onclick="setSbModo('dia')">Por día</button>
-    <button type="button" data-m="semana" class="active" onclick="setSbModo('semana')">Semana completa</button>
-  </div>
-  <div class="segmented" id="sb-dias">
-    <button type="button" data-d="L" class="active" onclick="setSbDia('L')">Lunes</button>
-    <button type="button" data-d="M" onclick="setSbDia('M')">Martes</button>
-    <button type="button" data-d="X" onclick="setSbDia('X')">Miércoles</button>
-    <button type="button" data-d="J" onclick="setSbDia('J')">Jueves</button>
-    <button type="button" data-d="V" onclick="setSbDia('V')">Viernes</button>
-  </div>
+  <div class="segmented" id="sb-sem"></div>
+  <span class="sb-grow"></span>
+  <button type="button" class="secondary" onclick="sbImprimir()" title="Imprimir o guardar como PDF (apaisado)">Imprimir / PDF</button>
+  <button type="button" class="secondary" id="sb-btn-png" onclick="sbPng()" title="Descargar la sábana completa como imagen PNG">PNG</button>
 </div>
 
 <div id="sb-body"></div>
 
 <script>
-  var SB_DIA = 'L', SB_MODO = 'semana';
+  // Semana alterna mostrada (A/B). null = la actual, la decide el servidor.
+  var SB_SEM = null, SB_SEM_ACTUAL = null;
 
-  function renderSabana() {
-    document.getElementById('sb-dias').style.display = (SB_MODO === 'dia') ? 'inline-flex' : 'none';
-    if (SB_MODO === 'semana') _cargarSemana(); else _cargarDia();
-  }
-  function setSbModo(m) {
-    SB_MODO = m;
-    document.querySelectorAll('#sb-modo button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-m') === m); });
-    renderSabana();
-  }
-  function setSbDia(d) {
-    SB_DIA = d;
-    document.querySelectorAll('#sb-dias button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-d') === d); });
-    if (SB_MODO === 'dia') renderSabana();
+  function renderSabana() { _cargarSemana(); }
+  function setSbSemana(s) { SB_SEM = s; _cargarSemana(); }
+  function _pintarSemToggle() {
+    document.getElementById('sb-sem').innerHTML = ['A', 'B'].map(function(k) {
+      return '<button type="button" class="' + (k === SB_SEM ? 'active' : '') + '" onclick="setSbSemana(\'' + k + '\')">Semana ' + k +
+        (k === SB_SEM_ACTUAL ? ' <span class="sb-actual">actual</span>' : '') + '</button>';
+    }).join('');
   }
 
-  // Caché por vista (día o semana) válida mientras DATOS_VERSION no cambie:
-  // cambiar de día ya visto es instantáneo. `_sbSeq` descarta respuestas
-  // que llegan tarde (clics rápidos entre días).
+  // Caché por semana válida mientras DATOS_VERSION no cambie. `_sbSeq`
+  // descarta respuestas que llegan tarde (clics rápidos).
   var _sbCache = {}, _sbCacheVersion = -1, _sbSeq = 0;
-  function _sbCargar(clave, pintar, llamar) {
+  function _cargarSemana() {
     const cont = document.getElementById('sb-body');
     if (_sbCacheVersion !== DATOS_VERSION) { _sbCache = {}; _sbCacheVersion = DATOS_VERSION; }
-    const seq = ++_sbSeq;
-    if (_sbCache[clave]) { pintar(_sbCache[clave]); return; }
+    const seq = ++_sbSeq, version = DATOS_VERSION, sem = SB_SEM;
+    const ok = function(res) {
+      if (res && res.semana && version === DATOS_VERSION) _sbCache[res.semana] = res;
+      if (seq === _sbSeq) _pintarSemana(res);
+    };
+    const ko = function(err) { if (seq === _sbSeq) cont.innerHTML = _errHtml(err); };
+    if (sem && _sbCache[sem]) { _pintarSemana(_sbCache[sem]); return; }
+    // Arranque: la sábana de la semana actual ya viene pedida en paralelo.
+    if (!sem && _consumirPrefetch('sabanaSemana', function(err, res) { if (err) ko(err); else ok(res); })) return;
     cont.innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
-    const version = DATOS_VERSION;
-    llamar(google.script.run
-      .withSuccessHandler(function(res) {
-        if (version === DATOS_VERSION) _sbCache[clave] = res;
-        if (seq === _sbSeq) pintar(res);
-      })
-      .withFailureHandler(function(err){ if (seq === _sbSeq) cont.innerHTML = _errHtml(err); }));
-  }
-  function _cargarDia() {
-    const dia = SB_DIA;
-    _sbCargar('dia:' + dia, _pintarDia, function(run) { run.sabanaDia(dia); });
-  }
-  function _cargarSemana() {
-    _sbCargar('semana', _pintarSemana, function(run) { run.sabanaSemana(); });
-  }
-
-  // ---------- Modo por día ----------
-  function _pintarDia(res) {
-    const cont = document.getElementById('sb-body');
-    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos</b>.</div>'; return; }
-    cont.innerHTML = res.tramos.map(function(t){
-      if (t.tramo.es_recreo) return _sbRecreo(t.tramo);
-      var col = _sbColor(t.tramo.color) || '#4f9d84', st = _sbHeadStyle(col);
-      var titulo = _sbTitulo(res.diaLargo, t.tramo);
-      return '<div class="sb-tramo">' +
-        '<div class="sb-head" style="' + st + '">' + _esc(titulo) + '</div>' +
-        '<div class="sb-bodyrow">' +
-          '<div class="sb-rail" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + '</div>' +
-          _sbCols(t.cursos, t.apoyos) +
-        '</div>' + _sbLibres(t.libres) +
-      '</div>';
-    }).join('');
+    google.script.run.withSuccessHandler(ok).withFailureHandler(ko).sabanaSemana(sem || '');
   }
 
   // ---------- Modo semana completa ----------
   function _pintarSemana(res) {
     const cont = document.getElementById('sb-body');
+    if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
     if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos</b>.</div>'; return; }
     cont.innerHTML = res.tramos.map(function(t){
       if (t.tramo.es_recreo) return _sbRecreo(t.tramo);
@@ -100,7 +64,75 @@
           '<div class="sb-rail" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + '</div>' + cols +
         '</div>';
     }).join('');
-    cont.innerHTML = '<div class="sb-weekscroll">' + cont.innerHTML + '</div>';
+    cont.innerHTML = '<div class="sb-weekscroll" style="' + _sbAnchos(res) + '">' + cont.innerHTML + '</div>';
+  }
+
+  // Columnas Curso y Docente apenas más anchas que el nombre más largo (en ch de la
+  // fuente condensada); Ocup. según el texto más largo, con tope.
+  function _sbAnchos(res) {
+    var doc = 4, oc = 4, cu = 3;
+    res.tramos.forEach(function(t) {
+      if (t.tramo.es_recreo) return;
+      Object.keys(t.porDia).forEach(function(k) {
+        var c = t.porDia[k];
+        c.cursos.forEach(function(g) { cu = Math.max(cu, String(g.grupo.nombre || '').length); (g.ocupantes || []).forEach(function(o) {
+          doc = Math.max(doc, String(o.docente || '').length);
+          oc = Math.max(oc, String(o.materia || '').length);
+        }); });
+        c.apoyos.forEach(function(a) {
+          doc = Math.max(doc, String(a.docente || '').length);
+          oc = Math.max(oc, String(a.rol || '').length + (a.destino && a.destino.length ? a.destino.join(' / ').length + 1 : 0));
+        });
+      });
+    });
+    return '--sb-cw:calc(' + cu + 'ch + 12px);--sb-docw:calc(' + doc + 'ch + 14px);--sb-ocw:calc(' + Math.min(oc, 14) + 'ch + 18px);';
+  }
+
+  // ---------- Exportar: PDF (impresión apaisada) y PNG ----------
+  function _sbGrid() { return document.querySelector('#sb-body .sb-weekscroll'); }
+  function sbImprimir() {
+    var g = _sbGrid(); if (!g) return;
+    // Ajusta al ancho útil de un A4 apaisado (≈ 1080 px) para que quepa la semana.
+    var z = Math.min(1, 1080 / g.scrollWidth);
+    document.documentElement.style.setProperty('--sb-print-zoom', z);
+    document.body.classList.add('print-sabana');
+    var fin = function() { document.body.classList.remove('print-sabana'); window.removeEventListener('afterprint', fin); };
+    window.addEventListener('afterprint', fin);
+    setTimeout(function() { window.print(); setTimeout(fin, 1000); }, 50);
+  }
+  var _h2cEspera = null;
+  function _cargarH2c(cb) {
+    if (window.html2canvas) return cb();
+    if (_h2cEspera) { _h2cEspera.push(cb); return; }
+    _h2cEspera = [cb];
+    var sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+    sc.onload = function() { var l = _h2cEspera; _h2cEspera = null; l.forEach(function(f) { f(); }); };
+    sc.onerror = function() { _h2cEspera = null; _sbPngFin(); alert('No se pudo cargar el generador de imágenes.'); };
+    document.head.appendChild(sc);
+  }
+  function _sbPngFin() { var b = document.getElementById('sb-btn-png'); b.disabled = false; b.textContent = 'PNG'; }
+  function sbPng() {
+    var g = _sbGrid(); if (!g) return;
+    var btn = document.getElementById('sb-btn-png'); btn.disabled = true; btn.textContent = 'Generando…';
+    _cargarH2c(function() {
+      // Copia sin recorte de scroll para capturar la sábana completa.
+      var copia = g.cloneNode(true);
+      copia.classList.add('sb-export');
+      var host = document.createElement('div');
+      host.style.cssText = 'position:fixed;left:-100000px;top:0;';
+      host.appendChild(copia); document.getElementById('sb-body').appendChild(host);
+      var bg = getComputedStyle(document.body).backgroundColor;
+      html2canvas(copia, { scale: 2, backgroundColor: bg, windowWidth: copia.scrollWidth + 40 })
+        .then(function(canvas) {
+          var a = document.createElement('a');
+          a.download = 'sabana-semana-' + (SB_SEM || '') + '.png';
+          a.href = canvas.toDataURL('image/png');
+          document.body.appendChild(a); a.click(); a.remove();
+        })
+        .catch(function(e) { alert('No se pudo generar la imagen: ' + ((e && e.message) || e)); })
+        .then(function() { host.remove(); _sbPngFin(); });
+    });
   }
 
   // ---------- Piezas compartidas ----------
@@ -116,6 +148,7 @@
       '<div class="sb-pane">' + _sbTablaApoyos(apoyos) + '</div>' +
     '</div>';
   }
+  var _SB_COLS = '<colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>';
   function _sbTablaCursos(cursos) {
     var rows = cursos.map(function(c){
       var curso = _esc(c.grupo.nombre);
@@ -129,7 +162,7 @@
           '<td class="sb-doc">' + _esc(o.docente || '—') + '</td><td class="sb-oc">' + mat + '</td></tr>';
       }).join('');
     }).join('');
-    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
   function _sbTablaApoyos(apoyos) {
     var rows = apoyos.map(function(a){
@@ -138,7 +171,7 @@
         '<td class="sb-doc">' + _esc(a.docente) + '</td>' +
         '<td class="sb-oc"><span class="sb-pill" style="' + _sbPill(a.color) + '" title="' + _esc(a.rolLargo || a.rol) + '">' + _esc(a.rol) + dest + '</span></td></tr>';
     }).join('') || '<tr><td colspan="3" style="padding:8px;color:var(--faint)">—</td></tr>';
-    return '<table class="sb"><thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
   function _sbLibres(libres) {
     return libres && libres.length ? ('<div class="sb-libres"><b>Libres (' + libres.length + '):</b> ' + libres.map(_esc).join(' · ') + '</div>') : '';

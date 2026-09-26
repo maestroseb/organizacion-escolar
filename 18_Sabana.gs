@@ -13,28 +13,22 @@
  *     su color (el del rol; configurable por el usuario).
  *   - libres: docentes activos sin ninguna ocupación ese tramo.
  *
- * "Todo junto": alternancias de semana (A/B) y desdobles (a/b) se muestran
- * juntos en la misma casilla.
+ * Alternancia semanal: se muestra una semana (A o B). Las ocupaciones sin
+ * semana valen para ambas. Los desdobles (a/b) se muestran juntos.
  */
-
-function sabanaDia(dia) {
-  dia = _diaCanon(dia);
-  const ctx = _sabanaContexto();
-  const ocupDia = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === dia; });
-  return {
-    dia: dia,
-    diaLargo: _diaLargo(dia),
-    hayTramos: ctx.tramos.length > 0,
-    tramos: ctx.tramos.map(function(t) { return _sabanaTramoData(t, ocupDia, ctx); })
-  };
-}
 
 /**
  * Toda la semana de una vez: una matriz tramos × días. Cada celda trae los
  * cursos, apoyos y libres de ese (día, tramo). Para la vista "semana completa".
  */
-function sabanaSemana() {
+function sabanaSemana(semana) {
   const ctx = _sabanaContexto();
+  const actual = semanaActual();
+  semana = (semana === 'A' || semana === 'B') ? semana : actual;
+  ctx.ocupaciones = ctx.ocupaciones.filter(function(o) {
+    const s = String(o.semana || '').trim().toUpperCase();
+    return !s || s === semana;
+  });
   const dias = ['L', 'M', 'X', 'J', 'V'];
   const ocupPorDia = {};
   dias.forEach(function(d) { ocupPorDia[d] = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === d; }); });
@@ -51,10 +45,41 @@ function sabanaSemana() {
   });
 
   return {
+    semana: semana,
+    semanaActual: actual,
     dias: dias.map(function(d) { return { k: d, n: _diaLargo(d) }; }),
     hayTramos: ctx.tramos.length > 0,
     tramos: tramos
   };
+}
+
+/**
+ * Semana alterna en curso ('A' o 'B'). La semana A es la que contiene la
+ * fecha de inicio del curso (Centro) y se alterna cada semana natural; sin
+ * fecha, se usa la paridad de la semana ISO. Sábado y domingo cuentan ya
+ * como la semana siguiente.
+ */
+function semanaActual() {
+  const DIA = 86400000;
+  const lunes = function(d) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const wd = (x.getDay() + 6) % 7; // 0 = lunes
+    x.setDate(x.getDate() - wd);
+    return x;
+  };
+  let hoy = new Date();
+  if (hoy.getDay() === 0 || hoy.getDay() === 6) hoy = new Date(hoy.getTime() + 2 * DIA);
+  const centro = findById(SHEETS.CENTRO, CENTRO_ID) || {};
+  let ini = centro.fecha_inicio;
+  if (ini && !(ini instanceof Date)) ini = new Date(String(ini));
+  let n;
+  if (ini instanceof Date && !isNaN(ini)) {
+    n = Math.round((lunes(hoy) - lunes(ini)) / (7 * DIA));
+  } else {
+    const j = new Date(hoy.getFullYear(), 0, 4);
+    n = Math.round((lunes(hoy) - lunes(j)) / (7 * DIA)); // semana ISO - 1
+  }
+  return (((n % 2) + 2) % 2) === 0 ? 'A' : 'B';
 }
 
 // ---------- Internos ----------

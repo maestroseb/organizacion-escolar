@@ -39,15 +39,6 @@
       <!-- Submenú de Configuración (se muestra solo dentro de Configuración) -->
       <nav class="subtabs" id="config-subnav" style="display:none;"></nav>
 
-      <!-- Resumen -->
-      <section class="view" id="view-resumen">
-        <div class="page-head">
-          <h2>Resumen</h2>
-          <p>Estado general de la configuración de tu centro.</p>
-        </div>
-        <div id="resumen-body"></div>
-      </section>
-
       <!-- Sábana -->
       <section class="view" id="view-sabana">
         <?!= include('partial_sabana') ?>
@@ -92,13 +83,13 @@
 
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
-      { key: 'resumen',        label: 'Resumen' },
       { key: 'sabana',         label: 'Sábana' },
       { key: 'horario',        label: 'Horario docente' },
-      { key: 'config',         label: 'Configuración' },
       { key: 'ahora',          label: 'Ahora',         soon: true },
-      { key: 'sustituciones',  label: 'Sustituciones', soon: true }
+      { key: 'sustituciones',  label: 'Sustituciones', soon: true, permiso: 'sustituciones' },
+      { key: 'config',         label: 'Configuración' }
     ];
+    var INICIO = 'sabana';
 
     // Submenú dentro de Configuración: datos del centro e importación.
     var CONFIG_SUBTABS = [
@@ -116,11 +107,11 @@
     var GUIADO = false;        // modo alta guiada: avanza por pendientes
     var PENDIENTES = [];       // claves de secciones pendientes (modo guiado)
     var OB_VOLCADO = null;     // volcado pendiente de revisar en Importar (puente onboarding→workspace)
-    var VISTA_ACTUAL = 'resumen';
+    var VISTA_ACTUAL = INICIO;
     var CONFIG_SUB_ACTUAL = 'ajustes';
-    var ESTADO_FRESCO = false; // ESTADO recién pedido: el siguiente Resumen no lo vuelve a pedir
     var DATOS_VERSION = 0;     // se incrementa tras cada guardado (invalida cachés de vistas)
     var _PREFETCH = {};        // nombre de función .gs -> resultado en vuelo (ver _prefetch)
+    var _CARGADO = {};         // vista -> DATOS_VERSION con la que se cargó (no recargar si no cambió)
 
     // El tema se aplica cuanto antes (evita el parpadeo claro→oscuro) y el
     // arranque no espera a 'load': el shell entero ya está en el DOM.
@@ -129,18 +120,16 @@
     else arrancar();
 
     function arrancar() {
-      // Si la pestaña inicial es el Resumen, pedimos su análisis en paralelo
-      // con estadoApp (1 ida y vuelta en lugar de 3 encadenadas).
-      const destino = _pestanaDesdeHash() || PESTANA_INICIAL || 'resumen';
-      if (destino === 'resumen') _prefetch('analizarConfiguracion');
+      // La sábana (vista inicial) se pide en paralelo con estadoApp.
+      const destino = _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
+      if (destino === 'sabana') _prefetch('sabanaSemana');
       google.script.run
         .withSuccessHandler(function(estado) {
           ESTADO = estado;
-          ESTADO_FRESCO = true;
           if (estado && estado.configurado) {
             entrarWorkspace();
           } else {
-            delete _PREFETCH.analizarConfiguracion;
+            delete _PREFETCH.sabanaSemana;
             mostrarOnboarding();
           }
         })
@@ -175,8 +164,8 @@
       document.getElementById('workspace').style.display = 'block';
       pintarCabecera();
       construirTabs();
-      const destino = pestana || _pestanaDesdeHash() || PESTANA_INICIAL || 'resumen';
-      irPestana(_keyValida(destino) ? destino : 'resumen');
+      const destino = pestana || _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
+      irPestana(_keyValida(destino) ? destino : INICIO);
     }
 
     function pintarCabecera() {
@@ -192,6 +181,7 @@
       const nav = document.getElementById('tabs');
       nav.innerHTML = '';
       TABS.forEach(function(t) {
+        if (!_tabPermitida(t)) return;
         const b = document.createElement('button');
         b.className = 'tab';
         b.id = 'tab-' + t.key;
@@ -207,15 +197,17 @@
       });
     }
 
+    function _tabPermitida(t) {
+      return !t.permiso || !!(ESTADO && ESTADO.permisos && ESTADO.permisos[t.permiso]);
+    }
     function _tabValida(key) {
-      return TABS.some(function(t) { return t.key === key && !t.soon; });
+      return TABS.some(function(t) { return t.key === key && !t.soon && _tabPermitida(t); });
     }
     function _keyValida(key) {
       return _tabValida(key) || CONFIG_KEYS.indexOf(key) !== -1;
     }
 
     var LOADERS = {
-      resumen: function() { renderResumen(); },
       sabana: function() { renderSabana(); },
       horario: function() { renderHorario(); },
       importar: function() { prepararImportar(); },
@@ -230,7 +222,7 @@
     function irPestana(key) {
       // La pestaña "Configuración" abre el hub (submenú + última subsección).
       if (key === 'config') { irConfig(CONFIG_SUB_ACTUAL); return; }
-      if (!_keyValida(key)) key = 'resumen';
+      if (!_keyValida(key)) key = INICIO;
       // Las secciones de datos viven dentro de Configuración.
       if (CONFIG_KEYS.indexOf(key) !== -1) { irConfig(key); return; }
 
@@ -286,9 +278,13 @@
       });
     }
 
+    // Cada vista se carga una vez y se conserva (DOM incluido) mientras los
+    // datos no cambien: volver a una pestaña no pide nada al servidor.
     function _ejecutarLoader(key) {
       const fn = LOADERS[key];
-      if (typeof fn === 'function') { try { fn(); } catch (e) { console.error(e); } }
+      if (typeof fn !== 'function' || _CARGADO[key] === DATOS_VERSION) return;
+      _CARGADO[key] = DATOS_VERSION;
+      try { fn(); } catch (e) { console.error(e); delete _CARGADO[key]; }
     }
 
     function _pestanaDesdeHash() {
@@ -308,7 +304,6 @@
     }
     function _aplicarEstado(estado) {
       ESTADO = estado;
-      ESTADO_FRESCO = true;
       DATOS_VERSION++;
       pintarCabecera();
       actualizarPills();
@@ -335,80 +330,9 @@
           irPestana(siguiente);
         } else {
           GUIADO = false;
-          irPestana('resumen');
+          irPestana(INICIO);
         }
       }).withFailureHandler(function(err) { console.error(err); }).analizarConfiguracion();
-    }
-
-    // ---------- Resumen ----------
-    function renderResumen() {
-      const cont = document.getElementById('resumen-body');
-      cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
-      // analizarConfiguracion y estadoApp van en paralelo; si ESTADO se acaba de
-      // pedir (arranque o tras guardar) no se vuelve a pedir.
-      let an = null, error = null, pendientes = 2;
-      const fin = function() {
-        if (--pendientes > 0) return;
-        if (error) { cont.innerHTML = _errHtml(error); return; }
-        _pintarResumen(an);
-      };
-      const trasAnalisis = function(err, res) { if (err) error = err; else an = res; fin(); };
-      if (!_consumirPrefetch('analizarConfiguracion', trasAnalisis)) {
-        google.script.run
-          .withSuccessHandler(function(res) { trasAnalisis(null, res); })
-          .withFailureHandler(function(err) { trasAnalisis(err); })
-          .analizarConfiguracion();
-      }
-      if (ESTADO_FRESCO) { ESTADO_FRESCO = false; fin(); }
-      else refrescarEstado(function() { ESTADO_FRESCO = false; fin(); });
-    }
-
-    function _pintarResumen(an) {
-      const cont = document.getElementById('resumen-body');
-      const c = (ESTADO && ESTADO.contadores) || {};
-      const secc = (an && an.secciones) || [];
-      const mapaCont = {
-        tramos: c.tramos, grupos: c.grupos, docentes: c.docentes,
-        localizaciones: c.localizaciones, materias: c.materias, roles: c.roles, centro: (secc[0] && secc[0].total) || 0
-      };
-
-      let html = '';
-      const pend = secc.filter(function(s) { return s.estado !== 'ok'; });
-      if (pend.length) {
-        html += '<div class="result info" style="margin-top:0;margin-bottom:20px;">' +
-          '<strong>Te quedan cosas por completar.</strong> ' +
-          _esc(pend.map(function(s) { return s.titulo.toLowerCase(); }).join(', ')) + '. ' +
-          'Pulsa una tarjeta para ir a esa sección.</div>';
-      } else {
-        html += '<div class="result ok" style="margin-top:0;margin-bottom:20px;">✓ Configuración completa. Ya puedes usar todas las secciones.</div>';
-      }
-
-      html += '<div class="stats">';
-      secc.forEach(function(s) {
-        html += '<button class="stat" style="text-align:left;cursor:pointer;border-color:var(--border);" onclick="irPestana(' + _jsAttr(s.tab || s.clave) + ')">' +
-          '<div class="n">' + (mapaCont[s.clave] != null ? mapaCont[s.clave] : (s.total || 0)) + '</div>' +
-          '<div class="l">' + _esc(s.titulo) + '</div>' +
-          '<div class="badge-estado"><span class="badge ' + s.estado + '">' +
-            (s.estado === 'ok' ? 'completo' : s.estado === 'incompleto' ? 'incompleto' : 'pendiente') +
-          '</span></div>' +
-          (s.aviso ? '<div class="l" style="margin-top:6px;color:var(--faint);">' + _esc(s.aviso) + '</div>' : '') +
-          '</button>';
-      });
-      html += '</div>';
-
-      html += '<div class="section-label">Atajos</div><div class="grid">';
-      html += _cardAtajo('importar', 'M12 3v12m0 0l-4-4m4 4l4-4M5 21h14', 'Importar datos', 'Séneca, CSV o pegar horarios, con opción de sumar o reemplazar.');
-      html += _cardAtajo('config', 'M4 6h16M4 12h16M4 18h10', 'Configuración', 'Abrir la hoja de datos, reimportar o reiniciar el centro.');
-      html += '</div>';
-
-      cont.innerHTML = html;
-    }
-
-    function _cardAtajo(key, path, titulo, desc) {
-      return '<a class="card link" onclick="irPestana(\'' + key + '\')">' +
-        '<div class="ico"><svg viewBox="0 0 24 24"><path d="' + path + '"/></svg></div>' +
-        '<h3>' + titulo + '</h3><p>' + desc + '</p>' +
-        '<span class="go">Abrir <span class="arw">→</span></span></a>';
     }
 
     // ---------- Onboarding: mostrar ----------
@@ -423,7 +347,7 @@
       GUIADO = (pendientes && pendientes.length > 0);
       PENDIENTES = pendientes || [];
       refrescarEstado(function() {
-        entrarWorkspace(GUIADO ? (PENDIENTES[0] || 'resumen') : 'resumen');
+        entrarWorkspace(GUIADO ? (PENDIENTES[0] || INICIO) : INICIO);
       });
     }
 

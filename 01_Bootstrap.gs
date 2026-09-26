@@ -96,6 +96,7 @@ function estadoApp() {
     configurado: configurado,
     centro: centro || null,
     bdUrl: bdUrl,
+    permisos: permisosUsuario(),
     contadores: {
       tramos:         _contar(SHEETS.TRAMOS),
       grupos:         _contar(SHEETS.GRUPOS),
@@ -108,6 +109,38 @@ function estadoApp() {
       ocupaciones:    _contar(SHEETS.OCUPACIONES)
     }
   };
+}
+
+/**
+ * Qué puede ver el usuario que abre la app. Admin = propietario del script
+ * (quien despliega). Equipo directivo = docente cuyo email coincide con el
+ * del usuario y que tiene asignado un cargo directivo (DIR, JE, SEC).
+ * Session.getActiveUser() solo da el email dentro del mismo dominio.
+ */
+function permisosUsuario() {
+  let email = '', admin = false, directivo = false;
+  try { email = String(Session.getActiveUser().getEmail() || '').toLowerCase(); } catch (e) {}
+  try {
+    const owner = String(Session.getEffectiveUser().getEmail() || '').toLowerCase();
+    admin = !!email && email === owner;
+  } catch (e) {}
+  if (email && !admin) {
+    try {
+      const doc = getAll(SHEETS.DOCENTES).filter(function(d) {
+        return String(d.email || '').trim().toLowerCase() === email;
+      })[0];
+      if (doc) {
+        const rolesDir = {};
+        getAll(SHEETS.ROLES).forEach(function(r) {
+          if (/^(dir|je|sec)\b|direcci|jefatura|secretar/i.test(String(r.nombre || '') + ' ' + String(r.nombre_largo || ''))) rolesDir[r.id] = true;
+        });
+        directivo = getAll(SHEETS.OCUPACIONES).some(function(o) {
+          return o.docente_id === doc.id && o.tipo === 'especial' && rolesDir[o.rol_especial_id];
+        });
+      }
+    } catch (e) {}
+  }
+  return { admin: admin, directivo: directivo, sustituciones: admin || directivo };
 }
 
 function _contar(sheetName) {
