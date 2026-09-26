@@ -50,7 +50,12 @@
     if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
     if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Centro y horario</b>.</div>'; return; }
     cont.innerHTML = _sbGridHtml(res);
+    if (document.fonts && document.fonts.status !== 'loaded' && !_sbFuenteEspera) {
+      _sbFuenteEspera = true;
+      document.fonts.ready.then(function() { if (SB_SEM && _sbCache[SB_SEM]) _pintarSemana(_sbCache[SB_SEM]); });
+    }
   }
+  var _sbFuenteEspera = false;
   // Rejilla completa de una semana; cada rail lleva un badge con la semana (A/B).
   function _sbGridHtml(res) {
     var badge = res.semana ? '<span class="sb-semb" title="Semana ' + _esc(res.semana) + '">' + _esc(res.semana) + '</span>' : '';
@@ -61,8 +66,7 @@
         var cell = t.porDia[d.k] || { cursos: [], apoyos: [], libres: [] };
         return '<div class="sb-daycol">' +
           '<div class="sb-dayhead" style="' + st + '">' + _esc(_sbTitulo(d.n, t.tramo)) + '</div>' +
-          _sbCols(cell.cursos, cell.apoyos) +
-          _sbLibres(cell.libres) +
+          _sbCols(cell.cursos, cell.apoyos, cell.libres) +
         '</div>';
       }).join('');
       return '<div class="sb-weekrow sb-tramo-w">' +
@@ -72,31 +76,49 @@
     return '<div class="sb-weekscroll" style="' + _sbAnchos(res) + '">' + html + '</div>';
   }
 
-  // Columnas Curso y Docente apenas más anchas que el nombre más largo (en ch de la
-  // fuente condensada); Ocup. según el texto más largo, con tope.
+  // Anchos de columna medidos en píxeles con la fuente real (canvas): Curso y
+  // Docente miden lo justo para el texto más largo; Ocup., con tope.
   function _sbAnchos(res) {
-    var doc = 4, oc = 4, cu = 3;
+    var celdas = [];
     res.tramos.forEach(function(t) {
       if (t.tramo.es_recreo) return;
-      Object.keys(t.porDia).forEach(function(k) {
-        var c = t.porDia[k];
-        c.cursos.forEach(function(g) {
-          cu = Math.max(cu, String(g.grupo.nombre || '').length);
-          var ns = [];
-          (g.ocupantes || []).forEach(function(o) {
-            if (ns.indexOf(o.docente) === -1) ns.push(o.docente);
-            oc = Math.max(oc, String(o.materia || '').length);
-          });
-          // Filas compartidas: los nombres van en línea («A · B»), que caben enteros.
-          doc = Math.max(doc, ns.join(' · ').length);
+      Object.keys(t.porDia).forEach(function(k) { celdas.push(t.porDia[k]); });
+    });
+    return _sbAnchosDe(celdas, 13);
+  }
+  var _sbCanvas = null;
+  function _sbMedir(textos, peso, px) {
+    var ctx = (_sbCanvas || (_sbCanvas = document.createElement('canvas'))).getContext('2d');
+    var fam = getComputedStyle(document.documentElement).getPropertyValue('--font-cond') || 'sans-serif';
+    ctx.font = peso + ' ' + px + 'px ' + fam;
+    var m = 0;
+    textos.forEach(function(t) { if (t) m = Math.max(m, ctx.measureText(String(t)).width); });
+    return Math.ceil(m);
+  }
+  // celdas: [{cursos, apoyos}]; px: tamaño de letra de la tabla.
+  function _sbAnchosDe(celdas, px) {
+    var cursos = [], docs = [], ocs = [];
+    celdas.forEach(function(c) {
+      c.cursos.forEach(function(g) {
+        cursos.push(g.grupo.nombre);
+        var ns = [];
+        (g.ocupantes || []).forEach(function(o) {
+          if (ns.indexOf(o.docente) === -1) ns.push(o.docente);
+          ocs.push(o.materia);
         });
-        c.apoyos.forEach(function(a) {
-          doc = Math.max(doc, String(a.docente || '').length);
-          oc = Math.max(oc, String(a.rol || '').length + (a.destino && a.destino.length ? a.destino.join(' / ').length + 1 : 0));
-        });
+        docs.push(ns.join(' · ')); // filas compartidas: nombres en línea
+      });
+      c.apoyos.forEach(function(a) {
+        cursos.push('#00');
+        docs.push(a.docente + (a.cubre ? ' SUST.' : ''));
+        ocs.push(a.rol + (a.destino && a.destino.length ? ' ' + a.destino.join(' / ') : ''));
       });
     });
-    return '--sb-cw:calc(' + cu + 'ch + 12px);--sb-docw:calc(' + doc + 'ch + 14px);--sb-ocw:calc(' + Math.min(oc, 14) + 'ch + 18px);';
+    var pill = Math.round(px * 0.92);
+    var cw = _sbMedir(cursos, 700, px) + 11;
+    var dw = _sbMedir(docs, 600, px) + 11;
+    var ow = Math.min(_sbMedir(ocs, 700, pill) + 22, px * 11);
+    return '--sb-cw:' + cw + 'px;--sb-docw:' + dw + 'px;--sb-ocw:' + Math.max(ow, px * 4) + 'px;';
   }
 
   // ---------- Exportar: PDF (impresión apaisada) y PNG ----------
@@ -172,12 +194,14 @@
   function _sbRecreo(tr) {
     return '<div class="sb-recreo">RECREO' + (tr.horas ? (' · ' + _esc(tr.horas)) : '') + '</div>';
   }
-  function _sbCols(cursos, apoyos) {
+  // «No en el centro» va bajo los apoyos (hueco libre del 2.º panel): una fila menos.
+  function _sbCols(cursos, apoyos, libres) {
     return '<div class="sb-cols">' +
       '<div class="sb-pane">' + _sbTablaCursos(cursos) + '</div>' +
-      '<div class="sb-pane">' + _sbTablaApoyos(apoyos) + '</div>' +
+      '<div class="sb-pane">' + _sbTablaApoyos(apoyos) + _sbLibres(libres) + '</div>' +
     '</div>';
   }
+
   var _SB_COLS = '<colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>';
   // Nombre de docente; en Ahora marca sustituciones (o.ausente) y huecos sin cubrir.
   function _sbNombre(o) {
@@ -225,7 +249,7 @@
     return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
   function _sbLibres(libres) {
-    return libres && libres.length ? ('<div class="sb-libres"><b>No en el centro (' + libres.length + '):</b> ' + libres.map(_esc).join(' · ') + '</div>') : '';
+    return libres && libres.length ? ('<div class="sb-libres"><b>No en el centro (' + libres.length + ')</b> ' + libres.map(_esc).join(' · ') + '</div>') : '';
   }
 
   // Solo colores hex válidos llegan a un atributo style (vienen de la hoja).

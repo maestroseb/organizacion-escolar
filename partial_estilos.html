@@ -466,7 +466,8 @@
   .sb-sep { color: var(--faint); font-weight: 400; margin: 0 3px; }
   .sb-tutor { font-size: var(--fs-sm); color: var(--faint); font-style: italic; }
   .sb-sin { color: var(--warn); font-weight: 700; font-size: var(--fs-sm); }
-  .sb-libres { padding: 3px 10px; border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--muted); background: var(--surface-2); line-height: 1.35; white-space: normal; }
+  .sb-libres { padding: 4px 6px; border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--muted); line-height: 1.35; white-space: normal; max-width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); }
+  .sb-libres b { display: block; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; }
   .sb-libres b { color: var(--text); }
   @media (max-width: 720px) {
     .sb-cols { flex-direction: column; }
@@ -475,7 +476,7 @@
   /* Exportación: copia sin recorte (PNG) e impresión apaisada (PDF). */
   .sb-weekscroll.sb-export { overflow: visible; max-height: none; width: max-content; border-radius: 0; box-shadow: none; }
   .sb-export .sb-rail, .sb-export > .sb-recreo { position: static; }
-  .sb-semb { display: inline-block; margin-inline-start: 6px; background: rgba(255,255,255,.92); color: #1f2430; border-radius: 3px; font-size: 10px; line-height: 13px; padding: 0 3px; letter-spacing: 0; }
+  .sb-semb { display: inline-block; writing-mode: horizontal-tb; transform: rotate(180deg); margin-block-start: 8px; background: #fff; color: #1f2430; border-radius: 4px; font-size: 13px; font-weight: 800; line-height: 16px; min-width: 16px; text-align: center; padding: 0 3px; letter-spacing: 0; }
   #sb-print { display: none; }
   /* En pantalla, mientras se prepara la impresión, fuera de la vista pero medible. */
   body.print-sabana #sb-print { display: block; position: absolute; left: -100000px; top: 0; }

@@ -75,20 +75,11 @@
     if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>';
     else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t) + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
-      '<div class="sb-pane">' + _sbTablaApoyos(t.apoyos) + '</div></div>' + _sbLibres(t.libres);
+      '<div class="sb-pane">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
     cont.innerHTML = html + '</div>';
   }
-  function _ahAnchos(t) {
-    var cu = 3, doc = 4, oc = 4;
-    t.cursos.forEach(function(c) {
-      cu = Math.max(cu, String(c.grupo.nombre || '').length);
-      var ns = [];
-      c.ocupantes.forEach(function(o) { if (ns.indexOf(o.docente) === -1) ns.push(o.docente); oc = Math.max(oc, String(o.materia || '').length); });
-      doc = Math.max(doc, ns.join(' · ').length);
-    });
-    t.apoyos.forEach(function(a) { doc = Math.max(doc, String(a.docente || '').length + (a.cubre ? 6 : 0)); oc = Math.max(oc, String(a.rol || '').length + (a.destino && a.destino.length ? a.destino.join(' / ').length + 1 : 0)); });
-    return '--sb-cw:calc(' + cu + 'ch + 12px);--sb-docw:calc(' + doc + 'ch + 14px);--sb-ocw:calc(' + Math.min(oc, 16) + 'ch + 18px);';
-  }
+  function _ahAnchos(t) { return _sbAnchosDe([t], 14); }
+
   // Panel con la URL (copiar / abrir) en lugar de un alert del navegador.
   function ahCopiarEnlace(copiar) {
     var url = (ESTADO && ESTADO.urlApp) ? ESTADO.urlApp + '?vista=ahora' : '';
