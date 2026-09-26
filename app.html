@@ -435,6 +435,11 @@
     (window._REG_GUARDABLES || []).forEach(function(a) { registrarGuardable.apply(null, a); });
     window._REG_GUARDABLES = { push: function(a) { registrarGuardable.apply(null, a); } };
     function _estadoDe(g) { try { return JSON.stringify(g.estado()); } catch (e) { return ''; } }
+    // Sin foto todavía: solo cuenta como cambio si ya hay datos (no al abrir la vista).
+    function _sucio(g) {
+      var cur = _estadoDe(g), snap = _SNAP[g.clave];
+      return snap === undefined ? !(cur === 'null' || cur === '' || cur === '[]') : snap !== cur;
+    }
     function _snap(clave) {
       Object.keys(GUARDABLES).forEach(function(v) {
         GUARDABLES[v].forEach(function(g) { if (g.clave === clave) _SNAP[clave] = _estadoDe(g); });
@@ -442,11 +447,11 @@
       _fabListo(); revisarCambios();
     }
     function _pendientes(vista) {
-      return (GUARDABLES[vista] || []).filter(function(g) { return _SNAP[g.clave] !== _estadoDe(g); });
+      return (GUARDABLES[vista] || []).filter(_sucio);
     }
     function hayCambios(clave) {
       return Object.keys(GUARDABLES).some(function(v) {
-        return GUARDABLES[v].some(function(g) { return g.clave === clave && _SNAP[g.clave] !== _estadoDe(g); });
+        return GUARDABLES[v].some(function(g) { return g.clave === clave && _sucio(g); });
       });
     }
     var _revTimer = null;
