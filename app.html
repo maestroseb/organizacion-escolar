@@ -478,6 +478,42 @@
       if (sucio) { e.preventDefault(); e.returnValue = ''; }
     });
 
+    // ---------- Pegar desde una hoja de cálculo en las tablas editables ----------
+    // Si el portapapeles trae varias celdas (tabuladores / saltos de línea), se
+    // reparten a partir de la celda donde se pega: filas hacia abajo, columnas a
+    // la derecha. Faltan filas → se añaden (tbody[data-anadir]). Casillas: sí/x/1.
+    document.addEventListener('paste', function(e) {
+      var el = e.target, tb = el && el.closest && el.closest('table.data tbody');
+      if (!tb || !el.matches('input, select')) return;
+      var txt = (e.clipboardData || window.clipboardData).getData('text');
+      if (!txt || !/[\t\n]/.test(txt.replace(/\r?\n$/, ''))) return; // una sola celda: pegado normal
+      e.preventDefault();
+      var filas = txt.replace(/\r/g, '').replace(/\n$/, '').split('\n').map(function(l) { return l.split('\t'); });
+      var campos = function(tr) { return Array.prototype.filter.call(tr.querySelectorAll('input, select'), function(x) { return x.type !== 'color' && x.type !== 'hidden'; }); };
+      var tr0 = el.closest('tr'), fila0 = Array.prototype.indexOf.call(tb.rows, tr0), col0 = campos(tr0).indexOf(el);
+      var id = tb.id, fn = tb.getAttribute('data-anadir');
+      // Añade filas si hacen falta (cada alta re-pinta la tabla).
+      var guard = 0;
+      while (fn && typeof window[fn] === 'function' && document.getElementById(id).rows.length < fila0 + filas.length && guard++ < 500) window[fn]();
+      tb = document.getElementById(id);
+      var n = 0;
+      filas.forEach(function(vals, r) {
+        var tr = tb.rows[fila0 + r]; if (!tr) return;
+        var cs = campos(tr);
+        vals.forEach(function(v, c) {
+          var x = cs[col0 + c]; if (!x) return;
+          v = String(v).trim();
+          if (x.type === 'checkbox') { x.checked = /^(s[ií]|x|1|true|verdadero)$/i.test(v); x.dispatchEvent(new Event('change', { bubbles: true })); }
+          else if (x.tagName === 'SELECT') {
+            var op = Array.prototype.find.call(x.options, function(o) { return o.value === v || o.text.trim().toLowerCase() === v.toLowerCase(); });
+            if (op) { x.value = op.value; x.dispatchEvent(new Event('change', { bubbles: true })); }
+          } else { x.value = v; x.dispatchEvent(new Event('input', { bubbles: true })); }
+          n++;
+        });
+      });
+      aviso('Pegadas ' + n + ' celdas');
+    });
+
     // Icono «i» con explicación desplegable (no ocupa sitio en la maquetación).
     function toggleInfo(btn, ev) {
       if (ev) ev.stopPropagation();

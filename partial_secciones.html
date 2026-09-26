@@ -87,7 +87,7 @@
             <th class="col-num" style="width:32px">#</th><th class="col-center" style="width:64px">Color</th><th style="width:64px">Inicio</th><th style="width:64px">Fin</th>
             <th class="col-center" style="width:56px">Recreo</th><th style="width:130px">Etiqueta</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="tramos-body"></tbody>
+          <tbody id="tramos-body" data-anadir="anadirTramo"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar tramos</button></div>
@@ -116,7 +116,7 @@
           <thead><tr>
             <th class="col-num">#</th><th style="width:110px">Nombre</th><th style="width:120px">Nivel</th><th>Tutor/a</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="grupos-body"></tbody>
+          <tbody id="grupos-body" data-anadir="anadirGrupo"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-grupos" onclick="enviarGrupos()">Guardar grupos</button></div>
@@ -135,7 +135,7 @@
           <thead><tr>
             <th class="col-num">#</th><th style="width:170px">Código *</th><th>Descripción</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="locs-body"></tbody>
+          <tbody id="locs-body" data-anadir="anadirLocalizacion"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-locs" onclick="enviarLocalizaciones()">Guardar localizaciones</button></div>
@@ -150,7 +150,7 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><span class="hint" id="doc-sesion"></span></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><span class="hint" id="doc-sesion"></span></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
@@ -158,7 +158,7 @@
         <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th class="col-center" style="width:52px">Activo</th>
         <th class="col-center" style="width:88px" title="Puede ver la pestaña Sustituciones (Equipo Directivo). Requiere email.">Sustituciones</th><th class="col-acc"></th>
       </tr></thead>
-      <tbody id="docentes-body"></tbody>
+      <tbody id="docentes-body" data-anadir="anadirDocente"></tbody>
     </table>
   </div>
   <div class="actions"><button class="primary" id="btn-guardar-docentes" onclick="enviarDocentes()">Guardar cambios</button></div>
@@ -185,7 +185,7 @@
           <thead><tr>
             <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:110px">Abrev.</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="materias-body"></tbody>
+          <tbody id="materias-body" data-anadir="anadirMateria"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-materias" onclick="enviarMaterias()">Guardar materias</button></div>
@@ -207,7 +207,7 @@
           <thead><tr>
             <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="roles-body"></tbody>
+          <tbody id="roles-body" data-anadir="anadirRol"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-roles" onclick="enviarRoles()">Guardar cargos</button></div>
