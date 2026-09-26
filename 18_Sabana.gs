@@ -112,12 +112,44 @@ function _sabanaContexto() {
   const colorTramo = {};
   tramos.forEach(function(t, i) { colorTramo[t.id] = t.color || paleta[i] || '#4f9d84'; });
 
+  const ocupaciones = getAll(SHEETS.OCUPACIONES);
+  _emparejarRelAtedu(ocupaciones, materiaById, rolById);
+
   return {
     docentes: docentes, grupos: grupos, tramos: tramos,
-    ocupaciones: getAll(SHEETS.OCUPACIONES),
+    ocupaciones: ocupaciones,
     docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById,
     colorTramo: colorTramo
   };
+}
+
+/**
+ * Religión y ATEDU (Atención Educativa) se dan a la vez con el mismo grupo:
+ * si una de las dos alterna por semanas (A/B) y la otra no tiene semana, esta
+ * hereda la semana de aquella en ese (día, tramo, grupo). Así la semana que
+ * no toca, el grupo aparece entero con su asignatura habitual.
+ */
+function _emparejarRelAtedu(ocupaciones, materiaById, rolById) {
+  const esRA = function(o) {
+    let t = '', grupos = '';
+    if (o.tipo === 'grupo') { const m = materiaById[o.materia_id]; t = m ? (m.nombre + ' ' + (m.abreviatura || '')) : ''; grupos = o.grupo_id; }
+    else { const r = rolById[o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id]; t = r ? (r.nombre + ' ' + (r.nombre_largo || '')) : String(o.notas || ''); grupos = o.grupo_destino_id; }
+    return /relig|atedu|atenci[oó]n educ/i.test(t) ? String(grupos || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean) : null;
+  };
+  const semanaSlot = {}, sinSemana = [];
+  ocupaciones.forEach(function(o) {
+    const gs = esRA(o);
+    if (!gs) return;
+    const s = String(o.semana || '').trim().toUpperCase();
+    const claves = gs.map(function(g) { return _diaCanon(o.dia) + '|' + o.tramo_id + '|' + g; });
+    if (s) claves.forEach(function(k) { semanaSlot[k] = s; });
+    else sinSemana.push({ o: o, claves: claves });
+  });
+  sinSemana.forEach(function(x) {
+    for (let i = 0; i < x.claves.length; i++) {
+      if (semanaSlot[x.claves[i]]) { x.o.semana = semanaSlot[x.claves[i]]; break; }
+    }
+  });
 }
 
 // Paleta base (tipo arcoíris) y selección de N colores repartidos: con menos

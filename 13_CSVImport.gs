@@ -379,6 +379,9 @@ function _detectarAlternancias(filas) {
       // duplicados exactos: conserva la primera, omite el resto
       g.forEach(function(f, i) { if (i > 0) { f.omitir = true; f.avisos.push('Duplicado exacto, se omite'); } });
     } else if (distintas === 2 && g.length === 2) {
+      // Religión/ATEDU van siempre en la misma semana (A) en todo el centro,
+      // para que se emparejen entre docentes; si no, el orden del archivo.
+      if (_esRelAtedu(g[1]) && !_esRelAtedu(g[0])) g.reverse();
       g[0].semana = 'A'; g[1].semana = 'B';
       g[0].avisos.push('Alternancia semanal detectada (semana A)');
       g[1].avisos.push('Alternancia semanal detectada (semana B)');
@@ -386,6 +389,10 @@ function _detectarAlternancias(filas) {
       g.forEach(function(f) { f.avisos.push('Varias ocupaciones en el mismo tramo: revisar a mano'); });
     }
   });
+}
+
+function _esRelAtedu(f) {
+  return /relig|atedu|atenci[oó]n educ/i.test((f.materia ? f.materia.texto : '') + ' ' + (f.rol ? f.rol.texto : ''));
 }
 
 function _firma(f) {
