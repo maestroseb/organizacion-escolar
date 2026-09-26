@@ -193,7 +193,10 @@
     </div>
     <div class="col-sec">
       <div class="col-head">
-        <h3>Cargos y roles</h3>
+        <h3 class="info-wrap">Cargos y roles
+          <button type="button" class="info-btn" aria-label="Información" onclick="toggleInfo(this, event)">i</button>
+          <span class="info-pop" hidden>El <strong>orden</strong> (arrastra <b>⠿</b>) marca la prioridad de sustitución y numera las localizaciones de la sábana (#01, #02…).</span>
+        </h3>
         <div class="toolbar">
           <button class="secondary" onclick="cargarPlantillaRoles()">Plantilla</button>
           <button class="secondary" onclick="anadirRol()">+ Rol</button>

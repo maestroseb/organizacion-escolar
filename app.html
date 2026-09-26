@@ -478,6 +478,17 @@
       if (sucio) { e.preventDefault(); e.returnValue = ''; }
     });
 
+    // Icono «i» con explicación desplegable (no ocupa sitio en la maquetación).
+    function toggleInfo(btn, ev) {
+      if (ev) ev.stopPropagation();
+      var pop = btn.nextElementSibling, abrir = pop.hidden;
+      document.querySelectorAll('.info-pop').forEach(function(p) { p.hidden = true; });
+      pop.hidden = !abrir;
+    }
+    document.addEventListener('click', function(e) {
+      if (!e.target.closest('.info-pop')) document.querySelectorAll('.info-pop').forEach(function(p) { p.hidden = true; });
+    });
+
     // Aviso breve (toast) en la esquina inferior; sustituye a alert().
     function aviso(msg, tipo) {
       var box = document.getElementById('toasts');
