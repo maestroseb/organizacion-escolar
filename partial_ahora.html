@@ -45,6 +45,14 @@
     _ahPintar();
   }
 
+  // Fecha y hora en tiempo real (se actualiza cada segundo sin repintar).
+  function _ahReloj() {
+    var d = new Date();
+    var f = d.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return f.charAt(0).toUpperCase() + f.slice(1) + ' · ' + d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  setInterval(function() { var el = document.getElementById('ah-reloj'); if (el && el.offsetParent !== null) el.textContent = _ahReloj(); }, 1000);
+
   function _ahMin(hhmm) { var m = String(hhmm || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : null; }
   // Índice del tramo en curso; si no hay, el siguiente (o el último) y su estado.
   function _ahActual() {
@@ -70,6 +78,7 @@
     var html = '<div class="ah-card">' +
       '<div class="ah-head" style="' + st + '"><span class="ah-etq">' + etq + '</span>' +
         _esc(String(AH.diaLargo).toUpperCase() + ' · TRAMO ' + tr.orden + ' · ' + tr.horas) +
+        '<span class="ah-reloj" id="ah-reloj">' + _ahReloj() + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
     if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>';
