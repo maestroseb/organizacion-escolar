@@ -16,6 +16,7 @@
     // (sin segunda ida y vuelta) y solo se muestra el tramo en curso.
     function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function _errHtml(err) { return '<div class="result err">✗ ' + _esc((err && err.message) || err || 'Error') + '</div>'; }
+    function aviso(msg) { console.log(msg); }
     var ESTADO = null, DATOS_VERSION = 0;
     ahDatos(<?!= JSON.stringify(datos).replace(/</g, '\\u003c') ?>);
   </script>

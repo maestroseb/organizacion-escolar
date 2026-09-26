@@ -111,7 +111,7 @@
         google.script.run.withSuccessHandler(function(res) {
           _sbCache[k] = res;
           if (--pend === 0) { if (btn) btn.disabled = false; sbImprimir(); }
-        }).withFailureHandler(function(err) { if (btn) btn.disabled = false; alert('No se pudo cargar la semana ' + k + ': ' + ((err && err.message) || err)); })
+        }).withFailureHandler(function(err) { if (btn) btn.disabled = false; aviso('No se pudo cargar la semana ' + k + ': ' + ((err && err.message) || err), 'err'); })
           .sabanaSemana(k);
       });
       return;
@@ -134,7 +134,7 @@
     var sc = document.createElement('script');
     sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
     sc.onload = function() { var l = _h2cEspera; _h2cEspera = null; l.forEach(function(f) { f(); }); };
-    sc.onerror = function() { _h2cEspera = null; _sbPngFin(); alert('No se pudo cargar el generador de imágenes.'); };
+    sc.onerror = function() { _h2cEspera = null; _sbPngFin(); aviso('No se pudo cargar el generador de imágenes.', 'err'); };
     document.head.appendChild(sc);
   }
   function _sbPngFin() { var b = document.getElementById('sb-btn-png'); b.disabled = false; b.textContent = 'PNG'; }
@@ -160,7 +160,7 @@
           a.href = canvas.toDataURL('image/png');
           document.body.appendChild(a); a.click(); a.remove();
         })
-        .catch(function(e) { alert('No se pudo generar la imagen: ' + ((e && e.message) || e)); })
+        .catch(function(e) { aviso('No se pudo generar la imagen: ' + ((e && e.message) || e), 'err'); })
         .then(function() { host.remove(); _sbPngFin(); });
     });
   }

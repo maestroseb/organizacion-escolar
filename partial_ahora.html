@@ -5,7 +5,15 @@
     <button type="button" onclick="ahMover(1)" title="Tramo siguiente">›</button>
   </div>
   <span class="sb-grow"></span>
-  <button type="button" class="secondary" onclick="ahCopiarEnlace()" title="Enlace directo que muestra solo el tramo actual (para el Site del profesorado)">Copiar enlace directo</button>
+  <button type="button" class="secondary" onclick="ahCopiarEnlace()" title="Enlace directo que muestra solo el tramo actual (para el Site del profesorado)">Enlace directo</button>
+</div>
+<div class="ah-link" id="ah-link" hidden>
+  <span class="ah-link-t">Solo el tramo en curso · para el Site del profesorado (Insertar → URL) o un botón</span>
+  <div class="ah-link-row">
+    <input type="text" id="ah-link-url" readonly onclick="this.select()">
+    <button type="button" class="primary" onclick="ahCopiarEnlace(true)">Copiar</button>
+    <a class="btn-like" id="ah-link-abrir" target="_blank" rel="noopener">Abrir</a>
+  </div>
 </div>
 <div id="ah-body"><p class="hint"><span class="spinner"></span> Cargando…</p></div>
 
@@ -81,11 +89,15 @@
     t.apoyos.forEach(function(a) { doc = Math.max(doc, String(a.docente || '').length + (a.cubre ? 6 : 0)); oc = Math.max(oc, String(a.rol || '').length + (a.destino && a.destino.length ? a.destino.join(' / ').length + 1 : 0)); });
     return '--sb-cw:calc(' + cu + 'ch + 12px);--sb-docw:calc(' + doc + 'ch + 14px);--sb-ocw:calc(' + Math.min(oc, 16) + 'ch + 18px);';
   }
-  function ahCopiarEnlace() {
+  // Panel con la URL (copiar / abrir) en lugar de un alert del navegador.
+  function ahCopiarEnlace(copiar) {
     var url = (ESTADO && ESTADO.urlApp) ? ESTADO.urlApp + '?vista=ahora' : '';
-    if (!url) { alert('No se pudo obtener la URL de la app.'); return; }
-    var ok = function() { alert('Enlace copiado:\n' + url + '\n\nPégalo en el Site del profesorado (Insertar → URL) o como botón.'); };
-    try { navigator.clipboard.writeText(url).then(ok, function() { prompt('Copia el enlace:', url); }); }
-    catch (e) { prompt('Copia el enlace:', url); }
+    if (!url) { aviso('No se pudo obtener la URL de la app.', 'err'); return; }
+    var panel = document.getElementById('ah-link'), inp = document.getElementById('ah-link-url');
+    inp.value = url; document.getElementById('ah-link-abrir').href = url;
+    if (!copiar) { panel.hidden = !panel.hidden; if (panel.hidden) return; }
+    var ok = function() { aviso('Enlace copiado'); };
+    var manual = function() { inp.focus(); inp.select(); try { document.execCommand('copy'); ok(); } catch (e) { aviso('Selecciónalo y copia con Ctrl+C', 'err'); } };
+    try { navigator.clipboard.writeText(url).then(ok, manual); } catch (e) { manual(); }
   }
 </script>

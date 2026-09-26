@@ -418,7 +418,17 @@
     function datosCambiados() { DATOS_VERSION++; }
     function mostrarErrorGenerico(err) {
       console.error(err);
-      alert('Error: ' + (err.message || err));
+      aviso('Error: ' + ((err && err.message) || err), 'err');
+    }
+    // Aviso breve (toast) en la esquina inferior; sustituye a alert().
+    function aviso(msg, tipo) {
+      var box = document.getElementById('toasts');
+      if (!box) { box = document.createElement('div'); box.id = 'toasts'; document.body.appendChild(box); }
+      var t = document.createElement('div');
+      t.className = 'toast ' + (tipo || 'ok');
+      t.textContent = msg;
+      box.appendChild(t);
+      setTimeout(function() { t.classList.add('fuera'); setTimeout(function() { t.remove(); }, 300); }, tipo === 'err' ? 6000 : 2800);
     }
 
     // Modal de confirmación
