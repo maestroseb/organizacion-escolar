@@ -465,29 +465,36 @@
   .sb-curso { font-weight: 700; white-space: nowrap; width: 1%; }
   .sb-loc { font-weight: 700; color: var(--faint); white-space: nowrap; width: 1%; }
   .sb-doc { font-weight: 600; overflow-wrap: break-word; }
-  .sb-line { display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; min-width: 0; }
-  .sb-line + .sb-line { margin-top: 1px; }
-  .sb-ocup { font-size: var(--fs-sm); border-radius: var(--radius-xs); padding: 0 5px; color: var(--muted); background: var(--surface-3); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .sb-pill { display: inline-block; border-radius: var(--radius-xs); padding: 0 6px; font-weight: 700; font-size: var(--fs-sm); line-height: 17px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
   .sb-tutor { font-size: var(--fs-sm); color: var(--faint); font-style: italic; }
   .sb-sin { color: var(--warn); font-weight: 700; font-size: var(--fs-sm); }
   .sb-libres { padding: 3px 10px; border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--muted); background: var(--surface-2); line-height: 1.35; }
   .sb-libres b { color: var(--text); }
-  /* Semana completa: filas por tramo con columnas por día (scroll interno, rail fijo). */
-  .sb-weekscroll { overflow-x: auto; overscroll-behavior-x: contain; }
+  /* Semana completa (disposición de la sábana en hoja): filas = tramos con rail
+     vertical fijo, columnas = días; cada día muestra Cursos | Apoyos lado a lado. */
+  .sb-weekscroll { overflow: auto; overscroll-behavior-x: contain; max-height: calc(100vh - 150px); border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-sm); }
+  .sb-weekscroll > .sb-recreo { position: sticky; left: 0; width: 100%; border-radius: 0; margin: 0; }
   .sb-weekrow { display: flex; align-items: stretch; min-width: min-content; }
-  .sb-weekrow > .sb-rail { position: sticky; left: 0; z-index: 2; }
-  .sb-daycol { flex: 1 0 250px; min-width: 250px; border-left: 2px solid var(--border-strong); }
-  .sb-daycol:first-of-type { border-left: none; }
-  .sb-daycol .sb-cols { border-top: 1px solid var(--border); grid-template-columns: minmax(0, 1fr); }
-  .sb-daycol .sb-pill { white-space: normal; }
-  .sb-daycol .sb-pane + .sb-pane { border-left: none; border-top: 1px solid var(--border-strong); }
-  .sb-dayhead { text-align: center; font-weight: 700; font-size: var(--fs-sm); letter-spacing: .04em; text-transform: uppercase; padding: 2px; }
+  .sb-tramo-w + .sb-tramo-w, .sb-recreo + .sb-tramo-w { border-top: 6px solid var(--bg); }
+  .sb-weekrow > .sb-rail { position: sticky; left: 0; z-index: 2; font-size: var(--fs-md); letter-spacing: .06em; padding: 4px 3px; }
+  .sb-daycol { flex: 0 0 auto; width: 520px; border-left: 2px solid var(--border-strong); display: flex; flex-direction: column; }
+  .sb-daycol .sb-cols { flex: 1; grid-template-columns: 1fr 1fr; }
+  .sb-dayhead { text-align: center; font-weight: 700; font-size: var(--fs-md); letter-spacing: .03em; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sb-pane { padding: 0; }
+  table.sb thead th { background: var(--surface-3); color: var(--text); padding: 3px 5px; }
+  table.sb td { padding: 2px 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 0; }
+  table.sb tbody tr:nth-child(even):not(.sb-cont) td { background: var(--surface-2); }
+  table.sb td.sb-curso, table.sb td.sb-loc { width: 3.6em; max-width: none; }
+  table.sb td.sb-oc { width: 40%; }
+  table.sb tr.sb-cont td { border-top-style: dashed; }
+  .sb-oc .sb-pill { display: block; text-align: center; }
   @media (max-width: 720px) {
     .sb-cols { grid-template-columns: minmax(0, 1fr); }
     .sb-pane + .sb-pane { border-left: none; border-top: 1px solid var(--border-strong); }
     .sb-bodyrow > .sb-rail { display: none; }
-    .sb-daycol { flex-basis: 230px; min-width: 230px; }
+    .sb-daycol { width: 300px; }
+    .sb-daycol .sb-cols { grid-template-columns: minmax(0, 1fr); }
+    .sb-daycol .sb-pane + .sb-pane { border-left: none; border-top: 1px solid var(--border-strong); }
   }
 
   /* ---------- Horario del docente (cabecera y columna de tramo fijas) ---------- */

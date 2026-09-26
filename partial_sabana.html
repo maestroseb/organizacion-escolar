@@ -5,8 +5,8 @@
 
 <div class="sb-toolbar">
   <div class="segmented" id="sb-modo">
-    <button type="button" data-m="dia" class="active" onclick="setSbModo('dia')">Por día</button>
-    <button type="button" data-m="semana" onclick="setSbModo('semana')">Semana completa</button>
+    <button type="button" data-m="dia" onclick="setSbModo('dia')">Por día</button>
+    <button type="button" data-m="semana" class="active" onclick="setSbModo('semana')">Semana completa</button>
   </div>
   <div class="segmented" id="sb-dias">
     <button type="button" data-d="L" class="active" onclick="setSbDia('L')">Lunes</button>
@@ -20,7 +20,7 @@
 <div id="sb-body"></div>
 
 <script>
-  var SB_DIA = 'L', SB_MODO = 'dia';
+  var SB_DIA = 'L', SB_MODO = 'semana';
 
   function renderSabana() {
     document.getElementById('sb-dias').style.display = (SB_MODO === 'dia') ? 'inline-flex' : 'none';
@@ -70,11 +70,11 @@
     cont.innerHTML = res.tramos.map(function(t){
       if (t.tramo.es_recreo) return _sbRecreo(t.tramo);
       var col = _sbColor(t.tramo.color) || '#4f9d84', st = _sbHeadStyle(col);
-      var titulo = String(res.diaLargo || '').toUpperCase() + ' · TRAMO ' + t.tramo.orden + ' · ' + (t.tramo.horas || '');
+      var titulo = _sbTitulo(res.diaLargo, t.tramo);
       return '<div class="sb-tramo">' +
         '<div class="sb-head" style="' + st + '">' + _esc(titulo) + '</div>' +
         '<div class="sb-bodyrow">' +
-          '<div class="sb-rail" style="' + st + '">TR ' + _esc(t.tramo.orden) + '</div>' +
+          '<div class="sb-rail" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + '</div>' +
           _sbCols(t.cursos, t.apoyos) +
         '</div>' + _sbLibres(t.libres) +
       '</div>';
@@ -91,21 +91,22 @@
       var cols = res.dias.map(function(d){
         var cell = t.porDia[d.k] || { cursos: [], apoyos: [], libres: [] };
         return '<div class="sb-daycol">' +
-          '<div class="sb-dayhead" style="' + st + '">' + _esc(d.n) + '</div>' +
+          '<div class="sb-dayhead" style="' + st + '">' + _esc(_sbTitulo(d.n, t.tramo)) + '</div>' +
           _sbCols(cell.cursos, cell.apoyos) +
           _sbLibres(cell.libres) +
         '</div>';
       }).join('');
-      return '<div class="sb-tramo">' +
-        '<div class="sb-head" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + ' · ' + _esc(t.tramo.horas) + '</div>' +
-        '<div class="sb-weekscroll"><div class="sb-weekrow">' +
-          '<div class="sb-rail" style="' + st + '">TR ' + _esc(t.tramo.orden) + '</div>' + cols +
-        '</div></div>' +
-      '</div>';
+      return '<div class="sb-weekrow sb-tramo-w">' +
+          '<div class="sb-rail" style="' + st + '">TRAMO ' + _esc(t.tramo.orden) + '</div>' + cols +
+        '</div>';
     }).join('');
+    cont.innerHTML = '<div class="sb-weekscroll">' + cont.innerHTML + '</div>';
   }
 
   // ---------- Piezas compartidas ----------
+  function _sbTitulo(dia, tr) {
+    return String(dia || '').toUpperCase() + ' - TRAMO ' + tr.orden + (tr.horas ? (' - ' + tr.horas) : '');
+  }
   function _sbRecreo(tr) {
     return '<div class="sb-recreo">RECREO' + (tr.horas ? (' · ' + _esc(tr.horas)) : '') + '</div>';
   }
@@ -117,23 +118,25 @@
   }
   function _sbTablaCursos(cursos) {
     var rows = cursos.map(function(c){
-      var oc;
-      if (c.vacio) oc = '<span class="sb-sin">sin cubrir</span>';
-      else oc = c.ocupantes.map(function(o){
-        var mat = o.materia ? ('<span class="sb-ocup" style="' + _sbTint(o.color) + '">' + _esc(o.materia) + '</span>')
+      var curso = _esc(c.grupo.nombre);
+      if (c.vacio || !c.ocupantes.length) return '<tr><td class="sb-curso">' + curso + '</td><td colspan="2"><span class="sb-sin">sin cubrir</span></td></tr>';
+      var n = c.ocupantes.length;
+      return c.ocupantes.map(function(o, i){
+        var mat = o.materia ? ('<span class="sb-pill" style="' + _sbPill(o.color) + '" title="' + _esc(o.materia) + '">' + _esc(o.materia) + '</span>')
                             : (o.tutor ? '<span class="sb-tutor">tutoría</span>' : '');
-        return '<div class="sb-line"><span class="sb-doc">' + _esc(o.docente || '—') + '</span> ' + mat + '</div>';
+        return '<tr' + (i ? ' class="sb-cont"' : '') + '>' +
+          (i ? '' : '<td class="sb-curso"' + (n > 1 ? ' rowspan="' + n + '"' : '') + '>' + curso + '</td>') +
+          '<td class="sb-doc">' + _esc(o.docente || '—') + '</td><td class="sb-oc">' + mat + '</td></tr>';
       }).join('');
-      return '<tr><td class="sb-curso">' + _esc(c.grupo.nombre) + '</td><td>' + oc + '</td></tr>';
     }).join('');
-    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente · Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    return '<table class="sb"><thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
   function _sbTablaApoyos(apoyos) {
     var rows = apoyos.map(function(a){
       var dest = (a.destino && a.destino.length) ? (' ' + _esc(a.destino.join(' / '))) : '';
       return '<tr><td class="sb-loc">#' + _esc(('0' + a.loc).slice(-2)) + '</td>' +
         '<td class="sb-doc">' + _esc(a.docente) + '</td>' +
-        '<td><span class="sb-pill" style="' + _sbPill(a.color) + '" title="' + _esc(a.rolLargo || a.rol) + '">' + _esc(a.rol) + dest + '</span></td></tr>';
+        '<td class="sb-oc"><span class="sb-pill" style="' + _sbPill(a.color) + '" title="' + _esc(a.rolLargo || a.rol) + '">' + _esc(a.rol) + dest + '</span></td></tr>';
     }).join('') || '<tr><td colspan="3" style="padding:8px;color:var(--faint)">—</td></tr>';
     return '<table class="sb"><thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
@@ -145,7 +148,6 @@
   function _sbColor(c) { return /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(String(c || '')) ? c : ''; }
   function _sbHeadStyle(col) { return 'background:' + col + ';color:' + _sbTxt(col) + ';'; }
   function _sbPill(hex) { hex = _sbColor(hex); if (!hex) return 'background:var(--surface-3);color:var(--text);'; return 'background:' + hex + ';color:' + _sbTxt(hex) + ';'; }
-  function _sbTint(hex) { hex = _sbColor(hex); if (!hex) return ''; return 'background:' + hex + ';color:' + _sbTxt(hex) + ';'; }
   function _sbTxt(hex) {
     var c = String(hex || '').replace('#',''); if (c.length < 6) return '#1f2430';
     var r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
