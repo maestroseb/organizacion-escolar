@@ -1,13 +1,13 @@
-<div class="page-head">
-  <h2>Sábana</h2>
-  <p>Todos los docentes colocados en cada tramo, para localizarlos de un vistazo. Cada tramo muestra las aulas (con su docente) y, a la derecha, los apoyos y cargos numerados por prioridad de sustitución.</p>
-</div>
-
-<div class="sb-toolbar">
-  <div class="segmented" id="sb-sem"></div>
-  <span class="sb-grow"></span>
+<div class="page-head sb-head-row">
+  <div>
+    <h2>Sábana</h2>
+    <p>Todos los docentes colocados en cada tramo, para localizarlos de un vistazo. Cada tramo muestra las aulas (con su docente) y, a la derecha, los apoyos y cargos numerados por prioridad de sustitución.</p>
+  </div>
+  <div class="sb-toolbar">
+  <div class="segmented" id="sb-sem" title="Semana alterna"></div>
   <button type="button" class="secondary" onclick="sbImprimir()" title="Imprimir o guardar como PDF (apaisado)">Imprimir / PDF</button>
   <button type="button" class="secondary" id="sb-btn-png" onclick="sbPng()" title="Descargar la sábana completa como imagen PNG">PNG</button>
+  </div>
 </div>
 
 <div id="sb-body"></div>
@@ -20,7 +20,7 @@
   function setSbSemana(s) { SB_SEM = s; _cargarSemana(); }
   function _pintarSemToggle() {
     document.getElementById('sb-sem').innerHTML = ['A', 'B'].map(function(k) {
-      return '<button type="button" class="' + (k === SB_SEM ? 'active' : '') + '" onclick="setSbSemana(\'' + k + '\')">Semana ' + k +
+      return '<button type="button" class="' + (k === SB_SEM ? 'active' : '') + '" onclick="setSbSemana(\'' + k + '\')" title="Semana ' + k + '">' + k +
         (k === SB_SEM_ACTUAL ? ' <span class="sb-actual">actual</span>' : '') + '</button>';
     }).join('');
   }
@@ -132,7 +132,7 @@
     var pill = Math.round(px * 0.92);
     var cw = _sbMedir(cursos, 700, px) + 11;
     var dw = _sbMedir(docs, 600, px) + 11;
-    var ow = Math.min(_sbMedir(ocs, 700, pill) + 22, px * 11);
+    var ow = _sbMedir(ocs, 700, pill) + 22; // sin tope: se adapta a los chips
     return '--sb-cw:' + cw + 'px;--sb-docw:' + dw + 'px;--sb-ocw:' + Math.max(ow, px * 4) + 'px;';
   }
 

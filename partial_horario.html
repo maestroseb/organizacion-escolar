@@ -1,18 +1,45 @@
 <div class="page-head">
-  <h2>Horario del docente</h2>
-  <p>Consulta y corrige el horario individual de cada docente. Pulsa una celda para editar ese hueco (materia, grupo, apoyo o cargo). Guarda al terminar.</p>
+  <h2>Horarios individuales</h2>
+  <p>A la izquierda, el horario de un docente; a la derecha, el de un grupo. Pulsa una celda para editar ese hueco. Los cambios de uno se reflejan en el otro, en la sábana y en Ahora al guardar.</p>
 </div>
 
-<div class="toolbar hd-toolbar">
-  <label class="hd-sel">Docente
-    <select id="hd-select" onchange="cambiarDocenteHorario(this)"></select>
-  </label>
-  <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
-  <span id="hd-estado" class="hint"></span>
+<div class="hi-cols">
+  <div class="hi-col">
+    <div class="toolbar hd-toolbar">
+      <label class="hd-sel">Docente
+        <select id="hd-select" onchange="cambiarDocenteHorario(this)"></select>
+      </label>
+      <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
+      <span id="hd-estado" class="hint"></span>
+    </div>
+    <div id="hd-body"></div>
+    <div id="hd-res"></div>
+  </div>
+  <div class="hi-col">
+    <div class="toolbar hd-toolbar">
+      <label class="hd-sel">Grupo
+        <select id="hg-select" onchange="cambiarGrupoHorario(this)"></select>
+      </label>
+    </div>
+    <div id="hg-body"></div>
+    <div id="hg-res"></div>
+  </div>
 </div>
 
-<div id="hd-body"></div>
-<div id="hd-res"></div>
+<!-- Modal editor de hueco de GRUPO -->
+<div class="modal-overlay" id="hg-modal">
+  <div class="modal-box modal-wide">
+    <h3 id="hg-modal-title">Editar hueco</h3>
+    <div id="hg-modal-body"></div>
+    <div class="toolbar" style="margin:14px 0 0">
+      <button class="secondary" onclick="hgAddOc()">+ Añadir clase</button>
+    </div>
+    <div class="modal-actions" style="margin-top:18px">
+      <button type="button" class="secondary" onclick="hgCerrar()">Cancelar</button>
+      <button type="button" class="primary" onclick="hgAceptar()">Aceptar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal editor de hueco -->
 <div class="modal-overlay" id="hd-modal">
@@ -40,6 +67,7 @@
     // Con cambios sin guardar no se recarga nada (se perderían las ediciones).
     if (hayCambios('horario')) return;
     // Selector ya cargado y datos sin cambios: solo refrescamos el horario.
+    renderHorarioGrupo();
     if (HD_DOCS_VERSION === DATOS_VERSION && sel.options.length) {
       if (HD_DOC) cargarHorario(HD_DOC);
       return;
@@ -128,6 +156,7 @@
 
   // ---------- Modal de edición de un hueco ----------
   function abrirSlot(dia, tramoId) {
+    if (hayCambios('horario_grupo')) { aviso('Guarda antes los cambios del horario del grupo', 'err'); return; }
     var t = HD_CAT.tramos.filter(function(x){ return x.id === tramoId; })[0];
     if (!t) return;
     var diaN = (HD_DIAS.filter(function(d){ return d.k === dia; })[0] || {}).n || dia;
@@ -229,9 +258,111 @@
       .withSuccessHandler(function(res){
         btn.innerHTML = 'Guardar horario'; HD_DIRTY = false; _hdActualizarGuardar();
         document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + ((res && res.total) || 0) + ' ocupaciones).</div>';
-        refrescarEstado();
+        refrescarEstado(function() { if (HG_GRUPO) cargarHorarioGrupo(HG_GRUPO); });
       })
       .withFailureHandler(function(err){ btn.innerHTML = 'Guardar horario'; btn.disabled = false; _fabListo(); document.getElementById('hd-res').innerHTML = _errHtml(err); })
       .guardarHorarioDocente(HD_DOC, HD_OCUPS);
+  }
+
+  // ================= Horario de un GRUPO (columna derecha) =================
+  var HG_GRUPO = '', HG_CAT = null, HG_OCUPS = [], HG_APOYOS = [], HG_SLOT = null, HG_VERSION = -1, _hgSeq = 0;
+  (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(['horario', 'horario_grupo', function() { return HG_GRUPO ? HG_OCUPS : null; }, function() { guardarHorarioGrupoUI(); }]);
+
+  function renderHorarioGrupo() {
+    var sel = document.getElementById('hg-select');
+    if (hayCambios('horario_grupo')) return;
+    if (HG_VERSION === DATOS_VERSION && sel.options.length) { if (HG_GRUPO) cargarHorarioGrupo(HG_GRUPO); return; }
+    _run().withSuccessHandler(function(gs) {
+      HG_VERSION = DATOS_VERSION;
+      sel.innerHTML = '<option value="">— elige grupo —</option>' + (gs || []).map(function(g) {
+        return '<option value="' + _esc(g.id) + '"' + (g.id === HG_GRUPO ? ' selected' : '') + '>' + _esc(g.nombre_corto) + '</option>';
+      }).join('');
+      if (HG_GRUPO) cargarHorarioGrupo(HG_GRUPO);
+      else document.getElementById('hg-body').innerHTML = '<div class="empty">Elige un grupo para ver y editar su horario.</div>';
+    }).withFailureHandler(mostrarErrorGenerico).listarGrupos();
+  }
+  function cambiarGrupoHorario(sel) {
+    if (!hayCambios('horario_grupo')) { cargarHorarioGrupo(sel.value); return; }
+    var nuevo = sel.value; sel.value = HG_GRUPO;
+    confirmar('Hay cambios sin guardar en el horario del grupo. ¿Descartarlos?', function() { sel.value = nuevo; cargarHorarioGrupo(nuevo); }, { peligro: true, aceptar: 'Descartar cambios' });
+  }
+  function cargarHorarioGrupo(id) {
+    HG_GRUPO = id;
+    var body = document.getElementById('hg-body');
+    if (!id) { body.innerHTML = '<div class="empty">Elige un grupo.</div>'; return; }
+    body.innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
+    document.getElementById('hg-res').innerHTML = '';
+    var seq = ++_hgSeq;
+    google.script.run.withSuccessHandler(function(res) {
+      if (seq !== _hgSeq) return;
+      HG_CAT = res.catalogo || {}; HG_OCUPS = res.ocupaciones || []; HG_APOYOS = res.apoyos || [];
+      _snap('horario_grupo'); _hgPintar();
+    }).withFailureHandler(function(err) { if (seq === _hgSeq) body.innerHTML = _errHtml(err); }).datosHorarioGrupo(id);
+  }
+  function _hgNom(arr, id) { var x = (arr || []).filter(function(y) { return y.id === id; })[0]; return x ? x.nombre : ''; }
+  function _hgMat(id) { return (HG_CAT.materias || []).filter(function(m) { return m.id === id; })[0] || {}; }
+  function _hgPintar() {
+    if (!HG_CAT.tramos || !HG_CAT.tramos.length) { document.getElementById('hg-body').innerHTML = '<div class="empty">No hay tramos configurados.</div>'; return; }
+    var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
+    var rows = HG_CAT.tramos.map(function(t) {
+      var celdas = HD_DIAS.map(function(d) {
+        var ocs = HG_OCUPS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; });
+        var aps = HG_APOYOS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; });
+        var h = ocs.map(function(o) {
+          var m = _hgMat(o.materia_id), otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; }).map(function(g) { return _hgNom(HG_CAT.grupos, g); });
+          return '<div class="hd-oc t-grupo"' + (m.color ? ' style="box-shadow: inset 3px 0 0 ' + _esc(_sbColor(m.color) || 'transparent') + '"' : '') + '>' +
+            '<b>' + _esc(_hgNom(HG_CAT.docentes, o.docente_id) || '¿?') + '</b> ' + _esc(m.extra || m.nombre || '') +
+            (otros.length ? ' <span class="hd-suf">+' + _esc(otros.join('/')) + '</span>' : '') + _hdSufijo(o) + '</div>';
+        }).join('') + aps.map(function(a) {
+          return '<div class="hd-oc t-localizacion" title="Apoyo (se edita desde el docente)">' + _esc(_hgNom(HG_CAT.docentes, a.docente_id)) + ' · ' + _esc(_hgNom(HG_CAT.roles, a.rol_id)) + (a.semana ? ' <span class="hd-suf">sem ' + _esc(a.semana) + '</span>' : '') + '</div>';
+        }).join('');
+        return '<td class="hd-cell" onclick="hgAbrir(\'' + d.k + '\',' + _jsAttr(t.id) + ')">' + (h || '<span class="hd-add">+</span>') + '</td>';
+      }).join('');
+      var hr = String(t.horas || '').replace('-', '–');
+      return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + _esc(t.orden))) + '<span class="hd-horas">' + _esc(hr) + '</span></th>' + celdas + '</tr>';
+    }).join('');
+    document.getElementById('hg-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
+  }
+  function hgAbrir(dia, tramoId) {
+    if (hayCambios('horario')) { aviso('Guarda antes los cambios del horario del docente', 'err'); return; }
+    var t = HG_CAT.tramos.filter(function(x) { return x.id === tramoId; })[0]; if (!t) return;
+    HG_SLOT = { dia: dia, tramo: tramoId, working: HG_OCUPS.filter(function(o) { return o.dia === dia && o.tramo_id === tramoId; }).map(function(o) { return JSON.parse(JSON.stringify(o)); }) };
+    document.getElementById('hg-modal-title').textContent = _hgNom(HG_CAT.grupos, HG_GRUPO) + ' · ' + ((HD_DIAS.filter(function(d) { return d.k === dia; })[0] || {}).n || dia) + ' · Tramo ' + t.orden;
+    _hgModal(); document.getElementById('hg-modal').classList.add('show');
+  }
+  function _hgModal() {
+    var b = document.getElementById('hg-modal-body');
+    if (!HG_SLOT.working.length) { b.innerHTML = '<p class="hint">Sin clase en este hueco. Añade una.</p>'; return; }
+    b.innerHTML = HG_SLOT.working.map(function(o, i) {
+      var sel = function(campo, arr, val) { return '<select onchange="hgSet(' + i + ',\'' + campo + '\',this.value)">' + _optList(arr, val) + '</select>'; };
+      var mini = function(campo, ops, val) { return '<select onchange="hgSet(' + i + ',\'' + campo + '\',this.value)">' + ops.map(function(p) { return '<option value="' + p[0] + '"' + (val === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select>'; };
+      var otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; });
+      return '<div class="hd-oceditor"><div class="hd-oceditor-head"><div class="hd-f"><label>Docente</label>' + sel('docente_id', HG_CAT.docentes, o.docente_id) + '</div>' +
+        '<button class="btn-icon" title="Quitar del grupo" onclick="hgDel(' + i + ')">×</button></div>' +
+        '<div class="hd-frow"><div class="hd-f"><label>Materia</label>' + sel('materia_id', HG_CAT.materias, o.materia_id) + '</div>' +
+        '<div class="hd-f hd-mini"><label>Mitad</label>' + mini('mitad', [['', '—'], ['1', '½ a'], ['2', '½ b']], o.mitad) + '</div>' +
+        '<div class="hd-f hd-mini"><label>Semana</label>' + mini('semana', [['', '—'], ['A', 'A'], ['B', 'B']], o.semana) + '</div></div>' +
+        (otros.length ? '<p class="hint" style="margin:6px 0 0">Clase compartida con ' + _esc(otros.map(function(g) { return _hgNom(HG_CAT.grupos, g); }).join(', ')) + ': los cambios también les afectan.</p>' : '') +
+      '</div>';
+    }).join('');
+  }
+  function hgSet(i, c, v) { HG_SLOT.working[i][c] = v; }
+  function hgAddOc() { HG_SLOT.working.push({ dia: HG_SLOT.dia, tramo_id: HG_SLOT.tramo, docente_id: '', materia_id: '', grupos: [HG_GRUPO], mitad: '', semana: '', notas: '' }); _hgModal(); }
+  function hgDel(i) { HG_SLOT.working.splice(i, 1); _hgModal(); }
+  function hgCerrar() { document.getElementById('hg-modal').classList.remove('show'); HG_SLOT = null; }
+  function hgAceptar() {
+    if (!HG_SLOT) return;
+    if (HG_SLOT.working.some(function(o) { return !o.docente_id; })) { aviso('Elige el docente de cada clase', 'err'); return; }
+    HG_OCUPS = HG_OCUPS.filter(function(o) { return !(o.dia === HG_SLOT.dia && o.tramo_id === HG_SLOT.tramo); }).concat(HG_SLOT.working);
+    hgCerrar(); _hgPintar(); revisarCambios();
+  }
+  function guardarHorarioGrupoUI() {
+    if (!HG_GRUPO) return;
+    google.script.run.withSuccessHandler(function() {
+      _RPC = {};
+      document.getElementById('hg-res').innerHTML = '<div class="result ok">✓ Horario del grupo guardado.</div>';
+      refrescarEstado(function() { cargarHorarioGrupo(HG_GRUPO); if (HD_DOC) cargarHorario(HD_DOC); });
+    }).withFailureHandler(function(err) { _fabListo(); document.getElementById('hg-res').innerHTML = _errHtml(err); })
+      .guardarHorarioGrupo(HG_GRUPO, HG_OCUPS);
   }
 </script>

@@ -34,7 +34,7 @@ function catalogoImportacion() {
       return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '' };
     }),
     tramos: listarTramos().map(function(t) {
-      return { id: t.id, orden: t.orden, etiqueta: t.etiqueta || '',
+      return { id: t.id, orden: t.orden, etiqueta: t.etiqueta || '', es_recreo: !!t.es_recreo,
                horas: (t.hora_inicio || '') + '-' + (t.hora_fin || '') };
     })
   };

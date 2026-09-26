@@ -85,3 +85,82 @@ function guardarHorarioDocente(docenteId, ocupaciones) {
 
   return { ok: true, total: nuevas.length };
 }
+
+// ---------- Horario de un GRUPO ----------
+
+function _csvIds(csv) {
+  return String(csv || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+}
+
+/**
+ * Horario de un grupo: las clases (tipo 'grupo') que lo incluyen, con su id de
+ * fila para poder editarlas, y los apoyos que tienen al grupo como destino
+ * (solo lectura: se editan desde el docente).
+ */
+function datosHorarioGrupo(grupoId) {
+  if (!grupoId) throw new Error('Falta el grupo.');
+  const cat = catalogoImportacion();
+  const colores = {};
+  listarMaterias().forEach(function(m) { colores[m.id] = m.color || ''; });
+  cat.materias.forEach(function(m) { m.color = colores[m.id] || ''; });
+  const todas = getAll(SHEETS.OCUPACIONES);
+  const clases = [], apoyos = [];
+  todas.forEach(function(o) {
+    if (o.tipo === 'grupo' && _csvIds(o.grupo_id).indexOf(grupoId) !== -1) {
+      clases.push({ id: o.id, dia: _diaCanon(o.dia), tramo_id: o.tramo_id, docente_id: o.docente_id || '',
+        materia_id: o.materia_id || '', grupos: _csvIds(o.grupo_id),
+        mitad: String(o.mitad || ''), semana: String(o.semana || ''), notas: o.notas || '' });
+    } else if (o.tipo === 'localizacion' && _csvIds(o.grupo_destino_id).indexOf(grupoId) !== -1) {
+      apoyos.push({ dia: _diaCanon(o.dia), tramo_id: o.tramo_id, docente_id: o.docente_id || '', rol_id: o.rol_loc_id || '',
+        semana: String(o.semana || '') });
+    }
+  });
+  return { catalogo: cat, ocupaciones: clases, apoyos: apoyos };
+}
+
+/**
+ * Guarda las clases de un grupo. Cada elemento: { id?, dia, tramo_id,
+ * docente_id, materia_id, grupos[], mitad, semana, notas }.
+ * - Filas existentes (por id) se actualizan (afecta también a los otros grupos
+ *   de esa clase compartida).
+ * - Una clase que ya no está: se quita el grupo de la fila (si era el único
+ *   grupo, la fila se borra).
+ * - Sin id: clase nueva.
+ */
+function guardarHorarioGrupo(grupoId, lista) {
+  if (!grupoId) throw new Error('Falta el grupo.');
+  if (!Array.isArray(lista)) throw new Error('Formato inválido.');
+  const errores = [];
+  lista.forEach(function(f, i) {
+    if (_DIAS_VALIDOS.indexOf(String(f.dia || '').toUpperCase()) === -1) errores.push('Clase ' + (i + 1) + ': día no válido.');
+    if (!f.tramo_id) errores.push('Clase ' + (i + 1) + ': falta el tramo.');
+    if (!f.docente_id) errores.push('Clase ' + (i + 1) + ': falta el docente.');
+  });
+  if (errores.length) throw new Error('No se pudo guardar:\n' + errores.join('\n'));
+
+  const porId = {};
+  lista.forEach(function(f) { if (f.id) porId[f.id] = f; });
+  const grupos = function(f) { const g = (f.grupos || []).filter(Boolean); if (g.indexOf(grupoId) === -1) g.unshift(grupoId); return g.join(','); };
+  const aplicar = function(fila, f) {
+    fila.dia = String(f.dia).toUpperCase(); fila.tramo_id = f.tramo_id; fila.docente_id = f.docente_id;
+    fila.materia_id = f.materia_id || ''; fila.grupo_id = grupos(f);
+    fila.mitad = f.mitad || ''; fila.semana = f.semana || ''; fila.notas = f.notas || '';
+    return fila;
+  };
+
+  const salida = [];
+  getAll(SHEETS.OCUPACIONES).forEach(function(o) {
+    if (o.tipo !== 'grupo' || _csvIds(o.grupo_id).indexOf(grupoId) === -1) { salida.push(o); return; }
+    if (porId[o.id]) { salida.push(aplicar(o, porId[o.id])); delete porId[o.id]; return; }
+    const resto = _csvIds(o.grupo_id).filter(function(g) { return g !== grupoId; });
+    if (resto.length) { o.grupo_id = resto.join(','); salida.push(o); }
+  });
+  let nuevas = 0;
+  lista.forEach(function(f) {
+    if (f.id && !porId.hasOwnProperty(f.id)) return; // ya aplicada
+    salida.push(aplicar({ tipo: 'grupo', localizacion_id: '', rol_loc_id: '', grupo_destino_id: '', rol_especial_id: '' }, f));
+    nuevas++;
+  });
+  bulkReplace(SHEETS.OCUPACIONES, salida);
+  return { ok: true, total: lista.length, nuevas: nuevas };
+}

@@ -55,7 +55,7 @@
         <?!= include('partial_sustituciones') ?>
       </section>
 
-      <!-- Horario del docente -->
+      <!-- Horarios individuales (docente | grupo) -->
       <section class="view" id="view-horario">
         <?!= include('partial_horario') ?>
       </section>
@@ -97,7 +97,7 @@
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
       { key: 'sabana',         label: 'Sábana' },
-      { key: 'horario',        label: 'Horario docente' },
+      { key: 'horario',        label: 'Horarios individuales' },
       { key: 'ahora',          label: 'Ahora' },
       { key: 'sustituciones',  label: 'Sustituciones', permiso: 'sustituciones' },
       { key: 'config',         label: 'Configuración' }
@@ -177,10 +177,10 @@
       return function(cb) { if (e.ok) setTimeout(function() { cb(null, e.res); }, 0); else e.cbs.push(cb); };
     }
     function _run() {
-      var ok = null, ko = null, o = {};
-      o.withSuccessHandler = function(f) { ok = f; return o; };
-      o.withFailureHandler = function(f) { ko = f; return o; };
-      return new Proxy(o, { get: function(t, p) {
+      var ok = null, ko = null, o = {}, px;
+      o.withSuccessHandler = function(f) { ok = f; return px; };
+      o.withFailureHandler = function(f) { ko = f; return px; };
+      return px = new Proxy(o, { get: function(t, p) {
         if (p in t) return t[p];
         return function() {
           var args = Array.prototype.slice.call(arguments);

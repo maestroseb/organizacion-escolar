@@ -177,7 +177,7 @@
   .subtab.active { background: var(--surface); color: var(--accent-text); box-shadow: var(--shadow-sm); }
 
   /* ---------- Contenedor de contenido ---------- */
-  .shell { max-width: 1440px; margin: 0 auto; padding: var(--s5) var(--s4) 56px; }
+  .shell { max-width: none; margin: 0 auto; padding: var(--s5) var(--s4) 56px; }
   .view { display: none; animation: fade .16s var(--ease); min-width: 0; }
   .view.active { display: block; }
   @keyframes fade { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
@@ -250,7 +250,7 @@
   /* ---------- Tablas editables (hoja compacta) ---------- */
   .tablewrap {
     border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
-    overflow: auto; max-height: min(72vh, 900px); overscroll-behavior-x: contain;
+    overflow: auto; max-height: calc(100vh - 240px); overscroll-behavior-x: contain;
   }
   table.data { width: 100%; min-width: 480px; border-collapse: separate; border-spacing: 0; font-size: var(--fs-data); font-variant-numeric: tabular-nums; }
   table.data th {
@@ -424,7 +424,8 @@
   .gap-item .a { font-size: var(--fs-sm); color: var(--muted); }
 
   /* ---------- Sábana (disposición de hoja: tramos en filas, días en columnas) ---------- */
-  .sb-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: var(--s3); }
+  .sb-head-row { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px 24px; flex-wrap: wrap; margin-bottom: var(--s3); }
+  .sb-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .sb-grow { flex: 1; }
   .sb-actual { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 1px 6px; margin-left: 4px; vertical-align: 1px; }
   #sb-body { font-family: var(--font-cond); }
@@ -436,15 +437,15 @@
   .sb-weekscroll {
     --sb-cw: 3.4em; --sb-docw: 12ch; --sb-ocw: 12ch;
     overflow: auto; overscroll-behavior-x: contain; max-height: calc(100vh - 150px);
-    border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-sm);
   }
   .sb-weekscroll > .sb-recreo { position: sticky; left: 0; }
   .sb-weekrow { display: flex; align-items: stretch; min-width: min-content; }
   .sb-tramo-w + .sb-tramo-w, .sb-recreo + .sb-tramo-w { border-top: 6px solid var(--bg); }
   .sb-weekrow > .sb-rail { position: sticky; left: 0; z-index: 2; }
-  .sb-daycol { flex: 0 0 auto; border-left: 2px solid var(--border-strong); display: flex; flex-direction: column; }
+  .sb-daycol { flex: 0 0 auto; border-left: 2px solid var(--border-strong); display: flex; flex-direction: column; background: var(--surface); }
   .sb-dayhead { text-align: center; font-weight: 700; font-size: var(--fs-md); letter-spacing: .03em; padding: 3px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sb-cols { flex: 1; display: flex; align-items: stretch; }
+  .sb-pane { display: flex; flex-direction: column; }
   .sb-pane + .sb-pane { border-left: 1px solid var(--border-strong); }
   /* Anchos fijos por columna: Curso/Loc estrecha, Docente según el nombre más largo. */
   table.sb { table-layout: fixed; width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); border-collapse: collapse; font-size: var(--fs-data); line-height: 1.2; font-variant-numeric: tabular-nums; }
@@ -467,7 +468,7 @@
   .sb-sep { color: var(--faint); font-weight: 400; margin: 0 3px; }
   .sb-tutor { font-size: var(--fs-sm); color: var(--faint); font-style: italic; }
   .sb-sin { color: var(--warn); font-weight: 700; font-size: var(--fs-sm); }
-  .sb-libres { padding: 4px 6px; border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--muted); line-height: 1.35; white-space: normal; max-width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); }
+  .sb-libres { margin-top: auto; text-align: right; padding: 4px 6px 3px; font-size: var(--fs-sm); color: var(--muted); line-height: 1.35; white-space: normal; max-width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); }
   .sb-libres b { display: block; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; }
   .sb-libres b { color: var(--text); }
   @media (max-width: 720px) {
@@ -561,12 +562,15 @@
     body:not(.print-sabana) table.su select { border: none; appearance: none; background: none; font-weight: 700; }
   }
 
+  .hi-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s4); align-items: start; }
+  .hi-cols table.hd { min-width: 560px; }
+  @media (max-width: 1200px) { .hi-cols { grid-template-columns: minmax(0, 1fr); } }
   .hd-toolbar { align-items: center; }
   .hd-sel { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
   .hd-sel select { min-width: 220px; width: auto; margin: 0; }
 
   /* ---------- Horario del docente (cabecera y columna de tramo fijas) ---------- */
-  .hd-wrap { overflow: auto; max-height: min(78vh, 980px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overscroll-behavior-x: contain; }
+  .hd-wrap { overflow: auto; max-height: calc(100vh - 230px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overscroll-behavior-x: contain; }
   table.hd { width: 100%; min-width: 720px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-family: var(--font-cond); font-size: var(--fs-data); line-height: 1.25; }
   table.hd th, table.hd td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 3px 6px; vertical-align: top; }
   table.hd tr > :last-child { border-right: none; }
