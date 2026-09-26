@@ -541,6 +541,10 @@
     body:not(.print-sabana) table.su select { border: none; appearance: none; background: none; font-weight: 700; }
   }
 
+  .hd-toolbar { align-items: center; }
+  .hd-sel { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
+  .hd-sel select { min-width: 220px; width: auto; margin: 0; }
+
   /* ---------- Horario del docente (cabecera y columna de tramo fijas) ---------- */
   .hd-wrap { overflow: auto; max-height: min(78vh, 980px); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overscroll-behavior-x: contain; }
   table.hd { width: 100%; min-width: 720px; table-layout: fixed; border-collapse: separate; border-spacing: 0; font-family: var(--font-cond); font-size: var(--fs-data); line-height: 1.25; }

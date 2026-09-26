@@ -3,11 +3,10 @@
   <p>Consulta y corrige el horario individual de cada docente. Pulsa una celda para editar ese hueco (materia, grupo, apoyo o cargo). Guarda al terminar.</p>
 </div>
 
-<div class="toolbar">
-  <div>
-    <label style="display:inline">Docente</label>
-    <select id="hd-select" style="min-width:220px" onchange="cambiarDocenteHorario(this)"></select>
-  </div>
+<div class="toolbar hd-toolbar">
+  <label class="hd-sel">Docente
+    <select id="hd-select" onchange="cambiarDocenteHorario(this)"></select>
+  </label>
   <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
   <span id="hd-estado" class="hint"></span>
 </div>
