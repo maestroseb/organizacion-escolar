@@ -344,6 +344,14 @@ Filtra `_Ocupaciones` por grupo, pivota día × tramo, incluye qué docente. Rea
 - Persiste las sustituciones en `_Sustituciones`.
 - Resto de UX/UI: ~70% reutilizable del HTML original.
 
+### 6.6 Sistema visual (UI web)
+Todo el CSS vive en `partial_estilos.html` (un único sistema para toda la app).
+- **Tokens** en `:root`: color (`--bg`, `--surface*`, `--border*`, `--text/--muted/--faint`, `--accent*`, `--ok/--warn/--danger/--purple` + `-weak`, `--on-accent`), espaciado `--s1…--s6` (escala de 4px), radios, alturas de control (`--ctl-h` 32px) y tipografía (`--fs-xs…--fs-lg`).
+- **Tipografía**: Inter para la interfaz y Roboto Condensed (`--font-cond`) para datos densos: tablas, sábana, horario, cabeceras, badges y etiquetas. Se cargan de Google Fonts con `preconnect`, `display=swap` y solo los pesos usados.
+- **Modo oscuro**: `prefers-color-scheme` salvo que `data-theme` en `<html>` fuerce claro u oscuro (botón de tema). Contraste de texto AA en ambos modos.
+- **Densidad**: datos a 12–13px, controles de 32px (26–28px dentro de tablas), inputs de tabla sin borde hasta hover/focus (aspecto de hoja de cálculo).
+- **Desbordamientos**: las tablas anchas (`.tablewrap`, `.rev-scroll`, `.hd-wrap`, `.sb-weekscroll`) hacen scroll interno con cabecera fija (y la columna de tramo o el rail fijos en horario y semana). La página no hace scroll horizontal en móvil; pestañas y submenús se desplazan en horizontal.
+
 ---
 
 ## 7. Estructura del repositorio
