@@ -1,6 +1,6 @@
 <div class="page-head">
   <h2>Sustituciones</h2>
-  <p>Parte del día: marca quién falta, revisa su horario y asigna quién cubre cada tramo. Primero se proponen los apoyos (por prioridad de sustitución) y después los libres, con las sustituciones de los últimos 30 días entre paréntesis.</p>
+  <p>Parte del día: marca quién falta, revisa su horario y asigna quién cubre cada tramo. Se proponen primero los apoyos del tramo (por prioridad de sustitución), con las sustituciones de los últimos 30 días entre paréntesis. Quien no tiene nada ese tramo no está en el centro y va al final.</p>
 </div>
 
 <div class="su-toolbar">
@@ -76,7 +76,8 @@
     body.innerHTML = h + '</tbody></table></div>';
   }
 
-  // Opciones: apoyos del tramo (prioridad), libres (menos cargados antes) y resto.
+  // Opciones: apoyos del tramo (prioridad), resto con clase y, al final, quien
+  // no tiene nada ese tramo (no está en el centro).
   function _suSelect(aus, tramo) {
     var k = aus + '|' + tramo, val = SU_ASIG[k] || '', c = SU.candidatos[tramo] || { apoyos: [], libres: [] };
     var usados = {};
@@ -89,16 +90,16 @@
     var carga = function(id) { return (SU._byId[id] || {}).carga || 0; };
     var g1 = c.apoyos.filter(function(x) { return SU_AUS.indexOf(x.id) === -1 && SU._byId[x.id]; })
       .map(function(x) { return opt(x.id, _suNombre(x.id) + ' · ' + x.rol + ' (' + carga(x.id) + ')'); }).join('');
-    var g2 = c.libres.filter(function(id) { return SU_AUS.indexOf(id) === -1 && !vistos[id]; })
-      .sort(function(a, b) { return carga(a) - carga(b); })
-      .map(function(id) { return opt(id, _suNombre(id) + ' (' + carga(id) + ')'); }).join('');
-    var g3 = SU.docentes.filter(function(d) { return !vistos[d.id] && SU_AUS.indexOf(d.id) === -1; })
+    var fuera = {}; c.libres.forEach(function(id) { fuera[id] = true; });
+    var g3 = SU.docentes.filter(function(d) { return !vistos[d.id] && !fuera[d.id] && SU_AUS.indexOf(d.id) === -1; })
+      .map(function(d) { return opt(d.id, d.nombre); }).join('');
+    var g4 = SU.docentes.filter(function(d) { return !vistos[d.id] && fuera[d.id] && SU_AUS.indexOf(d.id) === -1; })
       .map(function(d) { return opt(d.id, d.nombre); }).join('');
     return '<select class="' + (val ? 'ok' : 'pend') + '" onchange="suAsignar(' + _jsAttr(k) + ', this.value)">' +
       '<option value="">— sin cubrir —</option>' +
       (g1 ? '<optgroup label="Apoyos (prioridad)">' + g1 + '</optgroup>' : '') +
-      (g2 ? '<optgroup label="Libres">' + g2 + '</optgroup>' : '') +
-      (g3 ? '<optgroup label="Con clase">' + g3 + '</optgroup>' : '') + '</select>';
+      (g3 ? '<optgroup label="Con clase">' + g3 + '</optgroup>' : '') +
+      (g4 ? '<optgroup label="No en el centro">' + g4 + '</optgroup>' : '') + '</select>';
   }
 
   function suAsignar(k, v) { SU_ASIG[k] = v; SU_DIRTY = true; _suPintar(); }
@@ -109,13 +110,11 @@
     SU_DIRTY = true; _suPintar();
   }
 
-  // Rellena huecos: primero apoyos por prioridad; luego libres con menos carga
-  // (contando también lo asignado hoy). Nunca repite persona en un tramo.
+  // Rellena huecos con los apoyos del tramo por prioridad de sustitución.
+  // Nunca repite persona en un tramo.
+  // Quien no tiene nada ese tramo no está en el centro: no se asigna solo.
   function suAutoasignar() {
     if (!SU || !SU_AUS.length) return;
-    var hoy = {};
-    Object.keys(SU_ASIG).forEach(function(k) { if (SU_ASIG[k]) hoy[SU_ASIG[k]] = (hoy[SU_ASIG[k]] || 0) + 1; });
-    var carga = function(id) { return ((SU._byId[id] || {}).carga || 0) + (hoy[id] || 0) * 2; };
     SU.tramos.forEach(function(t) {
       if (t.es_recreo) return;
       var c = SU.candidatos[t.id] || { apoyos: [], libres: [] }, usados = {};
@@ -124,9 +123,8 @@
         var k = a + '|' + t.id;
         if (SU_ASIG[k] || !((SU.horario[a] || {})[t.id] || []).length) return;
         var libre = function(id) { return !usados[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
-        var el = (c.apoyos.filter(function(x) { return libre(x.id); })[0] || {}).id ||
-                 c.libres.filter(libre).sort(function(x, y) { return carga(x) - carga(y); })[0];
-        if (el) { SU_ASIG[k] = el; usados[el] = true; hoy[el] = (hoy[el] || 0) + 1; SU_DIRTY = true; }
+        var el = (c.apoyos.filter(function(x) { return libre(x.id); })[0] || {}).id;
+        if (el) { SU_ASIG[k] = el; usados[el] = true; SU_DIRTY = true; }
       });
     });
     _suPintar();

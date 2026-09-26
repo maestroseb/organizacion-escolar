@@ -5,7 +5,8 @@
  *   sustituciones del día ya aplicadas. El cliente elige el tramo en curso
  *   con su reloj y navega sin volver a llamar al servidor.
  * - datosSustituciones(fecha): el parte de un día: horario de cada docente
- *   ese día, candidatos por tramo (apoyos por prioridad, luego libres) y las
+ *   ese día, candidatos por tramo (apoyos por prioridad; `libres` = sin nada
+ *   ese tramo, es decir, fuera del centro) y las
  *   sustituciones ya guardadas. Solo Equipo Directivo y Admin.
  * - guardarSustituciones(fecha, lista): reemplaza las de esa fecha.
  */

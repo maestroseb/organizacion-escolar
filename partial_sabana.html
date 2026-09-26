@@ -225,7 +225,7 @@
     return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
   function _sbLibres(libres) {
-    return libres && libres.length ? ('<div class="sb-libres"><b>Libres (' + libres.length + '):</b> ' + libres.map(_esc).join(' · ') + '</div>') : '';
+    return libres && libres.length ? ('<div class="sb-libres"><b>No en el centro (' + libres.length + '):</b> ' + libres.map(_esc).join(' · ') + '</div>') : '';
   }
 
   // Solo colores hex válidos llegan a un atributo style (vienen de la hoja).
