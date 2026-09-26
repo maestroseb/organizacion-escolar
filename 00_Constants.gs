@@ -42,7 +42,7 @@ const SCHEMA = {
   ],
   [SHEETS.DOCENTES]: [
     'id', 'nombre_corto', 'nombre_completo', 'puesto', 'email',
-    'activo', 'orden', 'color', 'sustituto'
+    'activo', 'orden', 'color', 'sustituto', 'acceso_sust'
   ],
   [SHEETS.LOCALIZACIONES]: [
     'id', 'codigo', 'descripcion', 'orden'

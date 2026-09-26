@@ -270,6 +270,14 @@
   table.data input:focus, table.data select:focus { border-color: var(--accent); background: var(--surface); }
   .col-num { width: 44px; text-align: center; color: var(--faint); font-family: var(--font-cond); white-space: nowrap; }
   .col-center { text-align: center; }
+  /* Tablas ajustadas al contenido: cada columna mide lo que dice su <th>. */
+  table.data.fit { width: auto; min-width: 0; }
+  .tablewrap:has(> table.data.fit) { width: fit-content; max-width: 100%; }
+  table.data.fit td input[type=text], table.data.fit td input[type=email] { min-width: 0; width: 100%; }
+  table.data.fit .col-acc { width: 32px; }
+  .centro-cols { grid-template-columns: minmax(0, 1fr) auto; }
+  @media (max-width: 960px) { .centro-cols { grid-template-columns: minmax(0, 1fr); } }
+  .centro-cols .form { grid-template-columns: repeat(auto-fill, minmax(min(100%, 170px), 1fr)); gap: 8px 12px; }
   .col-acc { width: 72px; text-align: center; white-space: nowrap; }
   table.data th.col-num, table.data th.col-center, table.data th.col-acc { text-align: center; }
   /* Arrastrar filas */
@@ -284,6 +292,7 @@
   .colorpick input[type=color]::-webkit-color-swatch { border: none; border-radius: 4px; }
   .colorclear { appearance: none; border: none; background: transparent; color: var(--faint); cursor: pointer; font-size: 13px; line-height: 1; padding: 0 2px; min-height: 0; }
   .colorclear:hover { color: var(--danger); }
+  .colorclear.is-empty { visibility: hidden; }
 
   /* ---------- Badges / resultados ---------- */
   .badge {
@@ -444,14 +453,17 @@
   table.sb col.c3 { width: var(--sb-ocw); }
   table.sb thead th { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; font-weight: 700; text-align: left; padding: 3px 5px; white-space: nowrap; background: var(--surface-3); color: var(--text); }
   table.sb td { padding: 2px 5px; border-top: 1px solid var(--border); vertical-align: middle; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  table.sb tbody tr:nth-child(even):not(.sb-cont) td { background: var(--surface-2); }
+  table.sb tbody tr:nth-child(even) td { background: var(--surface-2); }
   table.sb tbody tr:hover td { background: var(--accent-weak); }
-  table.sb tr.sb-cont td { border-top-style: dashed; }
   .sb-curso { font-weight: 700; }
   .sb-loc { font-weight: 700; color: var(--faint); }
   .sb-doc { font-weight: 600; }
   .sb-pill { display: inline-block; border-radius: var(--radius-xs); padding: 0 6px; font-weight: 700; font-size: var(--fs-sm); line-height: 17px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
   .sb-oc .sb-pill { display: block; text-align: center; }
+  /* Varias personas en un curso: una sola fila (misma altura todos los días). */
+  .sb-seg { display: flex; border-radius: var(--radius-xs); overflow: hidden; }
+  .sb-seg .sb-pill { flex: 1 1 0; min-width: 0; border-radius: 0; padding: 0 3px; text-align: center; }
+  .sb-sep { color: var(--faint); font-weight: 400; margin: 0 3px; }
   .sb-tutor { font-size: var(--fs-sm); color: var(--faint); font-style: italic; }
   .sb-sin { color: var(--warn); font-weight: 700; font-size: var(--fs-sm); }
   .sb-libres { padding: 3px 10px; border-top: 1px solid var(--border); font-size: var(--fs-sm); color: var(--muted); background: var(--surface-2); line-height: 1.35; white-space: normal; }

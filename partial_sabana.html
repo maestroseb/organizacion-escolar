@@ -75,10 +75,16 @@
       if (t.tramo.es_recreo) return;
       Object.keys(t.porDia).forEach(function(k) {
         var c = t.porDia[k];
-        c.cursos.forEach(function(g) { cu = Math.max(cu, String(g.grupo.nombre || '').length); (g.ocupantes || []).forEach(function(o) {
-          doc = Math.max(doc, String(o.docente || '').length);
-          oc = Math.max(oc, String(o.materia || '').length);
-        }); });
+        c.cursos.forEach(function(g) {
+          cu = Math.max(cu, String(g.grupo.nombre || '').length);
+          var ns = [];
+          (g.ocupantes || []).forEach(function(o) {
+            if (ns.indexOf(o.docente) === -1) ns.push(o.docente);
+            oc = Math.max(oc, String(o.materia || '').length);
+          });
+          // Filas compartidas: los nombres van en línea («A · B»), que caben enteros.
+          doc = Math.max(doc, ns.join(' · ').length);
+        });
         c.apoyos.forEach(function(a) {
           doc = Math.max(doc, String(a.docente || '').length);
           oc = Math.max(oc, String(a.rol || '').length + (a.destino && a.destino.length ? a.destino.join(' / ').length + 1 : 0));
@@ -149,18 +155,32 @@
     '</div>';
   }
   var _SB_COLS = '<colgroup><col class="c1"><col class="c2"><col class="c3"></colgroup>';
+  // Orden dentro de un curso compartido: Religión, luego ATEDU, luego el resto.
+  function _sbPrio(o) {
+    var m = String(o.materia || '').toLowerCase();
+    return /relig/.test(m) ? 0 : /atedu|atenci[oó]n educ/.test(m) ? 1 : 2;
+  }
+  // Una fila por curso: nombres en línea («Inma B. · Puri») y pill partida
+  // en un tramo de color por área, para que todas las filas midan lo mismo.
   function _sbTablaCursos(cursos) {
     var rows = cursos.map(function(c){
-      var curso = _esc(c.grupo.nombre);
-      if (c.vacio || !c.ocupantes.length) return '<tr><td class="sb-curso">' + curso + '</td><td colspan="2"><span class="sb-sin">sin cubrir</span></td></tr>';
-      var n = c.ocupantes.length;
-      return c.ocupantes.map(function(o, i){
-        var mat = o.materia ? ('<span class="sb-pill" style="' + _sbPill(o.color) + '" title="' + _esc(o.materia) + '">' + _esc(o.materia) + '</span>')
-                            : (o.tutor ? '<span class="sb-tutor">tutoría</span>' : '');
-        return '<tr' + (i ? ' class="sb-cont"' : '') + '>' +
-          (i ? '' : '<td class="sb-curso"' + (n > 1 ? ' rowspan="' + n + '"' : '') + '>' + curso + '</td>') +
-          '<td class="sb-doc">' + _esc(o.docente || '—') + '</td><td class="sb-oc">' + mat + '</td></tr>';
-      }).join('');
+      var curso = '<td class="sb-curso">' + _esc(c.grupo.nombre) + '</td>';
+      if (c.vacio || !c.ocupantes.length) return '<tr>' + curso + '<td colspan="2"><span class="sb-sin">sin cubrir</span></td></tr>';
+      var ocs = c.ocupantes.map(function(o, i) { return { o: o, i: i }; })
+        .sort(function(a, b) { return (_sbPrio(a.o) - _sbPrio(b.o)) || (a.i - b.i); })
+        .map(function(x) { return x.o; });
+      var nombres = [];
+      ocs.forEach(function(o) { var n = o.docente || '—'; if (nombres.indexOf(n) === -1) nombres.push(n); });
+      var detalle = ocs.map(function(o) { return (o.docente || '—') + (o.materia ? ': ' + o.materia : (o.tutor ? ': tutoría' : '')); }).join(' · ');
+      var pills = ocs.filter(function(o) { return o.materia; }).map(function(o) {
+        return '<span class="sb-pill" style="' + _sbPill(o.color) + '">' + _esc(o.materia) + '</span>';
+      });
+      var oc = pills.length > 1 ? '<div class="sb-seg">' + pills.join('') + '</div>'
+             : pills.length ? pills[0]
+             : (ocs[0].tutor ? '<span class="sb-tutor">tutoría</span>' : '');
+      return '<tr title="' + _esc(detalle) + '">' + curso +
+        '<td class="sb-doc">' + nombres.map(_esc).join('<span class="sb-sep">·</span>') + '</td>' +
+        '<td class="sb-oc">' + oc + '</td></tr>';
     }).join('');
     return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Curso</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }

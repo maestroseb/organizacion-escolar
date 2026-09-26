@@ -93,22 +93,24 @@
 
     // Submenú dentro de Configuración: datos del centro e importación.
     var CONFIG_SUBTABS = [
-      { key: 'ajustes',        label: 'Ajustes' },
-      { key: 'centro',         label: 'Centro' },
-      { key: 'tramos',         label: 'Tramos',          cont: 'tramos' },
+      { key: 'centro',         label: 'Centro y horario', cont: 'tramos' },
       { key: 'grupos',         label: 'Grupos y aulas',  cont: 'grupos' },
       { key: 'docentes',       label: 'Docentes',        cont: 'docentes' },
       { key: 'areas',          label: 'Áreas y cargos',  cont: 'materias' },
-      { key: 'importar',       label: 'Importar' }
+      { key: 'importar',       label: 'Importar' },
+      { key: 'ajustes',        label: 'Ajustes' }
     ];
     var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
+    // Claves antiguas o de secciones fusionadas (modo guiado, enlaces, hash).
+    var ALIAS = { tramos: 'centro' };
+    function _alias(k) { return ALIAS[k] || k; }
 
     var ESTADO = null;         // último estadoApp()
     var GUIADO = false;        // modo alta guiada: avanza por pendientes
     var PENDIENTES = [];       // claves de secciones pendientes (modo guiado)
     var OB_VOLCADO = null;     // volcado pendiente de revisar en Importar (puente onboarding→workspace)
     var VISTA_ACTUAL = INICIO;
-    var CONFIG_SUB_ACTUAL = 'ajustes';
+    var CONFIG_SUB_ACTUAL = 'centro';
     var DATOS_VERSION = 0;     // se incrementa tras cada guardado (invalida cachés de vistas)
     var _PREFETCH = {};        // nombre de función .gs -> resultado en vuelo (ver _prefetch)
     var _CARGADO = {};         // vista -> DATOS_VERSION con la que se cargó (no recargar si no cambió)
@@ -204,7 +206,7 @@
       return TABS.some(function(t) { return t.key === key && !t.soon && _tabPermitida(t); });
     }
     function _keyValida(key) {
-      return _tabValida(key) || CONFIG_KEYS.indexOf(key) !== -1;
+      return _tabValida(_alias(key)) || CONFIG_KEYS.indexOf(_alias(key)) !== -1;
     }
 
     var LOADERS = {
@@ -212,14 +214,14 @@
       horario: function() { renderHorario(); },
       importar: function() { prepararImportar(); },
       ajustes: function() { renderConfig(); },
-      centro: function() { cargarCentro(); },
-      tramos: function() { cargarTramos(); },
+      centro: function() { cargarCentro(); cargarTramos(); },
       grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
       areas: function() { cargarMaterias(); cargarRoles(); }
     };
 
     function irPestana(key) {
+      key = _alias(key);
       // La pestaña "Configuración" abre el hub (submenú + última subsección).
       if (key === 'config') { irConfig(CONFIG_SUB_ACTUAL); return; }
       if (!_keyValida(key)) key = INICIO;
@@ -243,7 +245,8 @@
 
     // Configuración con submenú: 'ajustes' + todas las secciones de datos.
     function irConfig(sub) {
-      sub = (CONFIG_KEYS.indexOf(sub) !== -1) ? sub : 'ajustes';
+      sub = _alias(sub);
+      sub = (CONFIG_KEYS.indexOf(sub) !== -1) ? sub : 'centro';
       VISTA_ACTUAL = sub;
       CONFIG_SUB_ACTUAL = sub;
 
@@ -324,8 +327,10 @@
       google.script.run.withSuccessHandler(function(res) {
         PENDIENTES = (res && res.pendientes) || [];
         // Quitar la sección actual (ya guardada) y saltar a la siguiente pendiente.
-        const actual = VISTA_ACTUAL;
-        const siguiente = PENDIENTES.filter(function(k) { return k !== actual; })[0];
+        // Secciones fusionadas (Centro + Tramos) cuentan como la misma vista:
+        // no se "avanza" a la vista actual (recargaría y perdería ediciones).
+        const actual = _alias(VISTA_ACTUAL);
+        const siguiente = PENDIENTES.map(_alias).filter(function(k) { return k !== actual; })[0];
         if (siguiente) {
           irPestana(siguiente);
         } else {

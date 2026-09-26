@@ -44,7 +44,8 @@ function guardarDocentes(docentes, modo) {
       activo: d.activo === false ? false : true,
       orden: i + 1,
       color: d.color || '',
-      sustituto: d.sustituto || ''
+      sustituto: d.sustituto || '',
+      acceso_sust: d.acceso_sust === true
     };
   });
   const resumen = bulkMerge(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
