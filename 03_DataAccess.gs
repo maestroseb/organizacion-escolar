@@ -30,6 +30,8 @@ function getAll(sheetName) {
 /** Número de filas con id de una pestaña, leyendo solo la columna id. */
 function contarFilas(sheetName) {
   if (_TABLAS_CACHE[sheetName]) return _TABLAS_CACHE[sheetName].length;
+  const enCache = _leerCache(sheetName);
+  if (enCache) { _TABLAS_CACHE[sheetName] = enCache; return enCache.length; }
   const sheet = _getSheet(sheetName);
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 0;
@@ -225,9 +227,67 @@ const _TABLAS_CACHE = {};
 const _HOJAS_CACHE = {};
 let _TZ_CACHE = null;
 
-function _invalidarTabla(sheetName) { delete _TABLAS_CACHE[sheetName]; }
+// ---------- Caché compartida entre peticiones (CacheService) ----------
+// Cada llamada desde el navegador es una ejecución nueva: sin esto, cada una
+// relee las pestañas de la hoja. Las tablas se guardan como JSON (troceado,
+// límite 100 KB por clave) bajo una versión por pestaña; cualquier escritura
+// de la app cambia la versión. Caducan a los 10 min por si alguien edita la
+// hoja a mano (o usa «Recargar datos de la hoja» en Ajustes).
+const _CACHE_TTL = 600, _CACHE_TROZO = 90000;
+function _cache() { try { return CacheService.getScriptCache(); } catch (e) { return null; } }
+function _versionTabla(c, sheetName) {
+  let v = c.get('v:' + sheetName);
+  if (!v) { v = String(Date.now()); c.put('v:' + sheetName, v, 21600); }
+  return v;
+}
+function _leerCache(sheetName) {
+  const c = _cache(); if (!c) return null;
+  try {
+    const k = 't:' + sheetName + ':' + _versionTabla(c, sheetName);
+    const n = parseInt(c.get(k + ':n'), 10);
+    if (!n) return null;
+    const claves = []; for (let i = 0; i < n; i++) claves.push(k + ':' + i);
+    const trozos = c.getAll(claves);
+    let json = '';
+    for (let i = 0; i < n; i++) { if (trozos[claves[i]] == null) return null; json += trozos[claves[i]]; }
+    return JSON.parse(json);
+  } catch (e) { return null; }
+}
+function _guardarCache(sheetName, filas) {
+  const c = _cache(); if (!c) return;
+  try {
+    const json = JSON.stringify(filas);
+    if (json.length > _CACHE_TROZO * 80) return; // demasiado grande: sin caché
+    const k = 't:' + sheetName + ':' + _versionTabla(c, sheetName), obj = {};
+    let n = 0;
+    for (let i = 0; i < json.length; i += _CACHE_TROZO) obj[k + ':' + (n++)] = json.slice(i, i + _CACHE_TROZO);
+    obj[k + ':n'] = String(n);
+    c.putAll(obj, _CACHE_TTL);
+  } catch (e) {}
+}
+/** Vacía la caché de todas las pestañas (tras editar la hoja a mano). */
+function vaciarCacheDatos() {
+  const c = _cache();
+  if (c) { Object.keys(SCHEMA).forEach(function(t) { c.put('v:' + t, String(Date.now()) + Math.random(), 21600); }); c.remove('bd_ok'); }
+  Object.keys(_TABLAS_CACHE).forEach(function(k) { delete _TABLAS_CACHE[k]; });
+  return { ok: true };
+}
+
+function _invalidarTabla(sheetName) {
+  delete _TABLAS_CACHE[sheetName];
+  const c = _cache();
+  if (c) try { c.put('v:' + sheetName, String(Date.now()) + Math.random(), 21600); } catch (e) {}
+}
 
 function _leerTabla(sheetName) {
+  const enCache = _leerCache(sheetName);
+  if (enCache) return enCache;
+  const filas = _leerTablaHoja(sheetName);
+  _guardarCache(sheetName, filas);
+  return filas;
+}
+
+function _leerTablaHoja(sheetName) {
   const sheet = _getSheet(sheetName);
   const lastRow = sheet.getLastRow();
   const headers = SCHEMA[sheetName];

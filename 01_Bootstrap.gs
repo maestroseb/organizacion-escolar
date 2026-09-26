@@ -58,16 +58,25 @@ let _BD_CACHE = null;
  * aplicado: si coincide y están todas las pestañas, no se hace nada.
  */
 function asegurarBaseDatos() {
+  // Atajo sin abrir la hoja: esquema ya comprobado recientemente (caché 6 h).
+  const props0 = PropertiesService.getScriptProperties();
+  const id0 = props0.getProperty(PROP_BD_ID);
+  const c = _cache();
+  if (id0 && c) {
+    const f0 = id0 + '|' + _firmaEsquema();
+    if (c.get('bd_ok') === f0 && props0.getProperty(PROP_ESQUEMA_OK) === f0) return true;
+  }
   const ss = getBd();
   const firma = ss.getId() + '|' + _firmaEsquema();
   const props = PropertiesService.getScriptProperties();
   if (props.getProperty(PROP_ESQUEMA_OK) === firma) {
     const existentes = {};
     ss.getSheets().forEach(function(h) { existentes[h.getName()] = true; });
-    if (SHEET_ORDER.every(function(n) { return existentes[n]; })) return true;
+    if (SHEET_ORDER.every(function(n) { return existentes[n]; })) { if (c) c.put('bd_ok', firma, 21600); return true; }
   }
   inicializarLibro();
   props.setProperty(PROP_ESQUEMA_OK, firma);
+  if (c) c.put('bd_ok', firma, 21600);
   return true;
 }
 
@@ -90,7 +99,10 @@ function estadoApp() {
                                     String(centro.codigo || '').trim()));
 
   let bdUrl = '';
-  try { bdUrl = getBd().getUrl(); } catch (e) {}
+  try {
+    const idBd = PropertiesService.getScriptProperties().getProperty(PROP_BD_ID);
+    bdUrl = idBd ? 'https://docs.google.com/spreadsheets/d/' + idBd + '/edit' : '';
+  } catch (e) {}
 
   return {
     configurado: configurado,

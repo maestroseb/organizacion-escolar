@@ -9,6 +9,7 @@
   <div class="toolbar" style="margin-bottom:0;">
     <a class="btn-like" id="cfg-abrir-bd" href="#" target="_blank" rel="noopener">Abrir la hoja de datos ↗</a>
     <button class="secondary" onclick="irPestana('importar')">Ir a Importar</button>
+    <button class="secondary" id="cfg-recargar" onclick="recargarDatosHoja()" title="Úsalo si has editado la hoja de datos a mano: la app guarda los datos en caché hasta 10 minutos">Recargar datos de la hoja</button>
   </div>
 </div>
 
@@ -50,6 +51,14 @@
       else { a.href = '#'; a.style.pointerEvents = 'none'; a.style.opacity = '0.5'; }
     }
     document.getElementById('res-config').innerHTML = '';
+  }
+
+  function recargarDatosHoja() {
+    const btn = document.getElementById('cfg-recargar'); btn.disabled = true;
+    google.script.run.withSuccessHandler(function() {
+      btn.disabled = false;
+      refrescarEstado(function() { aviso('Datos recargados desde la hoja'); });
+    }).withFailureHandler(function(err) { btn.disabled = false; aviso(_errMsg(err), 'err'); }).vaciarCacheDatos();
   }
 
   function vaciarSeccionUI() {

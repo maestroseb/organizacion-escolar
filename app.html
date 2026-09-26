@@ -155,6 +155,55 @@
         .estadoApp();
     }
 
+    // ---------- Llamadas al servidor con caché de lecturas ----------
+    // _run() se usa igual que google.script.run. Las funciones de solo lectura
+    // (LECTURAS) se sirven de memoria mientras DATOS_VERSION no cambie (se
+    // incrementa tras cada guardado) y dos peticiones iguales a la vez se
+    // fusionan en una. Cada llamante recibe su propia copia (pueden mutarla).
+    var LECTURAS = { listarDocentes: 1, listarGrupos: 1, listarTramos: 1, listarMaterias: 1, listarRoles: 1,
+                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1 };
+    var _RPC = {}, _RPC_V = -1;
+    function _copia(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
+    function _srv(nombre, args) {
+      if (_RPC_V !== DATOS_VERSION) { _RPC = {}; _RPC_V = DATOS_VERSION; }
+      var k = nombre + JSON.stringify(args), e = _RPC[k];
+      if (!e) {
+        e = _RPC[k] = { cbs: [] };
+        var r = google.script.run
+          .withSuccessHandler(function(res) { e.ok = true; e.res = res; e.cbs.forEach(function(c) { c(null, res); }); e.cbs = []; })
+          .withFailureHandler(function(err) { if (_RPC[k] === e) delete _RPC[k]; e.cbs.forEach(function(c) { c(err); }); e.cbs = []; });
+        r[nombre].apply(r, args);
+      }
+      return function(cb) { if (e.ok) setTimeout(function() { cb(null, e.res); }, 0); else e.cbs.push(cb); };
+    }
+    function _run() {
+      var ok = null, ko = null, o = {};
+      o.withSuccessHandler = function(f) { ok = f; return o; };
+      o.withFailureHandler = function(f) { ko = f; return o; };
+      return new Proxy(o, { get: function(t, p) {
+        if (p in t) return t[p];
+        return function() {
+          var args = Array.prototype.slice.call(arguments);
+          if (LECTURAS[p]) {
+            _srv(p, args)(function(err, res) { if (err) { if (ko) ko(err); } else if (ok) ok(_copia(res)); });
+          } else {
+            var r = google.script.run;
+            // Una escritura invalida la caché de lecturas en cuanto responde
+            // (la sección se recarga antes de que llegue el nuevo estadoApp).
+            var escribe = /^(guardar|vaciar|reiniciar|aplicar|importar|crear|elimin|actualiz|borrar)/i.test(p);
+            if (ok || escribe) r = r.withSuccessHandler(function(res) { if (escribe) _RPC = {}; if (ok) ok(res); });
+            if (ko) r = r.withFailureHandler(ko);
+            r[p].apply(r, args);
+          }
+        };
+      } });
+    }
+    // Precarga en segundo plano (cuando el navegador está libre).
+    function precargar(nombre, args) {
+      var f = function() { if (LECTURAS[nombre]) _srv(nombre, args || [])(function() {}); };
+      if (window.requestIdleCallback) requestIdleCallback(f, { timeout: 3000 }); else setTimeout(f, 800);
+    }
+
     // ---------- Prefetch de llamadas al servidor ----------
     function _prefetch(nombre) {
       const p = { done: false, err: null, res: null, cbs: [] };

@@ -44,7 +44,7 @@
       if (HD_DOC) cargarHorario(HD_DOC);
       return;
     }
-    google.script.run.withSuccessHandler(function(docs) {
+    _run().withSuccessHandler(function(docs) {
       HD_DOCS_VERSION = DATOS_VERSION;
       const activos = (docs || []).filter(function(d){ return d.activo !== false; })
         .sort(function(a, b){ return String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es', { sensitivity: 'base' }); });
@@ -71,7 +71,7 @@
     document.getElementById('hd-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
     document.getElementById('hd-res').innerHTML = '';
     const seq = ++_hdSeq; // ignora respuestas de un docente anterior
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) {
         if (seq !== _hdSeq) return;
         HD_CAT = (res && res.catalogo) || {};
@@ -225,7 +225,7 @@
     if (!HD_DOC) return;
     const btn = document.getElementById('hd-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
     document.getElementById('hd-res').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res){
         btn.innerHTML = 'Guardar horario'; HD_DIRTY = false; _hdActualizarGuardar();
         document.getElementById('hd-res').innerHTML = '<div class="result ok">✓ Horario guardado (' + ((res && res.total) || 0) + ' ocupaciones).</div>';

@@ -258,7 +258,7 @@
 
   // ================= Centro =================
   function cargarCentro() {
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); _snap('centro'); })
       .withFailureHandler(mostrarErrorGenerico)
       .obtenerCentro();
@@ -292,7 +292,7 @@
       etapas: etapas.join(','), lineas: lineasEl ? lineasEl.value : '', bilingue: bilingueEl ? bilingueEl.value : ''
     };
     _cargando(btn,'Guardando…'); document.getElementById('res-centro').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function() { _restaurar(btn,'Guardar cambios'); _res('centro','ok','✓ Datos del centro guardados.'); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('centro','err','✗ ' + _errMsg(err)); })
       .guardarCentro(datos);
@@ -301,7 +301,7 @@
   // ================= Tramos =================
   let tramosLocal = [];
   function cargarTramos() {
-    google.script.run.withSuccessHandler(function(tramos) {
+    _run().withSuccessHandler(function(tramos) {
       tramosLocal = (tramos || []).map(function(t) {
         return { id: t.id, hora_inicio: _fmtHora(t.hora_inicio), hora_fin: _fmtHora(t.hora_fin), es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || '', color: t.color || '' };
       });
@@ -311,7 +311,7 @@
   }
   function cargarPlantillaTramos() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) {
+      _run().withSuccessHandler(function(pl) {
         tramosLocal = pl.map(function(t) { return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin, es_recreo: t.es_recreo, etiqueta: t.etiqueta, color: t.color || '' }; });
         renderTramos();
       }).withFailureHandler(mostrarErrorGenerico).plantillaTramos();
@@ -344,7 +344,7 @@
   function enviarTramos() {
     if (tramosLocal.length === 0) { _res('tramos','err','Debes definir al menos un tramo.'); return; }
     const btn = document.getElementById('btn-guardar-tramos'); _cargando(btn,'Guardando…'); document.getElementById('res-tramos').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar tramos'); _res('tramos','ok','✓ Guardados ' + res.total + ' tramos.'); cargarTramos(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar tramos'); _res('tramos','err','✗ ' + _errMsg(err)); })
       .guardarTramos(tramosLocal);
@@ -369,16 +369,16 @@
       if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
     };
     const error = function(err) { if (!fallo) { fallo = true; mostrarErrorGenerico(err); } };
-    google.script.run.withSuccessHandler(function(docs) {
+    _run().withSuccessHandler(function(docs) {
       GRUPOS_DOCENTES = (docs || []).filter(function(d){ return d.activo !== false; });
       fin();
     }).withFailureHandler(error).listarDocentes();
-    google.script.run.withSuccessHandler(function(gs) { grupos = gs; fin(); })
+    _run().withSuccessHandler(function(gs) { grupos = gs; fin(); })
       .withFailureHandler(error).listarGrupos();
   }
   function cargarPlantillaGrupos() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) {
+      _run().withSuccessHandler(function(pl) {
         gruposLocal = (pl || []).map(function(g) { return _mapearGrupo({ id:null, nombre_corto:g.nombre_corto, nombre_largo:g.nombre_largo, nivel:g.nivel }); });
         renderGrupos();
       }).withFailureHandler(mostrarErrorGenerico).plantillaGrupos();
@@ -419,7 +419,7 @@
   function enviarGrupos() {
     if (gruposLocal.length === 0) { _res('grupos','err','Debes definir al menos un grupo.'); return; }
     const btn = document.getElementById('btn-guardar-grupos'); _cargando(btn,'Guardando…'); document.getElementById('res-grupos').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar grupos'); _res('grupos','ok','✓ Guardados ' + res.total + ' grupos.'); cargarGrupos(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar grupos'); _res('grupos','err','✗ ' + _errMsg(err)); })
       .guardarGrupos(gruposLocal);
@@ -437,7 +437,7 @@
   }
   function cargarDocentes() {
     _pintarSesion();
-    google.script.run.withSuccessHandler(function(docs) {
+    _run().withSuccessHandler(function(docs) {
       if (docs && docs.length > 0) {
         // Orden alfabético por nombre corto (al guardar queda así en la hoja).
         docentesLocal = docs.map(_mapearDocente).sort(function(a, b) {
@@ -472,7 +472,7 @@
   function enviarDocentes() {
     if (docentesLocal.length === 0) { _res('docentes','err','Debes añadir al menos un docente.'); return; }
     const btn = document.getElementById('btn-guardar-docentes'); _cargando(btn,'Guardando…'); document.getElementById('res-docentes').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('docentes','ok','✓ Guardados ' + res.total + ' docentes.'); cargarDocentes(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + _errMsg(err)); })
       .guardarDocentes(docentesLocal);
@@ -482,7 +482,7 @@
   let locsLocal = [];
   function _mapearLocalizacion(l) { return { id: l.id || null, codigo: l.codigo || '', descripcion: l.descripcion || '' }; }
   function cargarLocalizaciones() {
-    google.script.run.withSuccessHandler(function(locs) {
+    _run().withSuccessHandler(function(locs) {
       if (locs && locs.length > 0) { locsLocal = locs.map(_mapearLocalizacion); renderLocalizaciones(); _snap('localizaciones'); return; }
       _SNAP.localizaciones = '[]';
       if (locsLocal.length === 0) { cargarPlantillaLocalizaciones(); } else { renderLocalizaciones(); }
@@ -490,7 +490,7 @@
   }
   function cargarPlantillaLocalizaciones() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) { locsLocal = (pl || []).map(_mapearLocalizacion); renderLocalizaciones(); })
+      _run().withSuccessHandler(function(pl) { locsLocal = (pl || []).map(_mapearLocalizacion); renderLocalizaciones(); })
         .withFailureHandler(mostrarErrorGenerico).plantillaLocalizaciones();
     };
     if (locsLocal.length > 0) confirmar('Esto reemplazará la lista actual de localizaciones. ¿Continuar?', aplicar); else aplicar();
@@ -513,7 +513,7 @@
   function enviarLocalizaciones() {
     if (locsLocal.length === 0) { _res('localizaciones','err','Debes definir al menos una localización.'); return; }
     const btn = document.getElementById('btn-guardar-locs'); _cargando(btn,'Guardando…'); document.getElementById('res-localizaciones').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','ok','✓ Guardadas ' + res.total + ' localizaciones.'); cargarLocalizaciones(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','err','✗ ' + _errMsg(err)); })
       .guardarLocalizaciones(locsLocal);
@@ -523,7 +523,7 @@
   let materiasLocal = [];
   function _mapearMateria(m) { return { id: m.id || null, nombre: m.nombre || '', abreviatura: m.abreviatura || '', es_recreo: !!m.es_recreo, color: m.color || '' }; }
   function cargarMaterias() {
-    google.script.run.withSuccessHandler(function(ms) {
+    _run().withSuccessHandler(function(ms) {
       if (ms && ms.length > 0) { materiasLocal = ms.map(_mapearMateria); renderMaterias(); _snap('materias'); return; }
       _SNAP.materias = '[]';
       if (materiasLocal.length === 0) { cargarPlantillaMaterias(); } else { renderMaterias(); }
@@ -531,7 +531,7 @@
   }
   function cargarPlantillaMaterias() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) { materiasLocal = (pl || []).map(_mapearMateria); renderMaterias(); })
+      _run().withSuccessHandler(function(pl) { materiasLocal = (pl || []).map(_mapearMateria); renderMaterias(); })
         .withFailureHandler(mostrarErrorGenerico).plantillaMaterias();
     };
     if (materiasLocal.length > 0) confirmar('Esto reemplazará la lista actual de materias. ¿Continuar?', aplicar); else aplicar();
@@ -555,7 +555,7 @@
   function enviarMaterias() {
     if (materiasLocal.length === 0) { _res('materias','err','Debes definir al menos una materia.'); return; }
     const btn = document.getElementById('btn-guardar-materias'); _cargando(btn,'Guardando…'); document.getElementById('res-materias').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar materias'); _res('materias','ok','✓ Guardadas ' + res.total + ' materias.'); cargarMaterias(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar materias'); _res('materias','err','✗ ' + _errMsg(err)); })
       .guardarMaterias(materiasLocal);
@@ -565,7 +565,7 @@
   let rolesLocal = [];
   function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '' }; }
   function cargarRoles() {
-    google.script.run.withSuccessHandler(function(rs) {
+    _run().withSuccessHandler(function(rs) {
       if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); _snap('roles'); return; }
       _SNAP.roles = '[]';
       if (rolesLocal.length === 0) { cargarPlantillaRoles(); } else { renderRoles(); }
@@ -573,7 +573,7 @@
   }
   function cargarPlantillaRoles() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) { rolesLocal = (pl || []).map(_mapearRol); renderRoles(); })
+      _run().withSuccessHandler(function(pl) { rolesLocal = (pl || []).map(_mapearRol); renderRoles(); })
         .withFailureHandler(mostrarErrorGenerico).plantillaRoles();
     };
     if (rolesLocal.length > 0) confirmar('Esto reemplazará la lista actual de roles. ¿Continuar?', aplicar); else aplicar();
@@ -659,7 +659,7 @@
   function enviarRoles() {
     if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
     const btn = document.getElementById('btn-guardar-roles'); _cargando(btn,'Guardando…'); document.getElementById('res-roles').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cargos'); _res('roles','ok','✓ Guardados ' + res.total + ' cargos.'); cargarRoles(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar cargos'); _res('roles','err','✗ ' + _errMsg(err)); })
       .guardarRoles(rolesLocal);

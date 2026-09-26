@@ -30,7 +30,7 @@
   var _sbCache = {}, _sbCacheVersion = -1, _sbSeq = 0;
   function _cargarSemana() {
     const cont = document.getElementById('sb-body');
-    if (_sbCacheVersion !== DATOS_VERSION) { _sbCache = {}; _sbCacheVersion = DATOS_VERSION; }
+    if (_sbCacheVersion !== DATOS_VERSION) { _sbCache = {}; _sbCacheVersion = DATOS_VERSION; _sbPrecargado = false; }
     const seq = ++_sbSeq, version = DATOS_VERSION, sem = SB_SEM;
     const ok = function(res) {
       if (res && res.semana && version === DATOS_VERSION) _sbCache[res.semana] = res;
@@ -50,12 +50,27 @@
     if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
     if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Centro y horario</b>.</div>'; return; }
     cont.innerHTML = _sbGridHtml(res);
+    _sbPrecargar();
     if (document.fonts && document.fonts.status !== 'loaded' && !_sbFuenteEspera) {
       _sbFuenteEspera = true;
       document.fonts.ready.then(function() { if (SB_SEM && _sbCache[SB_SEM]) _pintarSemana(_sbCache[SB_SEM]); });
     }
   }
   var _sbFuenteEspera = false;
+  // Tras pintar la primera semana, se precarga la otra y la lista de docentes
+  // (Horario docente) en segundo plano: cambiar de semana o imprimir es inmediato.
+  var _sbPrecargado = false;
+  function _sbPrecargar() {
+    if (_sbPrecargado || typeof precargar !== 'function') return;
+    _sbPrecargado = true;
+    var otra = SB_SEM === 'A' ? 'B' : 'A', v = DATOS_VERSION;
+    var f = function() {
+      if (_sbCache[otra]) return;
+      google.script.run.withSuccessHandler(function(res) { if (v === DATOS_VERSION && res && res.semana) _sbCache[res.semana] = res; }).sabanaSemana(otra);
+    };
+    if (window.requestIdleCallback) requestIdleCallback(f, { timeout: 3000 }); else setTimeout(f, 800);
+    precargar('listarDocentes');
+  }
   // Rejilla completa de una semana; cada rail lleva un badge con la semana (A/B).
   function _sbGridHtml(res) {
     var badge = res.semana ? '<span class="sb-semb" title="Semana ' + _esc(res.semana) + '">' + _esc(res.semana) + '</span>' : '';
