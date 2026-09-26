@@ -13,7 +13,6 @@
  *   docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas
  */
 
-const CSV_CABECERA = ['docente','dia','tramo','tipo','materia','grupo','rol','grupo_destino','notas'];
 const UMBRAL_OK = 0.88;      // match automático fiable
 const UMBRAL_DUDOSO = 0.60;  // por debajo → sin match
 
@@ -133,9 +132,13 @@ function aplicarImportacionCSV(filas, modo) {
       errores.push('Fila ' + f.n + ': faltan docente, tramo o día.');
       return;
     }
+    if (['grupo', 'localizacion', 'especial'].indexOf(f.tipo) === -1) {
+      errores.push('Fila ' + f.n + ': tipo no válido ("' + (f.tipo || '') + '").');
+      return;
+    }
     const fila = {
       docente_id: f.docente_id,
-      dia: f.dia,
+      dia: String(f.dia).trim().toUpperCase(),
       tramo_id: f.tramo_id,
       tipo: f.tipo,
       grupo_id: '', materia_id: '',
@@ -209,7 +212,10 @@ function _split(linea) {
   let cur = '', dentro = false;
   for (let i = 0; i < linea.length; i++) {
     const ch = linea[i];
-    if (ch === '"') { dentro = !dentro; continue; }
+    if (ch === '"') {
+      if (dentro && linea[i + 1] === '"') { cur += '"'; i++; continue; } // "" → "
+      dentro = !dentro; continue;
+    }
     if (ch === ',' && !dentro) { out.push(cur); cur = ''; continue; }
     cur += ch;
   }
@@ -234,14 +240,26 @@ function _match(texto, candidatos) {
   const t = String(texto == null ? '' : texto).trim();
   if (!t) return { texto: '', id: '', nombre: '', score: 0, estado: 'vacio' };
 
+  // Los nombres normalizados del catálogo y los resultados por texto se
+  // memorizan en el propio array: en un volcado los mismos nombres se repiten
+  // cientos de veces y Levenshtein es lo más caro del análisis.
+  if (!candidatos._memo) {
+    Object.defineProperty(candidatos, '_memo', { value: {}, enumerable: false });
+    candidatos.forEach(function(c) { c._n = _norm(c.nombre); c._na = c.alt ? _norm(c.alt) : ''; });
+  }
   const norm = _norm(t);
-  let mejor = null, mejorScore = 0;
-  candidatos.forEach(function(c) {
-    const s1 = _sim(norm, _norm(c.nombre));
-    const s2 = c.alt ? _sim(norm, _norm(c.alt)) : 0;
-    const s = Math.max(s1, s2);
-    if (s > mejorScore) { mejorScore = s; mejor = c; }
-  });
+  let res = candidatos._memo[norm];
+  if (!res) {
+    let mejor = null, mejorScore = 0;
+    candidatos.forEach(function(c) {
+      const s1 = _sim(norm, c._n);
+      const s2 = c._na ? _sim(norm, c._na) : 0;
+      const s = Math.max(s1, s2);
+      if (s > mejorScore) { mejorScore = s; mejor = c; }
+    });
+    res = candidatos._memo[norm] = { mejor: mejor, score: mejorScore };
+  }
+  const mejor = res.mejor, mejorScore = res.score;
 
   let estado = 'nomatch';
   if (mejorScore >= UMBRAL_OK) estado = 'ok';
@@ -361,6 +379,9 @@ function _detectarAlternancias(filas) {
       // duplicados exactos: conserva la primera, omite el resto
       g.forEach(function(f, i) { if (i > 0) { f.omitir = true; f.avisos.push('Duplicado exacto, se omite'); } });
     } else if (distintas === 2 && g.length === 2) {
+      // Religión/ATEDU van siempre en la misma semana (A) en todo el centro,
+      // para que se emparejen entre docentes; si no, el orden del archivo.
+      if (_esRelAtedu(g[1]) && !_esRelAtedu(g[0])) g.reverse();
       g[0].semana = 'A'; g[1].semana = 'B';
       g[0].avisos.push('Alternancia semanal detectada (semana A)');
       g[1].avisos.push('Alternancia semanal detectada (semana B)');
@@ -368,6 +389,10 @@ function _detectarAlternancias(filas) {
       g.forEach(function(f) { f.avisos.push('Varias ocupaciones en el mismo tramo: revisar a mano'); });
     }
   });
+}
+
+function _esRelAtedu(f) {
+  return /relig|atedu|atenci[oó]n educ/i.test((f.materia ? f.materia.texto : '') + ' ' + (f.rol ? f.rol.texto : ''));
 }
 
 function _firma(f) {

@@ -2,7 +2,7 @@
  * Catálogo de centros de Andalucía para el alta guiada.
  *
  * Los datos (código → nombre) viven INCLUIDOS en la app, en
- * 14_CentrosDatos.gs (objeto `CATALOGO_CENTROS`), copiados del repo
+ * 14_CentrosDatos.gs (función `_datosCatalogoCentros()`), copiados del repo
  * maestroseb/contactos-g.educaand. Se incluyen en lugar de descargarlos en
  * tiempo de ejecución para que el buscador funcione siempre, sin red ni
  * permisos de conexión externa (coste cero, sin dependencias frágiles).
@@ -51,7 +51,7 @@ function buscarCentroPorCodigo(codigo) {
 function buscarCentrosPorNombre(texto, limite) {
   const q = _normalizarTexto(texto);
   if (q.length < 3) return { resultados: [], truncado: false, total: 0 };
-  limite = limite || 25;
+  limite = Math.max(1, Math.min(parseInt(limite, 10) || 25, 100));
 
   const mapa = _cargarCatalogo();
   const out = [];
@@ -72,9 +72,13 @@ function buscarCentrosPorNombre(texto, limite) {
 
 // ---------- Internos ----------
 
-/** Devuelve el catálogo incluido (14_CentrosDatos.gs). */
+/** Devuelve el catálogo incluido (14_CentrosDatos.gs), construido una vez por ejecución. */
+let _CATALOGO_CACHE = null;
 function _cargarCatalogo() {
-  return (typeof CATALOGO_CENTROS !== 'undefined' && CATALOGO_CENTROS) ? CATALOGO_CENTROS : {};
+  if (!_CATALOGO_CACHE) {
+    _CATALOGO_CACHE = (typeof _datosCatalogoCentros === 'function') ? (_datosCatalogoCentros() || {}) : {};
+  }
+  return _CATALOGO_CACHE;
 }
 
 function _normalizarCodigo(codigo) {

@@ -15,13 +15,25 @@ function doGet(e) {
 
   const page = (e && e.parameter && e.parameter.page) || '';
 
+  // Enlace directo para el Site del profesorado: solo el tramo en curso.
+  if (e && e.parameter && e.parameter.vista === 'ahora') {
+    const ta = HtmlService.createTemplateFromFile('ahora');
+    ta.datos = datosAhora();
+    return ta.evaluate()
+      .setTitle('Ahora · Sábana')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setFaviconUrl(FAVICON_URL)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   const t = HtmlService.createTemplateFromFile('app');
   t.pestanaInicial = page;
 
   return t.evaluate()
     .setTitle('Gestor de Horarios y Sustituciones')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+    .setFaviconUrl(FAVICON_URL)
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 /**
@@ -32,12 +44,3 @@ function include(nombre) {
   return HtmlService.createHtmlOutputFromFile(nombre).getContent();
 }
 
-/**
- * Permite componer URLs internas de la web app, usable desde el HTML.
- * Ahora todas las secciones viven en la misma página, así que el enlace
- * apunta a la raíz y, opcionalmente, a una pestaña vía hash.
- */
-function enlaceA(page) {
-  const base = ScriptApp.getService().getUrl();
-  return base + (page && page !== 'inicio' ? ('#' + encodeURIComponent(page)) : '');
-}

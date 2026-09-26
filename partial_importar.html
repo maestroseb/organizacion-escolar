@@ -114,16 +114,21 @@
   var IMP_CAT = null;
   var IMP_FILAS = [];
   var senecaPreview = null;
+  var _impIniciado = false;
 
   function prepararImportar() {
-    // Ajusta el modo por defecto según haya o no datos.
-    const c = (ESTADO && ESTADO.contadores) || {};
-    const hayDatos = (c.grupos || c.docentes || c.tramos || c.ocupaciones || c.materias);
-    IMP_MODO = hayDatos ? 'combinar' : 'reemplazar';
-    setModoFusion(IMP_MODO);
-    setFuente(IMP_FUENTE);
-    volverEntrada();
-    document.getElementById('detect-catalogo').style.display = 'none';
+    // Solo la primera visita reinicia la pantalla: al volver a la pestaña se
+    // conserva el trabajo en curso (p. ej. una revisión a medias).
+    if (!_impIniciado) {
+      _impIniciado = true;
+      // Ajusta el modo por defecto según haya o no datos.
+      const c = (ESTADO && ESTADO.contadores) || {};
+      const hayDatos = (c.grupos || c.docentes || c.tramos || c.ocupaciones || c.materias);
+      IMP_MODO = hayDatos ? 'combinar' : 'reemplazar';
+      setModoFusion(IMP_MODO);
+      setFuente(IMP_FUENTE);
+      document.getElementById('detect-catalogo').style.display = 'none';
+    }
 
     // Puente desde el alta guiada: si venimos de crear catálogo con un volcado,
     // precargamos el texto y analizamos directamente los horarios para revisar.
@@ -151,7 +156,7 @@
     body.innerHTML = '<p class="hint"><span class="spinner"></span> Detectando…</p>';
     google.script.run
       .withSuccessHandler(function(res) { DETECT_ENTIDADES = { res: res, fuente: fuente }; _renderDetect(res); })
-      .withFailureHandler(function(err) { body.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withFailureHandler(function(err) { body.innerHTML = _errHtml(err); })
       .extraerEntidadesVolcado(texto, fuente);
   }
   function _renderDetect(res) {
@@ -176,7 +181,7 @@
     const tt=res.tramos.total, tn=res.nuevos.tramos;
     html += '<div class="seneca-card' + (tt?' activa':' vacia') + '"><div class="body">' +
       '<div class="titulo">Tramos<span class="contador">' + tt + '</span></div>' +
-      '<div class="muestra">Órdenes: ' + (res.tramos.ordenes.join(', ')||'—') + '</div>' +
+      '<div class="muestra">Órdenes: ' + _esc(res.tramos.ordenes.join(', ')||'—') + '</div>' +
       (tn?('<div class="muestra" style="color:var(--ok)">se crearán ' + tn + '</div>'):(res.tramos.existe?'<div class="muestra">ya hay tramos</div>':'')) +
       '</div></div>';
     html += '</div>';
@@ -204,7 +209,7 @@
         document.getElementById('res-detect').innerHTML = '<div class="result ok">✓ Catálogo creado. ' + (lst||'') + '. Ahora pulsa “Analizar horarios”.</div>';
         refrescarEstado();
       })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Crear catálogo'; document.getElementById('res-detect').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Crear catálogo'; document.getElementById('res-detect').innerHTML = _errHtml(err); })
       .crearEntidadesVolcado(sel, 'combinar');
   }
 
@@ -226,10 +231,7 @@
     document.querySelectorAll('#fuente-import button').forEach(function(b) {
       b.classList.toggle('active', b.getAttribute('data-fuente') === f);
     });
-    document.getElementById('src-seneca').style.display = f === 'seneca' ? 'block' : 'none';
-    document.getElementById('src-csv').style.display = f === 'csv' ? 'block' : 'none';
-    document.getElementById('src-texto').style.display = f === 'texto' ? 'block' : 'none';
-    volverEntrada();
+    volverEntrada(); // muestra el panel de la fuente elegida
   }
 
   // ---------- Séneca ----------
@@ -242,11 +244,12 @@
     reader.onload = function(e) {
       google.script.run
         .withSuccessHandler(function(p) { senecaPreview = p; mostrarPreviewSeneca(p); })
-        .withFailureHandler(function(err) { document.getElementById('seneca-preview').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .withFailureHandler(function(err) { document.getElementById('seneca-preview').innerHTML = _errHtml(err); })
         .parsearSeneca(e.target.result);
     };
     reader.onerror = function() { document.getElementById('seneca-preview').innerHTML = '<div class="result err">No se pudo leer el archivo.</div>'; };
     reader.readAsText(file, 'ISO-8859-1');
+    input.value = ''; // permite volver a elegir el mismo archivo
   }
 
   function mostrarPreviewSeneca(p) {
@@ -297,7 +300,7 @@
           document.getElementById('res-seneca').innerHTML = '<div class="result ok">✓ Importación aplicada (' + IMP_MODO + '). ' + (lst||'') + '</div>';
           refrescarEstado();
         })
-        .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Aplicar al libro'; document.getElementById('res-seneca').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Aplicar al libro'; document.getElementById('res-seneca').innerHTML = _errHtml(err); })
         .aplicarSeneca(seleccion, IMP_MODO);
     };
     const aviso = IMP_MODO === 'reemplazar'
@@ -312,7 +315,9 @@
     document.getElementById('csv-filename').textContent = file.name;
     const reader = new FileReader();
     reader.onload = function(e) { document.getElementById('csv-texto').value = e.target.result; };
+    reader.onerror = function() { document.getElementById('res-csv').innerHTML = '<div class="result err">No se pudo leer el archivo.</div>'; };
     reader.readAsText(file, 'UTF-8');
+    input.value = ''; // permite volver a elegir el mismo archivo
   }
   function analizarCSVUI() {
     const texto = document.getElementById('csv-texto').value;
@@ -320,8 +325,8 @@
     const btn = document.getElementById('btn-analizar-csv'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analizando…';
     document.getElementById('res-csv').innerHTML = '';
     google.script.run
-      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Analizar'; _entrarRevision(res); })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Analizar'; document.getElementById('res-csv').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Analizar horarios'; _entrarRevision(res); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Analizar horarios'; document.getElementById('res-csv').innerHTML = _errHtml(err); })
       .analizarCSV(texto);
   }
 
@@ -332,14 +337,15 @@
     const btn = document.getElementById('btn-analizar-texto'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Interpretando…';
     document.getElementById('res-texto').innerHTML = '';
     google.script.run
-      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Interpretar'; _entrarRevision(res); })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Interpretar'; document.getElementById('res-texto').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Interpretar horarios'; _entrarRevision(res); })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Interpretar horarios'; document.getElementById('res-texto').innerHTML = _errHtml(err); })
       .analizarTextoLibre(texto);
   }
 
   // ---------- Revisión (compartida) ----------
   function _entrarRevision(res) {
-    IMP_CAT = res.catalogo; IMP_FILAS = res.filas;
+    IMP_CAT = (res && res.catalogo) || { docentes: [], materias: [], grupos: [], roles: [] };
+    IMP_FILAS = (res && res.filas) || [];
     // Reiniciar filtros.
     IMP_FILTRO_ESTADO = 'todas'; IMP_FILTRO_TEXTO = '';
     const ft = document.getElementById('rev-filtro-texto'); if (ft) ft.value = '';
@@ -367,7 +373,7 @@
 
   function _opts(lista, selId) {
     let h = '<option value="">—</option>';
-    lista.forEach(function(x) { h += '<option value="' + x.id + '"' + (x.id===selId?' selected':'') + '>' + _esc(x.nombre) + '</option>'; });
+    (lista || []).forEach(function(x) { h += '<option value="' + _esc(x.id) + '"' + (x.id===selId?' selected':'') + '>' + _esc(x.nombre) + '</option>'; });
     return h;
   }
   // Id seleccionado: el elegido a mano (si el usuario tocó el desplegable) o el del match.
@@ -403,12 +409,12 @@
     f.gruposSel.forEach(function(id) {
       const g = IMP_CAT.grupos.find(function(x) { return x.id === id; });
       html += '<span class="chip">' + _esc(g ? g.nombre : id) +
-        '<button type="button" title="Quitar" onclick="quitarGrupoRev(' + f.n + ',\'' + id + '\')">×</button></span>';
+        '<button type="button" title="Quitar" onclick="quitarGrupoRev(' + f.n + ',' + _jsAttr(id) + ')">×</button></span>';
     });
     const disp = IMP_CAT.grupos.filter(function(x) { return f.gruposSel.indexOf(x.id) === -1; });
     html += '<select class="add-grupo" title="Añadir grupo" onchange="anadirGrupoRev(' + f.n + ',this.value)">';
     html += '<option value="">＋</option>';
-    disp.forEach(function(x) { html += '<option value="' + x.id + '">' + _esc(x.nombre) + '</option>'; });
+    disp.forEach(function(x) { html += '<option value="' + _esc(x.id) + '">' + _esc(x.nombre) + '</option>'; });
     html += '</select>';
     if (!f.gruposSel.length) html += '<span class="chip-warn">sin grupo</span>';
     html += '</div>';
@@ -451,16 +457,17 @@
   }
 
   function renderRevision() {
-    const tb = document.getElementById('rev-body'); tb.innerHTML = '';
+    const tb = document.getElementById('rev-body');
+    const frag = document.createDocumentFragment();
     let mostradas = 0;
     IMP_FILAS.forEach(function(f) {
       if (!_filaVisible(f)) return;
       mostradas++;
-      const tr = document.createElement('tr'); tr.className = 'f-' + f.estadoFila + (f.omitir?' f-omitir':''); tr.id = 'rev-fila-' + f.n;
-      const tramoTxt = (f.tramoOrden || '?') + (f.mitad==='1'?'a':f.mitad==='2'?'b':'') + (f.semana?(' · sem '+f.semana):'');
+      const tr = document.createElement('tr'); tr.className = 'f-' + _esc(f.estadoFila) + (f.omitir?' f-omitir':''); tr.id = 'rev-fila-' + f.n;
+      const tramoTxt = _esc((f.tramoOrden || '?') + (f.mitad==='1'?'a':f.mitad==='2'?'b':'') + (f.semana?(' · sem '+f.semana):''));
       tr.innerHTML =
         '<td class="col-num">' + f.n + '</td>' +
-        '<td><span class="badge ' + f.estadoFila + '">' + f.estadoFila + '</span></td>' +
+        '<td><span class="badge ' + _esc(f.estadoFila) + '">' + _esc(f.estadoFila) + '</span></td>' +
         '<td>' + _esc(f.dia) + '</td>' +
         '<td>' + tramoTxt + '</td>' +
         '<td>' + _esc(f.tipo) + '</td>' +
@@ -469,8 +476,10 @@
         '<td class="gcol">' + _celdaGrupo(f) + '</td>' +
         '<td class="avisos">' + _esc((f.avisos||[]).join(' · ')) + '</td>' +
         '<td class="col-num"><input type="checkbox"' + (f.omitir?' checked':'') + ' onchange="setOmitirRev(' + f.n + ',this.checked)"></td>';
-      tb.appendChild(tr);
+      frag.appendChild(tr);
     });
+    tb.textContent = '';
+    tb.appendChild(frag);
     actualizarContadorRev(mostradas);
   }
   function setCampoRev(n, campo, val) { const f = IMP_FILAS.find(function(x){return x.n===n;}); if (f) f[campo] = val; }
@@ -480,7 +489,13 @@
     document.querySelectorAll('#rev-filtro-estado button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-f')===e); });
     renderRevision();
   }
-  function setFiltroTexto(t) { IMP_FILTRO_TEXTO = String(t||'').trim().toLowerCase(); renderRevision(); }
+  // Con debounce: no re-renderiza toda la tabla en cada pulsación.
+  var _revFiltroTimer = null;
+  function setFiltroTexto(t) {
+    IMP_FILTRO_TEXTO = String(t||'').trim().toLowerCase();
+    clearTimeout(_revFiltroTimer);
+    _revFiltroTimer = setTimeout(renderRevision, 200);
+  }
   function actualizarContadorRev(mostradas) {
     const total = IMP_FILAS.length;
     const apl = IMP_FILAS.filter(function(f){return !f.omitir;}).length;
@@ -490,12 +505,16 @@
   }
   function aplicarImport() {
     const payload = IMP_FILAS.map(function(f) {
+      // Las filas ocultas por un filtro nunca se renderizaron: inicializa sus
+      // grupos desde las coincidencias para no perderlos.
+      _initGruposSel(f);
       const grupos = (f.gruposSel || []).join(',');
+      // _selId respeta un desplegable vaciado a mano ('' no vuelve al match).
       return { n:f.n, omitir:!!f.omitir, dia:f.dia, tramo_id:f.tramoId, mitad:f.mitad, semana:f.semana, tipo:f.tipo, notas:f.notas,
-        docente_id: f.docente_id || (f.docente && f.docente.id) || '',
-        materia_id: f.materia_id || (f.materia && f.materia.id) || '',
+        docente_id: _selId(f, 'docente_id', f.docente) || '',
+        materia_id: _selId(f, 'materia_id', f.materia) || '',
         grupo_id: f.tipo === 'grupo' ? grupos : '',
-        rol_id: f.rol_id || (f.rol && f.rol.id) || '',
+        rol_id: _selId(f, 'rol_id', f.rol) || '',
         grupo_destino_id: f.tipo === 'localizacion' ? grupos : '' };
     });
     const aplicables = payload.filter(function(p){return !p.omitir;});
@@ -512,7 +531,7 @@
           document.getElementById('res-revision').innerHTML = '<div class="result ok">✓ Importación aplicada en modo "' + IMP_MODO + '"' + extra + '.</div>';
           refrescarEstado();
         })
-        .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Aplicar al horario'; document.getElementById('res-revision').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+        .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Aplicar al horario'; document.getElementById('res-revision').innerHTML = _errHtml(err); })
         .aplicarImportacionCSV(payload, IMP_MODO);
     };
     if (IMP_MODO === 'reemplazar') {

@@ -106,7 +106,6 @@
 
 <script>
   var obCentro = { codigo: '', nombre: '', provincia: '', encontrado: false };
-  var obPasoActual = 1;
 
   function iniciarOnboarding() {
     obCentro = { codigo: '', nombre: '', provincia: '', encontrado: false };
@@ -126,7 +125,6 @@
   }
 
   function obPaso(n) {
-    obPasoActual = n;
     [1,2,3].forEach(function(i) {
       document.getElementById('ob-step-' + i).classList.toggle('active', i === n);
       document.getElementById('ob-seg-' + i).classList.toggle('done', i <= n);
@@ -151,8 +149,8 @@
     document.getElementById('ob-manual').style.display = 'none';
     obCentro.nombre = ''; obCentro.encontrado = false;
     obRefrescarPaso1();
+    clearTimeout(_obDebounce);
     if (cod.length >= 8) {
-      clearTimeout(_obDebounce);
       _obDebounce = setTimeout(function() { obLookupCodigo(cod); }, 300);
     }
   }
@@ -163,8 +161,7 @@
       .withSuccessHandler(function(r) {
         if (r && r.encontrado) {
           obCentro = { codigo: r.codigo, nombre: r.nombre, provincia: r.provincia || '', encontrado: true };
-          est.innerHTML = '<div class="ob-found"><div><div class="name">' + _esc(r.nombre) + '</div>' +
-            '<div class="meta">Código ' + r.codigo + (r.provincia ? (' · ' + r.provincia) : '') + '</div></div></div>';
+          est.innerHTML = _obFoundHtml(r.codigo, r.nombre, r.provincia);
           document.getElementById('ob-manual').style.display = 'none';
         } else {
           est.innerHTML = '<div class="result info" style="margin-top:10px;">No encontramos ese código en el catálogo. Puedes escribir el nombre a mano.</div>';
@@ -181,29 +178,47 @@
       .buscarCentroPorCodigo(cod);
   }
 
-  var _obDebounceN = null;
+  function _obFoundHtml(codigo, nombre, provincia) {
+    return '<div class="ob-found"><div><div class="name">' + _esc(nombre) + '</div>' +
+      '<div class="meta">Código ' + _esc(codigo) + (provincia ? (' · ' + _esc(provincia)) : '') + '</div></div></div>';
+  }
+
+  var _obDebounceN = null, _obBusquedaSeq = 0, _obResultados = [];
   function obBuscarNombre(val) {
     const cont = document.getElementById('ob-resultados');
-    if (!val || val.trim().length < 3) { cont.style.display = 'none'; cont.innerHTML = ''; return; }
     clearTimeout(_obDebounceN);
+    if (!val || val.trim().length < 3) { _obBusquedaSeq++; cont.style.display = 'none'; cont.innerHTML = ''; return; }
     _obDebounceN = setTimeout(function() {
+      const seq = ++_obBusquedaSeq; // descarta respuestas de búsquedas anteriores
       google.script.run.withSuccessHandler(function(r) {
+        if (seq !== _obBusquedaSeq) return;
         const res = (r && r.resultados) || [];
+        _obResultados = res;
         if (!res.length) { cont.style.display = 'block'; cont.innerHTML = '<div style="padding:12px;" class="hint">Sin resultados.</div>'; return; }
-        cont.innerHTML = res.map(function(c) {
-          return '<button type="button" onclick="obElegir(\'' + c.codigo + '\',\'' + _esc(c.nombre).replace(/'/g,"\\'") + '\',\'' + _esc(c.provincia||'') + '\')">' +
-            '<div class="n">' + _esc(c.nombre) + '</div><div class="c">' + c.codigo + (c.provincia?(' · '+c.provincia):'') + '</div></button>';
+        cont.innerHTML = res.map(function(c, i) {
+          return '<button type="button" data-i="' + i + '">' +
+            '<div class="n">' + _esc(c.nombre) + '</div><div class="c">' + _esc(c.codigo) + (c.provincia ? (' · ' + _esc(c.provincia)) : '') + '</div></button>';
         }).join('') + (r.truncado ? '<div style="padding:8px 12px;" class="hint">Afina la búsqueda para ver más…</div>' : '');
         cont.style.display = 'block';
+      }).withFailureHandler(function(err) {
+        if (seq !== _obBusquedaSeq) return;
+        cont.style.display = 'block';
+        cont.innerHTML = '<div style="padding:12px;" class="hint">No se pudo buscar: ' + _errMsg(err) + '</div>';
       }).buscarCentrosPorNombre(val, 20);
     }, 350);
   }
+  // Delegación: un único listener para todos los resultados de búsqueda.
+  document.getElementById('ob-resultados').addEventListener('click', function(e) {
+    const b = e.target.closest('button[data-i]');
+    const c = b && _obResultados[+b.getAttribute('data-i')];
+    if (c) obElegir(c.codigo, c.nombre, c.provincia);
+  });
   function obElegir(codigo, nombre, provincia) {
+    clearTimeout(_obDebounce);
     obCentro = { codigo: codigo, nombre: nombre, provincia: provincia || '', encontrado: true };
     document.getElementById('ob-codigo').value = codigo;
     document.getElementById('ob-resultados').style.display = 'none';
-    document.getElementById('ob-codigo-estado').innerHTML = '<div class="ob-found"><div><div class="name">' + _esc(nombre) + '</div>' +
-      '<div class="meta">Código ' + codigo + (provincia ? (' · ' + provincia) : '') + '</div></div></div>';
+    document.getElementById('ob-codigo-estado').innerHTML = _obFoundHtml(codigo, nombre, provincia);
     document.getElementById('ob-manual').style.display = 'none';
     obRefrescarPaso1();
   }
@@ -226,7 +241,7 @@
     const btn = document.getElementById('ob-btn-1'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
     google.script.run
       .withSuccessHandler(function() { btn.disabled = false; btn.textContent = 'Continuar →'; obPaso(2); })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Continuar →'; document.getElementById('ob-res-1').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Continuar →'; document.getElementById('ob-res-1').innerHTML = _errHtml(err); })
       .guardarCentroInicial({ codigo: obCentro.codigo, nombre: nombre, provincia: obCentro.provincia, curso_academico: curso });
   }
 
@@ -236,15 +251,7 @@
 
   // Séneca: se sube archivo, así que se hace en la pestaña Importar.
   function obEntrarImport(fuente) {
-    google.script.run.withSuccessHandler(function(an) {
-      GUIADO = !!(an && an.pendientes && an.pendientes.length);
-      PENDIENTES = (an && an.pendientes) || [];
-      refrescarEstado(function() {
-        entrarWorkspace('importar');
-        if (typeof setFuente === 'function') setFuente(fuente);
-      });
-    }).withFailureHandler(function(){ refrescarEstado(function(){ entrarWorkspace('importar'); }); })
-      .analizarConfiguracion();
+    entrarGuiadoEn('importar', function() { if (typeof setFuente === 'function') setFuente(fuente); });
   }
 
   function obPaste(fuente) {
@@ -272,7 +279,7 @@
     document.getElementById('ob-detect-res').innerHTML = '';
     google.script.run
       .withSuccessHandler(function(res) { btn.disabled = false; btn.textContent = 'Detectar datos'; obEntidades = res; obRenderDetect(res, texto); })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Detectar datos'; document.getElementById('ob-detect-res').innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Detectar datos'; document.getElementById('ob-detect-res').innerHTML = _errHtml(err); })
       .extraerEntidadesVolcado(texto, obFuente);
   }
 
@@ -298,7 +305,7 @@
     const tt = res.tramos.total, tn = res.nuevos.tramos;
     html += '<div class="seneca-card' + (tt?' activa':' vacia') + '">' +
       '<div class="body"><div class="titulo">Tramos<span class="contador">' + tt + '</span></div>' +
-      '<div class="muestra">Órdenes: ' + (res.tramos.ordenes.join(', ') || '—') + '</div>' +
+      '<div class="muestra">Órdenes: ' + _esc(res.tramos.ordenes.join(', ') || '—') + '</div>' +
       (tn ? '<div class="muestra" style="color:var(--ok)">se crearán ' + tn + '</div>' : (res.tramos.existe?'<div class="muestra">ya hay tramos</div>':'')) +
       '</div></div>';
     html += '</div>';
@@ -322,14 +329,9 @@
       .withSuccessHandler(function() {
         // Guardamos el volcado para revisar las ocupaciones ya en la pestaña Importar.
         OB_VOLCADO = { texto: texto, fuente: obFuente };
-        google.script.run.withSuccessHandler(function(an) {
-          GUIADO = !!(an && an.pendientes && an.pendientes.length);
-          PENDIENTES = (an && an.pendientes) || [];
-          refrescarEstado(function() { entrarWorkspace('importar'); });
-        }).withFailureHandler(function(){ refrescarEstado(function(){ entrarWorkspace('importar'); }); })
-          .analizarConfiguracion();
+        entrarGuiadoEn('importar');
       })
-      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Crear catálogo y revisar horarios →'; document.getElementById('ob-detect-res').innerHTML += '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+      .withFailureHandler(function(err) { btn.disabled = false; btn.textContent = 'Crear catálogo y revisar horarios →'; document.getElementById('ob-detect-res').insertAdjacentHTML('beforeend', _errHtml(err)); })
       .crearEntidadesVolcado(sel, 'combinar');
   }
 
@@ -339,7 +341,11 @@
   function obRenderGap() {
     const cont = document.getElementById('ob-gap-list');
     cont.innerHTML = '<p class="hint"><span class="spinner"></span> Analizando…</p>';
+    // Hasta tener el análisis no se sabe qué queda pendiente: bloquea "Empezar".
+    const btn = document.getElementById('ob-btn-3'); btn.disabled = true;
+    obDatosGap = null;
     google.script.run.withSuccessHandler(function(an) {
+      btn.disabled = false;
       const secc = (an && an.secciones) || [];
       cont.innerHTML = secc.map(function(s) {
         const badge = s.estado === 'ok' ? '<span class="badge ok">listo</span>' :
@@ -349,7 +355,7 @@
           '<div class="a">' + _esc(s.aviso || (s.estado==='ok' ? (s.total + ' registrado(s)') : '')) + '</div></div>' + badge + '</div>';
       }).join('');
       obDatosGap = an;
-    }).withFailureHandler(function(err) { cont.innerHTML = '<div class="result err">✗ ' + (err.message || err) + '</div>'; })
+    }).withFailureHandler(function(err) { btn.disabled = false; cont.innerHTML = _errHtml(err); })
       .analizarConfiguracion();
   }
   var obDatosGap = null;

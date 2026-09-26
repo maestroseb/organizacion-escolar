@@ -12,6 +12,11 @@
 // automáticamente la primera vez y su id se guarda en las propiedades del
 // script (ver 01_Bootstrap.gs).
 const PROP_BD_ID = 'BD_ID';
+// Firma del esquema ya aplicado a la BD (evita reinicializar en cada carga).
+const PROP_ESQUEMA_OK = 'ESQUEMA_OK';
+// Icono de la pestaña del navegador (PNG 256×256 del propio repo, público).
+const FAVICON_URL = 'https://raw.githubusercontent.com/maestroseb/organizacion-escolar/main/docs/img/favicon.png';
+
 const NOMBRE_BD = 'Gestor de Horarios y Sustituciones — Base de datos';
 
 const SHEETS = {
@@ -40,7 +45,7 @@ const SCHEMA = {
   ],
   [SHEETS.DOCENTES]: [
     'id', 'nombre_corto', 'nombre_completo', 'puesto', 'email',
-    'activo', 'orden', 'color', 'sustituto'
+    'activo', 'orden', 'color', 'sustituto', 'acceso_sust'
   ],
   [SHEETS.LOCALIZACIONES]: [
     'id', 'codigo', 'descripcion', 'orden'
