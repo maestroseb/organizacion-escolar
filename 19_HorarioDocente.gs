@@ -164,3 +164,25 @@ function guardarHorarioGrupo(grupoId, lista) {
   bulkReplace(SHEETS.OCUPACIONES, salida);
   return { ok: true, total: lista.length, nuevas: nuevas };
 }
+
+// ---------- Todo de una vez (Horarios individuales) ----------
+
+/**
+ * Catálogo + TODAS las ocupaciones normalizadas, en una sola llamada. El
+ * cliente lo guarda en caché y filtra por docente o por grupo: cambiar de
+ * docente o de grupo en Horarios individuales es instantáneo.
+ */
+function datosHorarios() {
+  const cat = catalogoImportacion();
+  const ocupaciones = getAll(SHEETS.OCUPACIONES).map(function(o) {
+    return {
+      id: o.id, docente_id: o.docente_id || '',
+      dia: _diaCanon(o.dia), tramo_id: o.tramo_id || '', tipo: o.tipo || 'grupo',
+      materia_id: o.materia_id || '', grupo_id: o.grupo_id || '',
+      rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
+      grupo_destino_id: o.grupo_destino_id || '',
+      mitad: String(o.mitad || ''), semana: String(o.semana || ''), notas: o.notas || ''
+    };
+  });
+  return { catalogo: cat, ocupaciones: ocupaciones };
+}

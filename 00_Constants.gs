@@ -49,7 +49,8 @@ const SCHEMA = {
   ],
   [SHEETS.DOCENTES]: [
     'id', 'nombre_corto', 'nombre_completo', 'puesto', 'email',
-    'activo', 'orden', 'color', 'sustituto', 'acceso_sust', 'parcial'
+    'activo', 'orden', 'color', 'sustituto', 'acceso_sust', 'parcial',
+    'telefono', 'sustituto_email'
   ],
   [SHEETS.LOCALIZACIONES]: [
     'id', 'codigo', 'descripcion', 'orden'
@@ -58,7 +59,7 @@ const SCHEMA = {
     'id', 'nombre', 'abreviatura', 'color', 'es_recreo'
   ],
   [SHEETS.ROLES]: [
-    'id', 'nombre', 'nombre_largo', 'color', 'orden'
+    'id', 'nombre', 'nombre_largo', 'color', 'orden', 'categoria'
   ],
   [SHEETS.OCUPACIONES]: [
     'id', 'docente_id', 'dia', 'tramo_id', 'tipo',
@@ -68,7 +69,7 @@ const SCHEMA = {
   ],
   [SHEETS.SUSTITUCIONES]: [
     'id', 'fecha', 'docente_ausente_id', 'docente_sustituto_id',
-    'tramo_id', 'notas'
+    'tramo_id', 'notas', 'grupo_id'
   ]
 };
 

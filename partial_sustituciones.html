@@ -7,20 +7,25 @@
   <input type="date" id="su-fecha" onchange="suCargar(this.value)">
   <span class="su-dia" id="su-dia"></span>
   <select id="su-add" onchange="suAnadirAusente(this.value); this.value='';"><option value="">+ Añadir ausente…</option></select>
+  <button type="button" class="secondary" onclick="suPanelCob()" title="Que alguien entre en uno o varios cursos en un tramo (apoyo puntual, entrada, excursión…)">+ Cobertura por tramo</button>
   <span class="sb-grow"></span>
   <button type="button" class="secondary" onclick="suAutoasignar()" title="Rellena los huecos sin asignar con la mejor opción disponible">Autoasignar</button>
   <button type="button" class="secondary" onclick="window.print()">Imprimir</button>
   <button type="button" class="primary" id="su-guardar" onclick="suGuardar()">Guardar</button>
 </div>
+<div id="su-cob" class="su-cob" hidden></div>
 <div id="su-res"></div>
 <div id="su-body"></div>
 
 <script>
-  var SU = null, SU_AUS = [], SU_ASIG = {}, SU_DIRTY = false; // SU_ASIG[ausente|tramo] = sustituto
+  // SU_ASIG[ausente|tramo] = sustituto. Coberturas de grupo (sin ausente):
+  // columna 'g:<grupo>', SU_NEC['g:<grupo>|tramo'] = true si ese tramo se cubre.
+  var SU = null, SU_AUS = [], SU_GRU = [], SU_NEC = {}, SU_ASIG = {}, SU_DIRTY = false;
+  var SU_COB = { tramos: [], grupos: [] }; // panel «Cobertura por tramo»
   function _suEstado() {
     if (!SU) return null;
     var a = {}; Object.keys(SU_ASIG).sort().forEach(function(k) { if (SU_ASIG[k]) a[k] = SU_ASIG[k]; });
-    return { f: SU.fecha, aus: SU_AUS.slice().sort(), a: a };
+    return { f: SU.fecha, aus: SU_AUS.slice().sort(), g: SU_GRU.slice().sort(), n: Object.keys(SU_NEC).sort(), a: a };
   }
   (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(['sustituciones', 'sustituciones', _suEstado, function() { suGuardar(); }]);
 
@@ -38,10 +43,15 @@
       document.getElementById('su-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
       document.getElementById('su-res').innerHTML = '';
       google.script.run.withSuccessHandler(function(res) {
-        SU = res; SU_DIRTY = false; SU_AUS = []; SU_ASIG = {};
+        SU = res; SU_DIRTY = false; SU_AUS = []; SU_GRU = []; SU_NEC = {}; SU_ASIG = {};
         (res.sustituciones || []).forEach(function(s) {
-          if (SU_AUS.indexOf(s.ausente) === -1) SU_AUS.push(s.ausente);
-          SU_ASIG[s.ausente + '|' + s.tramo] = s.sustituto || '';
+          var col = s.ausente;
+          if (!s.ausente && s.grupo) {
+            col = 'g:' + s.grupo;
+            if (SU_GRU.indexOf(s.grupo) === -1) SU_GRU.push(s.grupo);
+            SU_NEC[col + '|' + s.tramo] = true;
+          } else if (SU_AUS.indexOf(s.ausente) === -1) SU_AUS.push(s.ausente);
+          SU_ASIG[col + '|' + s.tramo] = s.sustituto || '';
         });
         _suPintar(); _snap('sustituciones');
       }).withFailureHandler(function(err) { document.getElementById('su-body').innerHTML = _errHtml(err); }).datosSustituciones(fecha);
@@ -50,30 +60,45 @@
   }
   // Solo se cubre la clase directa (tipo 'grupo'); coordinaciones, refuerzos,
   // cargos… del ausente se muestran pero no piden sustituto.
-  function _suClase(a, t) { return (((SU.horario[a] || {})[t]) || []).some(function(o) { return o.tipo === 'grupo'; }); }
+  function _suClase(a, t) {
+    if (String(a).indexOf('g:') === 0) return !!SU_NEC[a + '|' + t];
+    return (((SU.horario[a] || {})[t]) || []).some(function(o) { return o.tipo === 'grupo'; });
+  }
   function _suNombre(id) { var d = SU && SU._byId && SU._byId[id]; return d ? d.nombre : '¿?'; }
+  function _suGrupo(id) { return (SU._gById && SU._gById[id]) || { id: id, nombre: '¿?' }; }
+  // Todas las columnas: ausentes y, detrás, coberturas de grupo.
+  function _suCols() { return SU_AUS.concat(SU_GRU.map(function(g) { return 'g:' + g; })); }
+  // Qué está haciendo un docente en un tramo (texto breve).
+  function _suHace(id, tramo) {
+    return (((SU.horario[id] || {})[tramo]) || []).map(function(o) { return o.texto + (o.area ? ' ' + o.area : ''); }).join(' + ');
+  }
 
   function _suPintar() {
     var body = document.getElementById('su-body');
     document.getElementById('su-dia').textContent = SU.finDeSemana ? 'Fin de semana' : (SU.diaLargo + ' · Semana ' + SU.semana);
     if (SU.finDeSemana) { body.innerHTML = '<div class="empty">Ese día no hay clase.</div>'; return; }
     SU._byId = {}; SU.docentes.forEach(function(d) { SU._byId[d.id] = d; });
+    SU._gById = {}; (SU.grupos || []).forEach(function(g) { SU._gById[g.id] = g; });
     // Selector de ausentes: docentes aún no marcados.
     document.getElementById('su-add').innerHTML = '<option value="">+ Añadir ausente…</option>' +
       SU.docentes.filter(function(d) { return SU_AUS.indexOf(d.id) === -1; })
         .sort(function(a, b) { return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }); })
         .map(function(d) { return '<option value="' + _esc(d.id) + '">' + _esc(d.nombre) + '</option>'; }).join('');
-    if (!SU_AUS.length) { body.innerHTML = '<div class="empty">Nadie marcado como ausente este día. Añade un ausente arriba.</div>'; return; }
+    if (!document.getElementById('su-cob').hidden) _suPintarCob();
+    var cols = _suCols();
+    if (!cols.length) { body.innerHTML = '<div class="empty">Nadie marcado como ausente este día. Añade un ausente o una cobertura por tramo arriba.</div>'; return; }
 
     var h = '<div class="su-wrap"><table class="su"><thead><tr><th class="su-tr">Tramo</th>' +
-      SU_AUS.map(function(a) {
-        return '<th colspan="2" class="su-aus">' + _esc(_suNombre(a)) +
-          ' <button type="button" class="btn-icon" title="Quitar ausente" onclick="suQuitarAusente(' + _jsAttr(a) + ')">×</button></th>';
+      cols.map(function(a) {
+        var g = a.indexOf('g:') === 0;
+        return '<th colspan="2" class="su-aus' + (g ? ' su-gcol' : '') + '">' + (g ? '<span class="su-gtag">Cobertura</span> ' + _esc(_suGrupo(a.slice(2)).nombre) : _esc(_suNombre(a))) +
+          ' <button type="button" class="btn-icon" title="Quitar" onclick="suQuitarAusente(' + _jsAttr(a) + ')">×</button></th>';
       }).join('') + '</tr></thead><tbody>';
     SU.tramos.forEach(function(t) {
-      if (t.es_recreo) { h += '<tr class="su-recreo"><td colspan="' + (1 + SU_AUS.length * 2) + '">RECREO · ' + _esc(t.horas) + '</td></tr>'; return; }
+      if (t.es_recreo) { h += '<tr class="su-recreo"><td colspan="' + (1 + cols.length * 2) + '">RECREO · ' + _esc(t.horas) + '</td></tr>'; return; }
       h += '<tr><td class="su-tr"><span class="su-bar" style="background:' + _esc(_sbColor(t.color) || '#999') + '"></span><b>' + _esc(t.orden) + '</b> ' + _esc(t.horas) + '</td>';
-      SU_AUS.forEach(function(a) {
+      cols.forEach(function(a) {
+        if (a.indexOf('g:') === 0) { h += _suCeldaGrupo(a, t.id); return; }
         var ocs = ((SU.horario[a] || {})[t.id]) || [];
         if (!ocs.length) { h += '<td class="su-oc su-vacio">—</td><td class="su-sel"></td>'; return; }
         var pill = ocs.map(function(o) {
@@ -87,55 +112,133 @@
     });
     body.innerHTML = h + '</tbody></table></div>';
   }
+  // Celda de una columna de cobertura: lo que tiene el grupo y una casilla
+  // para decidir si en ese tramo entra alguien.
+  function _suCeldaGrupo(col, tramo) {
+    var gid = col.slice(2), k = col + '|' + tramo, on = !!SU_NEC[k];
+    var ocs = ((SU.grupoHorario || {})[gid] || {})[tramo] || [];
+    var pill = ocs.map(function(o) { return '<span class="sb-pill" style="' + _sbPill(o.color) + '">' + _esc(o.texto + (o.area ? ' | ' + o.area : '')) + '</span>'; }).join(' ') || '<span class="su-vacio">—</span>';
+    return '<td class="su-oc' + (on ? '' : ' su-nocubre') + '"><label class="su-chk"><input type="checkbox"' + (on ? ' checked' : '') +
+      ' onchange="suNecesita(' + _jsAttr(k) + ', this.checked)" title="Entrar en este tramo"></label>' + pill + '</td>' +
+      '<td class="su-sel' + (on ? '' : ' su-vacio') + '">' + (on ? _suSelect(col, tramo) : '') + '</td>';
+  }
+  function suNecesita(k, on) {
+    if (on) SU_NEC[k] = true; else { delete SU_NEC[k]; delete SU_ASIG[k]; }
+    SU_DIRTY = true; _suPintar();
+  }
 
-  // Opciones: apoyos del tramo (prioridad), resto con clase y, al final, quien
-  // no tiene nada ese tramo (no está en el centro).
+  // ¿La clase de este docente en el tramo es con el grupo de un tutor
+  // ausente? (p. ej. el tutor se ha ido de excursión con su grupo: el
+  // especialista queda libre para cubrir).
+  function _suLiberado(id, tramo) {
+    var tut = {}; (SU.grupos || []).forEach(function(g) { if (g.tutor && SU_AUS.indexOf(g.tutor) !== -1) tut[g.id] = g; });
+    var ocs = ((SU.horario[id] || {})[tramo]) || [];
+    return ocs.length && ocs.filter(function(o) { return o.tipo === 'grupo'; }).length &&
+      ocs.every(function(o) { return o.tipo !== 'grupo' || (o.grupos || []).some(function(g) { return tut[g]; }); });
+  }
+
+  // Opciones: apoyos del tramo (prioridad), quien queda libre porque su grupo
+  // está con un ausente (excursión), el resto con clase, PT/AL (solo por
+  // fuerza mayor) y, al final, quien no está en el centro. Cada opción dice
+  // qué está haciendo; la elegida muestra solo el nombre.
   function _suSelect(aus, tramo) {
     var k = aus + '|' + tramo, val = SU_ASIG[k] || '', c = SU.candidatos[tramo] || { apoyos: [], libres: [] };
     var usados = {};
     Object.keys(SU_ASIG).forEach(function(x) { if (x !== k && x.split('|')[1] === tramo && SU_ASIG[x]) usados[SU_ASIG[x]] = true; });
-    var vistos = {}, opt = function(id, txt) {
+    var vistos = {}, opt = function(id, detalle) {
       vistos[id] = true;
       var dis = (usados[id] || SU_AUS.indexOf(id) !== -1) && id !== val;
-      return '<option value="' + _esc(id) + '"' + (id === val ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + _esc(txt) + (usados[id] ? ' (ya cubre)' : '') + '</option>';
+      var txt = id === val ? _suNombre(id) : _suNombre(id) + (detalle ? ' · ' + detalle : '') + (usados[id] ? ' (ya cubre)' : '');
+      return '<option value="' + _esc(id) + '"' + (id === val ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + _esc(txt) + '</option>';
     };
-    var carga = function(id) { return (SU._byId[id] || {}).carga || 0; };
-    var g1 = c.apoyos.filter(function(x) { return SU_AUS.indexOf(x.id) === -1 && SU._byId[x.id]; })
-      .map(function(x) { return opt(x.id, _suNombre(x.id) + ' · ' + x.rol + ' (' + carga(x.id) + ')'); }).join('');
+    var carga = function(id) { return ' (' + ((SU._byId[id] || {}).carga || 0) + ')'; };
+    var disp = function(id) { return !vistos[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
+    var aps = c.apoyos.filter(function(x) { return disp(x.id); });
+    var g1 = aps.filter(function(x) { return x.cat !== 'atencion'; }).map(function(x) { return opt(x.id, (_suHace(x.id, tramo) || x.rol) + carga(x.id)); }).join('');
+    var gPt = aps.filter(function(x) { return x.cat === 'atencion' && !vistos[x.id]; }).map(function(x) { return opt(x.id, (_suHace(x.id, tramo) || x.rol) + carga(x.id)); }).join('');
     var fuera = {}; c.libres.forEach(function(id) { fuera[id] = true; });
-    var g3 = SU.docentes.filter(function(d) { return !vistos[d.id] && !fuera[d.id] && SU_AUS.indexOf(d.id) === -1; })
-      .map(function(d) { return opt(d.id, d.nombre); }).join('');
-    var g4 = SU.docentes.filter(function(d) { return !vistos[d.id] && fuera[d.id] && SU_AUS.indexOf(d.id) === -1; })
-      .map(function(d) { return opt(d.id, d.nombre); }).join('');
+    var gLib = SU.docentes.filter(function(d) { return disp(d.id) && !fuera[d.id] && _suLiberado(d.id, tramo); })
+      .map(function(d) { return opt(d.id, _suHace(d.id, tramo) + ' (grupo fuera)' + carga(d.id)); }).join('');
+    var g3 = SU.docentes.filter(function(d) { return disp(d.id) && !fuera[d.id]; })
+      .map(function(d) { return opt(d.id, _suHace(d.id, tramo)); }).join('');
+    var g4 = SU.docentes.filter(function(d) { return disp(d.id) && fuera[d.id]; })
+      .map(function(d) { return opt(d.id, ''); }).join('');
     return '<select class="' + (val ? 'ok' : 'pend') + '" onchange="suAsignar(' + _jsAttr(k) + ', this.value)">' +
       '<option value="">— sin cubrir —</option>' +
       (g1 ? '<optgroup label="Apoyos (prioridad)">' + g1 + '</optgroup>' : '') +
+      (gLib ? '<optgroup label="Su grupo está con un ausente (¿excursión?)">' + gLib + '</optgroup>' : '') +
       (g3 ? '<optgroup label="Con clase">' + g3 + '</optgroup>' : '') +
+      (gPt ? '<optgroup label="PT / AL (solo por fuerza mayor)">' + gPt + '</optgroup>' : '') +
       (g4 ? '<optgroup label="No en el centro">' + g4 + '</optgroup>' : '') + '</select>';
   }
 
   function suAsignar(k, v) { SU_ASIG[k] = v; SU_DIRTY = true; _suPintar(); }
   function suAnadirAusente(id) { if (!id || SU_AUS.indexOf(id) !== -1) return; SU_AUS.push(id); SU_DIRTY = true; _suPintar(); }
   function suQuitarAusente(id) {
-    SU_AUS = SU_AUS.filter(function(a) { return a !== id; });
+    if (id.indexOf('g:') === 0) SU_GRU = SU_GRU.filter(function(g) { return 'g:' + g !== id; });
+    else SU_AUS = SU_AUS.filter(function(a) { return a !== id; });
     Object.keys(SU_ASIG).forEach(function(k) { if (k.split('|')[0] === id) delete SU_ASIG[k]; });
+    Object.keys(SU_NEC).forEach(function(k) { if (k.split('|')[0] === id) delete SU_NEC[k]; });
+    SU_DIRTY = true; _suPintar();
+  }
+
+  // ---------- Cobertura por tramo ----------
+  // Elige tramo(s) y marca los cursos: se añade una columna por curso con
+  // esos tramos marcados para cubrir (se ajusta luego con las casillas).
+  function suPanelCob() {
+    var p = document.getElementById('su-cob');
+    if (!SU || SU.finDeSemana) return;
+    p.hidden = !p.hidden;
+    if (!p.hidden) _suPintarCob();
+  }
+  function _suPintarCob() {
+    var p = document.getElementById('su-cob');
+    var chip = function(on, fn, arg, txt) { return '<button type="button" class="pt-chip' + (on ? ' on' : '') + '" onclick="' + fn + '(' + _jsAttr(arg) + ')">' + _esc(txt) + '</button>'; };
+    var niveles = [];
+    (SU.grupos || []).forEach(function(g) { var e = /inf/i.test(g.nivel + g.nombre) ? 'Infantil' : 'Primaria'; if (niveles.indexOf(e) === -1) niveles.push(e); });
+    p.innerHTML = '<div class="su-cob-row"><b>Tramo(s)</b><div class="pt-chips">' +
+        SU.tramos.filter(function(t) { return !t.es_recreo; }).map(function(t) { return chip(SU_COB.tramos.indexOf(t.id) !== -1, 'suCobTramo', t.id, t.orden + 'ª · ' + t.horas); }).join('') + '</div></div>' +
+      '<div class="su-cob-row"><b>Cursos</b><div class="pt-chips">' +
+        (SU.grupos || []).map(function(g) { return chip(SU_COB.grupos.indexOf(g.id) !== -1, 'suCobGrupo', g.id, g.nombre); }).join('') +
+        '<span class="su-cob-sep"></span>' + niveles.concat(['Todos', 'Ninguno']).map(function(n) { return chip(false, 'suCobNivel', n, n); }).join('') + '</div></div>' +
+      '<div class="su-cob-row su-cob-acc"><button type="button" class="primary" onclick="suCobAplicar()"' + (SU_COB.tramos.length && SU_COB.grupos.length ? '' : ' disabled') + '>Añadir ' + SU_COB.grupos.length + ' curso(s) × ' + SU_COB.tramos.length + ' tramo(s)</button>' +
+      '<button type="button" class="secondary" onclick="suPanelCob()">Cerrar</button></div>';
+  }
+  function _suToggle(arr, v) { var i = arr.indexOf(v); if (i === -1) arr.push(v); else arr.splice(i, 1); }
+  function suCobTramo(id) { _suToggle(SU_COB.tramos, id); _suPintarCob(); }
+  function suCobGrupo(id) { _suToggle(SU_COB.grupos, id); _suPintarCob(); }
+  function suCobNivel(n) {
+    SU_COB.grupos = n === 'Ninguno' ? [] : (SU.grupos || []).filter(function(g) {
+      return n === 'Todos' || (n === 'Infantil') === /inf/i.test(g.nivel + g.nombre);
+    }).map(function(g) { return g.id; });
+    _suPintarCob();
+  }
+  function suCobAplicar() {
+    SU_COB.grupos.forEach(function(g) {
+      if (SU_GRU.indexOf(g) === -1) SU_GRU.push(g);
+      SU_COB.tramos.forEach(function(t) { SU_NEC['g:' + g + '|' + t] = true; });
+    });
+    SU_COB = { tramos: [], grupos: [] };
+    document.getElementById('su-cob').hidden = true;
     SU_DIRTY = true; _suPintar();
   }
 
   // Rellena huecos con los apoyos del tramo por prioridad de sustitución.
-  // Nunca repite persona en un tramo.
-  // Quien no tiene nada ese tramo no está en el centro: no se asigna solo.
+  // Nunca repite persona en un tramo. PT/AL no se asignan solos (fuerza
+  // mayor) y quien no tiene nada ese tramo no está en el centro.
   function suAutoasignar() {
-    if (!SU || !SU_AUS.length) return;
+    if (!SU) return;
+    var cols = _suCols();
+    if (!cols.length) return;
     SU.tramos.forEach(function(t) {
       if (t.es_recreo) return;
       var c = SU.candidatos[t.id] || { apoyos: [], libres: [] }, usados = {};
-      SU_AUS.forEach(function(a) { var v = SU_ASIG[a + '|' + t.id]; if (v) usados[v] = true; });
-      SU_AUS.forEach(function(a) {
+      cols.forEach(function(a) { var v = SU_ASIG[a + '|' + t.id]; if (v) usados[v] = true; });
+      cols.forEach(function(a) {
         var k = a + '|' + t.id;
         if (SU_ASIG[k] || !_suClase(a, t.id)) return;
         var libre = function(id) { return !usados[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
-        var el = (c.apoyos.filter(function(x) { return libre(x.id); })[0] || {}).id;
+        var el = (c.apoyos.filter(function(x) { return x.cat !== 'atencion' && libre(x.id); })[0] || {}).id;
         if (el) { SU_ASIG[k] = el; usados[el] = true; SU_DIRTY = true; }
       });
     });
@@ -145,10 +248,11 @@
   function suGuardar() {
     if (!SU || SU.finDeSemana) return;
     var lista = [];
-    SU_AUS.forEach(function(a) {
+    _suCols().forEach(function(a) {
+      var g = a.indexOf('g:') === 0;
       SU.tramos.forEach(function(t) {
         if (t.es_recreo || !_suClase(a, t.id)) return;
-        lista.push({ ausente: a, tramo: t.id, sustituto: SU_ASIG[a + '|' + t.id] || '' });
+        lista.push({ ausente: g ? '' : a, grupo: g ? a.slice(2) : '', tramo: t.id, sustituto: SU_ASIG[a + '|' + t.id] || '' });
       });
     });
     var btn = document.getElementById('su-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';

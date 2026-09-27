@@ -225,6 +225,7 @@ function _sabanaTramoData(t, ocupDia, ctx) {
         rolLargo: rol ? (rol.nombre_largo || '') : '',
         color: (rol && rol.color) ? rol.color : _colorPorNombreRol(nombre),
         orden: rol ? (rol.orden || 999) : 999,
+        categoria: categoriaRol(rol || { nombre: nombre }),
         tipo: o.tipo,
         destino: _nombresGrupos(o.grupo_destino_id, ctx),
         _docOrden: (ctx.docById[o.docente_id] || {}).orden || 0

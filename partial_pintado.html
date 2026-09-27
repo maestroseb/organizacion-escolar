@@ -79,6 +79,16 @@
   }
 
   // ---------- Pintar ----------
+  // 'atencion' (PT/AL) es un tipo de la brocha, no de la hoja: se guarda
+  // como 'localizacion' (columna derecha de la sábana) con un rol PT/AL.
+  function _ptTipoReal() { return PT.tipo === 'atencion' ? 'localizacion' : PT.tipo; }
+  function _ptCat(id) { var r = (HD_CAT.roles || []).filter(function(x) { return x.id === id; })[0]; return r ? r.categoria : ''; }
+  // Roles de la brocha según su tipo (si ninguno encaja, todos).
+  function _ptRoles() {
+    var cat = { atencion: 'atencion', localizacion: 'apoyo', especial: 'cargo' }[PT.tipo];
+    var rs = (HD_CAT.roles || []).filter(function(r) { return r.categoria === cat; });
+    return rs.length ? rs : (HD_CAT.roles || []);
+  }
   function _ptBrochaValida() {
     if (PT.tipo === 'borrar') return true;
     if (PT.tipo === 'grupo') return PT.materia && PT.grupos.length;
@@ -95,10 +105,10 @@
       _ptRect(resto).forEach(function(r) { var c = JSON.parse(JSON.stringify(o)); c.semana = r[0]; c.mitad = r[1]; nuevas.push(c); });
     });
     if (PT.tipo !== 'borrar') {
-      var g = PT.grupos.join(',');
-      nuevas.push({ dia: dia, tramo_id: tramo, tipo: PT.tipo, materia_id: PT.tipo === 'grupo' ? PT.materia : '',
-        grupo_id: PT.tipo === 'grupo' ? g : '', rol_id: PT.tipo !== 'grupo' ? PT.rol : '',
-        grupo_destino_id: PT.tipo === 'localizacion' ? g : '', mitad: PT.mitad, semana: PT.sem, notas: '' });
+      var g = PT.grupos.join(','), tp = _ptTipoReal();
+      nuevas.push({ dia: dia, tramo_id: tramo, tipo: tp, materia_id: tp === 'grupo' ? PT.materia : '',
+        grupo_id: tp === 'grupo' ? g : '', rol_id: tp !== 'grupo' ? PT.rol : '',
+        grupo_destino_id: tp === 'localizacion' ? g : '', mitad: PT.mitad, semana: PT.sem, notas: '' });
     }
     PT.ocs = nuevas;
     _ptCelda(dia, tramo);
@@ -107,7 +117,7 @@
   function _ptCopiar(dia, tramo) {
     var o = PT.ocs.filter(function(x) { return x.dia === dia && x.tramo_id === tramo; })[0];
     if (!o) return;
-    PT.tipo = o.tipo; PT.materia = o.materia_id || ''; PT.rol = o.rol_id || '';
+    PT.tipo = (o.tipo !== 'grupo' && _ptCat(o.rol_id) === 'atencion') ? 'atencion' : o.tipo; PT.materia = o.materia_id || ''; PT.rol = o.rol_id || '';
     PT.grupos = _hdCsvArr(o.tipo === 'localizacion' ? o.grupo_destino_id : o.grupo_id);
     PT.sem = o.semana || ''; PT.mitad = o.mitad || '';
     _ptPanel(); _ptEstado('Brocha copiada de la celda');
@@ -120,7 +130,12 @@
     }).join('');
   }
   function ptSet(k, v) { PT[k] = v; _ptPanel(); }
-  function ptTipo(v) { PT.tipo = v; if (v !== 'grupo' && v !== 'localizacion') PT.grupos = []; _ptPanel(); }
+  function ptTipo(v) {
+    PT.tipo = v;
+    if (v !== 'grupo' && v !== 'localizacion' && v !== 'atencion') PT.grupos = [];
+    if (PT.rol && _ptRoles().every(function(r) { return r.id !== PT.rol; })) PT.rol = '';
+    _ptPanel();
+  }
   function ptSem(v) { PT.sem = v; _ptPanel(); }
   function ptMit(v) { PT.mitad = v; _ptPanel(); }
   function ptMat(id) { PT.materia = id; _ptPanel(); }
@@ -133,13 +148,15 @@
     if (o.tipo === 'grupo') return _ptNom(HD_CAT.materias, o.materia_id, true) + ' ' + _hdGruposNombres(o.grupo_id);
     return _ptNom(HD_CAT.roles, o.rol_id) + (o.grupo_destino_id ? ' ' + _hdGruposNombres(o.grupo_destino_id) : '');
   }
+  // Clases con el color pleno; PT/AL, a media intensidad; apoyos y cargos,
+  // un tinte claro: de un vistazo se ve qué es clase y qué no.
   function _ptEstilo(o) {
-    var c = o.tipo === 'grupo' ? _ptColor(HD_CAT.materias, o.materia_id) : _ptColor(HD_CAT.roles, o.rol_id);
-    return c ? _sbPill(c) : '';
+    if (o.tipo === 'grupo') return _ocEstilo('grupo', _ptColor(HD_CAT.materias, o.materia_id));
+    return _ocEstilo(_ptCat(o.rol_id) || 'cargo', _ptColor(HD_CAT.roles, o.rol_id));
   }
 
   function _ptPanel() {
-    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['localizacion', 'Apoyo'], ['especial', 'Cargo'], ['borrar', 'Borrar']], PT.tipo, 'ptTipo');
+    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['atencion', 'PT/AL'], ['localizacion', 'Apoyo'], ['especial', 'Cargo'], ['borrar', 'Borrar']], PT.tipo, 'ptTipo');
     _ptSeg('pt-sem', [['', 'Todas'], ['A', 'Sem A'], ['B', 'Sem B']], PT.sem, 'ptSem');
     _ptSeg('pt-mitad', [['', 'Entero'], ['1', '1ª mitad'], ['2', '2ª mitad']], PT.mitad, 'ptMit');
     var chips = function(arr, sel, fn, multi, corto) {
@@ -153,11 +170,14 @@
     if (PT.tipo === 'grupo') {
       h += '<div class="pt-lbl">Área</div>' + chips(HD_CAT.materias, PT.materia, 'ptMat', false, true);
       h += '<div class="pt-lbl">Grupo(s)</div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
+    } else if (PT.tipo === 'atencion') {
+      h += '<div class="pt-lbl">PT / AL</div>' + chips(_ptRoles(), PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Grupo(s) del alumnado <span class="hint">(opcional)</span></div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
     } else if (PT.tipo === 'localizacion') {
-      h += '<div class="pt-lbl">Apoyo</div>' + chips(HD_CAT.roles, PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Apoyo</div>' + chips(_ptRoles(), PT.rol, 'ptRol');
       h += '<div class="pt-lbl">Grupo(s) destino <span class="hint">(opcional)</span></div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
     } else if (PT.tipo === 'especial') {
-      h += '<div class="pt-lbl">Cargo</div>' + chips(HD_CAT.roles, PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Cargo</div>' + chips(_ptRoles(), PT.rol, 'ptRol');
     }
     document.getElementById('pt-listas').innerHTML = h;
     // Vista previa de la brocha.
@@ -166,7 +186,7 @@
     if (PT.tipo === 'borrar') b.innerHTML = '<span class="pt-prev pt-prev-borrar">Borrar</span><small>' + alc + '</small>';
     else if (!_ptBrochaValida()) b.innerHTML = '<span class="pt-prev pt-prev-vacia">Elige ' + (PT.tipo === 'grupo' ? 'área y grupo' : 'cargo') + '</span><small>' + alc + '</small>';
     else {
-      var o = { tipo: PT.tipo, materia_id: PT.materia, rol_id: PT.rol, grupo_id: PT.tipo === 'grupo' ? PT.grupos.join(',') : '', grupo_destino_id: PT.tipo === 'localizacion' ? PT.grupos.join(',') : '' };
+      var tp = _ptTipoReal(), o = { tipo: tp, materia_id: PT.materia, rol_id: PT.rol, grupo_id: tp === 'grupo' ? PT.grupos.join(',') : '', grupo_destino_id: tp === 'localizacion' ? PT.grupos.join(',') : '' };
       b.innerHTML = '<span class="pt-prev" style="' + _ptEstilo(o) + '">' + _esc(_ptEtq(o)) + '</span><small>' + alc + '</small>';
     }
   }

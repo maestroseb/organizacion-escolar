@@ -31,7 +31,7 @@ function catalogoImportacion() {
       return { id: m.id, nombre: m.nombre, extra: m.abreviatura || '', color: m.color || '' };
     }),
     roles: listarRoles().map(function(r) {
-      return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '', color: r.color || '' };
+      return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '', color: r.color || '', categoria: r.categoria };
     }),
     tramos: listarTramos().map(function(t) {
       return { id: t.id, orden: t.orden, etiqueta: t.etiqueta || '', es_recreo: !!t.es_recreo,

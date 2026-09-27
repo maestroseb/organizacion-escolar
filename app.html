@@ -19,9 +19,7 @@
       <div class="topbar-inner">
         <div class="brandrow">
           <div class="brand">
-            <div class="logo" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M3 5h18v16H3zM3 9h18M8 3v4M16 3v4"/></svg>
-            </div>
+            <img class="logo-img" src="<?= FAVICON_URL ?>" alt="" aria-hidden="true">
             <div class="titles">
               <h1 id="brand-nombre">Gestor de Horarios</h1>
               <div class="sub" id="brand-sub">Horarios y sustituciones</div>
@@ -174,7 +172,7 @@
     // incrementa tras cada guardado) y dos peticiones iguales a la vez se
     // fusionan en una. Cada llamante recibe su propia copia (pueden mutarla).
     var LECTURAS = { listarSemanas: 1, listarDocentes: 1, listarGrupos: 1, listarTramos: 1, listarMaterias: 1, listarRoles: 1,
-                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1 };
+                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1, datosHorarios: 1 };
     var _RPC = {}, _RPC_V = -1;
     function _copia(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
     function _srv(nombre, args) {
