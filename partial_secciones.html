@@ -200,7 +200,7 @@
       <thead><tr>
         <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:210px">Nombre completo</th>
         <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th style="width:230px" title="Pulsa + si hay una baja: su nombre sustituye al del titular en la sábana y las vistas, y su email hereda el acceso a Sustituciones. Pulsa − cuando vuelva el titular.">Sustituto/a</th><th class="col-center" style="width:52px">Activo</th>
-        <th class="col-center" style="width:88px" title="Puede ver la pestaña Sustituciones (Equipo Directivo). Requiere email.">Sustituciones</th>
+        <th class="col-center" style="width:70px" title="Permiso de Edición (Equipo Directivo): ve Configuración y puede guardar cambios (sustituciones, horarios, recreos…). Sin él, solo puede ver. Requiere email.">Edición</th>
         <th class="col-center" style="width:60px" title="Jornada parcial (no viene todos los días): Revisión no avisa de horario incompleto">Parcial</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="docentes-body" data-anadir="anadirDocente"></tbody>
@@ -494,8 +494,8 @@
   function _pintarSesion() {
     const el = document.getElementById('doc-sesion'), p = (ESTADO && ESTADO.permisos) || {};
     if (!el) return;
-    el.textContent = !p.email ? 'Google no identifica tu cuenta en esta sesión: la casilla «Sustituciones» no puede aplicarse.'
-      : 'Sesión: ' + p.email + (p.admin ? ' (administrador)' : '') + ' · Sustituciones: ' + (p.sustituciones ? 'sí' : 'no');
+    el.textContent = !p.email ? 'Google no identifica tu cuenta en esta sesión: la casilla «Edición» no puede aplicarse.'
+      : 'Sesión: ' + p.email + (p.admin ? ' (administrador)' : '') + ' · Edición: ' + (p.edicion || p.sustituciones ? 'sí' : 'no');
   }
   function cargarDocentes() {
     _pintarSesion();
@@ -519,7 +519,7 @@
     if (!abierta) return '<button type="button" class="btn-icon doc-sust-btn" title="Añadir sustituto/a (baja)" onclick="docSustituto(' + i + ', true)">+</button>';
     return '<div class="doc-sust"><button type="button" class="btn-icon doc-sust-btn" title="Quitar sustituto/a (vuelve el titular)" onclick="docSustituto(' + i + ', false)">−</button>' +
       '<input type="text" value="' + _esc(d.sustituto) + '" placeholder="Nombre" title="Aparece en la sábana y las vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)">' +
-      '<input type="email" value="' + _esc(d.sustituto_email) + '" placeholder="Email" title="Hereda el acceso a Sustituciones del titular" oninput="actualizarDocente(' + i + ',\'sustituto_email\',this.value)"></div>';
+      '<input type="email" value="' + _esc(d.sustituto_email) + '" placeholder="Email" title="Hereda el permiso de Edición del titular" oninput="actualizarDocente(' + i + ',\'sustituto_email\',this.value)"></div>';
   }
   function docSustituto(i, abrir) {
     var d = docentesLocal[i];
@@ -543,7 +543,7 @@
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
         '<td>' + _docSustCelda(d, i) + '</td>' +
         '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
-        '<td class="col-center"><input type="checkbox"' + (d.acceso_sust?' checked':'') + ' title="Acceso a Sustituciones" onchange="actualizarDocente(' + i + ',\'acceso_sust\',this.checked)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (d.acceso_sust?' checked':'') + ' title="Permiso de Edición" onchange="actualizarDocente(' + i + ',\'acceso_sust\',this.checked)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.parcial?' checked':'') + ' title="Jornada parcial" onchange="actualizarDocente(' + i + ',\'parcial\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
       tb.appendChild(tr);

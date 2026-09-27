@@ -7,7 +7,7 @@
  * - datosSustituciones(fecha): el parte de un día: horario de cada docente
  *   ese día, candidatos por tramo (apoyos por prioridad; `libres` = sin nada
  *   ese tramo, es decir, fuera del centro) y las
- *   sustituciones ya guardadas. Solo Equipo Directivo y Admin.
+ *   sustituciones ya guardadas. Lo ve todo el profesorado.
  * - guardarSustituciones(fecha, lista): reemplaza las de esa fecha.
  */
 
@@ -66,7 +66,7 @@ function datosAhora() {
 }
 
 function datosSustituciones(fecha) {
-  _exigirPermisoSust();
+  // Todo el profesorado puede ver el parte; guardar exige permiso de Edición.
   fecha = _fechaIso(fecha);
   const dLocal = _fechaLocal(fecha);
   const dia = ['', 'L', 'M', 'X', 'J', 'V', ''][dLocal.getDay()];
@@ -149,7 +149,7 @@ function datosSustituciones(fecha) {
  * entra en ese curso ese tramo (apoyo puntual, entrada, etc.).
  */
 function guardarSustituciones(fecha, lista) {
-  _exigirPermisoSust();
+  _exigirEdicion();
   fecha = _fechaIso(fecha);
   if (!Array.isArray(lista)) throw new Error('Formato inválido.');
   const lock = LockService.getScriptLock();
@@ -179,10 +179,6 @@ function guardarSustituciones(fecha, lista) {
 }
 
 // ---------- Internos ----------
-
-function _exigirPermisoSust() {
-  if (!permisosUsuario().sustituciones) throw new Error('No tienes acceso a Sustituciones.');
-}
 
 function _fechaIso(f) {
   const s = String(f || '').slice(0, 10);

@@ -16,6 +16,7 @@ function listarZonasRecreo() {
 }
 
 function guardarZonasRecreo(zonas) {
+  _exigirEdicion();
   if (!Array.isArray(zonas)) throw new Error('Formato inválido.');
   const vistos = {};
   const filas = zonas.map(function(z, i) {
@@ -69,6 +70,7 @@ function datosRecreos() {
  * Reemplaza los turnos de un recreo. turnos: [{ docente_id, dia, zona_id, semana }].
  */
 function guardarRecreos(tramoId, turnos) {
+  _exigirEdicion();
   if (!tramoId) throw new Error('Falta el recreo.');
   if (!Array.isArray(turnos)) throw new Error('Formato inválido.');
   const zonas = {};

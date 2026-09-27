@@ -117,7 +117,14 @@
   }
   .brandrow { display: contents; }
   .brand { grid-area: brand; display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; padding: 8px 0; }
-  #btn-tema { grid-area: tema; }
+  .top-acc { grid-area: tema; display: flex; align-items: center; gap: 4px; }
+  .tab-config { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .tab-config[hidden] { display: none; }
+  .tab-config.active { color: var(--accent-text); background: var(--accent-weak); }
+  @media (max-width: 900px) { .tab-config span { display: none; } }
+  /* Profesorado sin permiso de Edición: solo ve. */
+  body.solo-lectura .solo-edicion, body.solo-lectura .rc-x, body.solo-lectura .rc-sem { display: none !important; }
+  body.solo-lectura .rc-chip, body.solo-lectura .rc-pchip { cursor: default; }
   .brand .logo {
     width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
     background: linear-gradient(135deg, var(--accent), #0ea5a4);

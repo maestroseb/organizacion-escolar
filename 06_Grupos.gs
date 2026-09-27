@@ -81,6 +81,7 @@ function plantillaGrupos() {
 }
 
 function guardarGrupos(grupos, modo) {
+  _exigirEdicion();
   if (!Array.isArray(grupos)) throw new Error('Formato inválido.');
 
   grupos.forEach(function(g, i) {

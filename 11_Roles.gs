@@ -78,6 +78,7 @@ function plantillaRoles() {
 }
 
 function guardarRoles(roles, modo) {
+  _exigirEdicion();
   if (!Array.isArray(roles)) throw new Error('Formato inválido.');
 
   roles.forEach(function(r, i) {

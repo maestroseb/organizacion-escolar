@@ -18,6 +18,7 @@ function listarDocentes() {
 }
 
 function guardarDocentes(docentes, modo) {
+  _exigirEdicion();
   if (!Array.isArray(docentes)) throw new Error('Formato inválido.');
 
   docentes.forEach(function(d, i) {
@@ -62,6 +63,7 @@ function guardarDocentes(docentes, modo) {
  * días, así que Revisión no avisa de «horario incompleto».
  */
 function marcarDocenteParcial(id, parcial) {
+  _exigirEdicion();
   if (!id) throw new Error('Falta el docente.');
   update(SHEETS.DOCENTES, id, { parcial: !!parcial });
   return { ok: true };

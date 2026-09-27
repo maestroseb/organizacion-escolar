@@ -636,6 +636,7 @@ const _CAMPOS_REASIGNABLES = {
 
 /** Cambia un campo de una ocupación (para arreglar una referencia rota). */
 function reasignarOcupacion(ocupId, campo, valor) {
+  _exigirEdicion();
   if (!ocupId) throw new Error('Falta la ocupación.');
   if (!_CAMPOS_REASIGNABLES[campo]) throw new Error('Campo no reasignable: ' + campo);
   update(SHEETS.OCUPACIONES, ocupId, _campoValor(campo, valor || ''));
@@ -646,6 +647,7 @@ function _campoValor(campo, valor) { const o = {}; o[campo] = valor; return o; }
 
 /** Borra una ocupación (p. ej. una huérfana con referencias rotas). */
 function eliminarOcupacion(ocupId) {
+  _exigirEdicion();
   if (!ocupId) throw new Error('Falta la ocupación.');
   remove(SHEETS.OCUPACIONES, ocupId);
   return { ok: true };
@@ -657,6 +659,7 @@ function _descartesRevision() {
   try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(PROP_REV_DESCARTES) || '{}') || {}; } catch (e) { return {}; }
 }
 function descartarAvisoRevision(clave) {
+  _exigirEdicion();
   if (!clave) throw new Error('Falta el aviso.');
   const d = _descartesRevision();
   d[String(clave).slice(0, 300)] = 1;
@@ -664,6 +667,7 @@ function descartarAvisoRevision(clave) {
   return { ok: true };
 }
 function restaurarDescartesRevision() {
+  _exigirEdicion();
   PropertiesService.getScriptProperties().deleteProperty(PROP_REV_DESCARTES);
   return { ok: true };
 }

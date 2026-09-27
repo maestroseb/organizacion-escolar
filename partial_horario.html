@@ -9,8 +9,8 @@
       <label class="hd-sel">Docente
         <select id="hd-select" onchange="cambiarDocenteHorario(this)"></select>
       </label>
-      <button class="secondary" id="hd-pintar" onclick="abrirPintado()" title="Editor visual: elige una brocha y pinta celdas (admite semanas A/B y medias clases)">🖌 Editar pintando</button>
-      <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
+      <button class="secondary solo-edicion" id="hd-pintar" onclick="abrirPintado()" title="Editor visual: elige una brocha y pinta celdas (admite semanas A/B y medias clases)">🖌 Editar pintando</button>
+      <button class="primary solo-edicion" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
       <span id="hd-estado" class="hint"></span>
     </div>
     <div id="hd-body"></div>
@@ -196,6 +196,7 @@
 
   // ---------- Modal de edición de un hueco ----------
   function abrirSlot(dia, tramoId) {
+    if (soloLectura()) return;
     if (hayCambios('horario_grupo')) { aviso('Guarda antes los cambios del horario del grupo', 'err'); return; }
     var t = HD_CAT.tramos.filter(function(x){ return x.id === tramoId; })[0];
     if (!t) return;
@@ -382,6 +383,7 @@
     document.getElementById('hg-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
   }
   function hgAbrir(dia, tramoId) {
+    if (soloLectura()) return;
     if (hayCambios('horario')) { aviso('Guarda antes los cambios del horario del docente', 'err'); return; }
     var t = HG_CAT.tramos.filter(function(x) { return x.id === tramoId; })[0]; if (!t) return;
     HG_SLOT = { dia: dia, tramo: tramoId, working: HG_OCUPS.filter(function(o) { return o.dia === dia && o.tramo_id === tramoId; }).map(function(o) { return JSON.parse(JSON.stringify(o)); }) };

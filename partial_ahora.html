@@ -77,7 +77,7 @@
     var etq = { ahora: 'AHORA', proximo: 'PRÓXIMO', terminado: 'ÚLTIMO TRAMO', otro: 'TRAMO' }[estado];
     var html = '<div class="ah-card">' +
       '<div class="ah-head" style="' + st + '"><span class="ah-etq">' + etq + '</span>' +
-        _esc(String(AH.diaLargo).toUpperCase() + ' · TRAMO ' + tr.orden + ' · ' + tr.horas) +
+        _esc(String(AH.diaLargo).toUpperCase() + (tr.es_recreo ? ' · RECREO · ' : ' · TRAMO ' + tr.orden + ' · ') + tr.horas) +
         '<span class="ah-reloj" id="ah-reloj">' + _ahReloj() + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';

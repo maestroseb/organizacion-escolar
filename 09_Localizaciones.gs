@@ -54,6 +54,7 @@ function plantillaLocalizaciones() {
 }
 
 function guardarLocalizaciones(locs, modo) {
+  _exigirEdicion();
   if (!Array.isArray(locs)) throw new Error('Formato inválido.');
 
   locs.forEach(function(l, i) {

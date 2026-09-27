@@ -43,6 +43,7 @@ function datosHorarioDocente(docenteId) {
  * Cada fila debe traer dia, tramo_id y tipo; el resto según el tipo.
  */
 function guardarHorarioDocente(docenteId, ocupaciones) {
+  _exigirEdicion();
   if (!docenteId) throw new Error('Falta el docente.');
   if (!Array.isArray(ocupaciones)) throw new Error('Formato inválido.');
 
@@ -129,6 +130,7 @@ function datosHorarioGrupo(grupoId) {
  * - Sin id: clase nueva.
  */
 function guardarHorarioGrupo(grupoId, lista) {
+  _exigirEdicion();
   if (!grupoId) throw new Error('Falta el grupo.');
   if (!Array.isArray(lista)) throw new Error('Formato inválido.');
   const errores = [];

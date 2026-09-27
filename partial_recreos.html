@@ -5,12 +5,12 @@
 
 <div class="rc-toolbar">
   <select id="rc-tramo" onchange="rcCambiarTramo(this.value)" title="Recreo"></select>
-  <span class="rc-lbl">Al soltar</span>
-  <div class="segmented" id="rc-modo" title="Semanas en las que vale el turno que sueltas"></div>
+  <span class="rc-lbl solo-edicion">Al soltar</span>
+  <div class="segmented solo-edicion" id="rc-modo" title="Semanas en las que vale el turno que sueltas"></div>
   <span class="sb-grow"></span>
-  <button type="button" class="secondary" onclick="rcZonasAbrir()">Zonas…</button>
+  <button type="button" class="secondary solo-edicion" onclick="rcZonasAbrir()">Zonas…</button>
   <button type="button" class="secondary" onclick="window.print()">Imprimir</button>
-  <button type="button" class="primary" id="rc-guardar" onclick="rcGuardar()">Guardar</button>
+  <button type="button" class="primary solo-edicion" id="rc-guardar" onclick="rcGuardar()">Guardar</button>
 </div>
 <div id="rc-res"></div>
 <div class="rc-layout">
@@ -147,12 +147,13 @@
   var RC_TOPE = (function() { try { return parseFloat(localStorage.getItem('rc_tope')) || 0; } catch (e) { return 0; } })();
   function rcTope(v) { RC_TOPE = parseFloat(String(v).replace(',', '.')) || 0; try { localStorage.setItem('rc_tope', RC_TOPE || ''); } catch (e) {} _rcPool(); }
   function rcElegir(id) { RC_SEL = RC_SEL === id ? '' : id; _rcPool(); }
-  function rcSemana(i) { var t = RC_TUR[i]; t.semana = t.semana === '' ? 'A' : t.semana === 'A' ? 'B' : ''; _rcCambio(); }
-  function rcQuitar(i) { RC_TUR.splice(i, 1); _rcCambio(); }
+  function rcSemana(i) { if (soloLectura()) return; var t = RC_TUR[i]; t.semana = t.semana === '' ? 'A' : t.semana === 'A' ? 'B' : ''; _rcCambio(); }
+  function rcQuitar(i) { if (soloLectura()) return; RC_TUR.splice(i, 1); _rcCambio(); }
   function _rcCambio() { _rcPintar(); revisarCambios(); }
   // Añade (o mueve, si viene de otra celda) un turno.
   // sem: la mitad A/B donde se suelta (en un cuadro partido); si no, «Al soltar».
   function _rcSoltar(zona, dia, doc, idx, sem) {
+    if (soloLectura()) return;
     var dias = dia === '*' ? RC_DIAS.map(function(d) { return d.k; }) : [dia];
     if (idx != null && RC_TUR[idx]) {
       var t = RC_TUR[idx]; t.zona_id = zona; t.dia = dias[0]; if (sem) t.semana = sem;

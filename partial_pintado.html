@@ -38,6 +38,7 @@
   var PT = { ocs: [], hist: [], tipo: 'grupo', materia: '', grupos: [], rol: '', sem: '', mitad: '', pintando: false };
 
   function abrirPintado() {
+    if (soloLectura()) return;
     if (!HD_DOC || !HD_CAT) { aviso('Elige primero un docente', 'err'); return; }
     if (typeof hayCambios === 'function' && hayCambios('horario_grupo')) { aviso('Guarda antes los cambios del horario del grupo', 'err'); return; }
     PT.ocs = JSON.parse(JSON.stringify(HD_OCUPS)); PT.hist = [];

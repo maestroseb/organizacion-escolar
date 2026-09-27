@@ -277,6 +277,7 @@ function _guardarCache(sheetName, filas) {
 }
 /** Vacía la caché de todas las pestañas (tras editar la hoja a mano). */
 function vaciarCacheDatos() {
+  _exigirEdicion();
   const c = _cache();
   if (c) { Object.keys(SCHEMA).forEach(function(t) { c.put('v:' + t, String(Date.now()) + Math.random(), 21600); }); c.remove('bd_ok'); }
   Object.keys(_TABLAS_CACHE).forEach(function(k) { delete _TABLAS_CACHE[k]; });

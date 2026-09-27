@@ -90,6 +90,7 @@ function extraerEntidadesVolcado(texto, fuente) {
  *     roles:[nombre], tramosOrdenes:[n] }
  */
 function crearEntidadesVolcado(seleccion, modo) {
+  _exigirEdicion();
   seleccion = seleccion || {};
   modo = modo || 'combinar';
   const resumen = {};

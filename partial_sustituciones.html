@@ -6,12 +6,12 @@
 <div class="su-toolbar">
   <input type="date" id="su-fecha" onchange="suCargar(this.value)">
   <span class="su-dia" id="su-dia"></span>
-  <select id="su-add" onchange="suAnadirAusente(this.value); this.value='';"><option value="">+ Añadir ausente…</option></select>
-  <button type="button" class="secondary" onclick="suPanelCob()" title="Que alguien entre en uno o varios cursos en un tramo (apoyo puntual, entrada, excursión…)">+ Cobertura por tramo</button>
+  <select id="su-add" class="solo-edicion" onchange="suAnadirAusente(this.value); this.value='';"><option value="">+ Añadir ausente…</option></select>
+  <button type="button" class="secondary solo-edicion" onclick="suPanelCob()" title="Que alguien entre en uno o varios cursos en un tramo (apoyo puntual, entrada, excursión…)">+ Cobertura por tramo</button>
   <span class="sb-grow"></span>
-  <button type="button" class="secondary" onclick="suAutoasignar()" title="Rellena los huecos sin asignar con la mejor opción disponible">Autoasignar</button>
+  <button type="button" class="secondary solo-edicion" onclick="suAutoasignar()" title="Rellena los huecos sin asignar con la mejor opción disponible">Autoasignar</button>
   <button type="button" class="secondary" onclick="window.print()">Imprimir</button>
-  <button type="button" class="primary" id="su-guardar" onclick="suGuardar()">Guardar</button>
+  <button type="button" class="primary solo-edicion" id="su-guardar" onclick="suGuardar()">Guardar</button>
 </div>
 <div id="su-cob" class="su-cob" hidden></div>
 <div id="su-res"></div>
@@ -94,7 +94,7 @@
       cols.map(function(a) {
         var g = a.indexOf('g:') === 0;
         return '<th colspan="2" class="su-aus' + (g ? ' su-gcol' : '') + '">' + (g ? '<span class="su-gtag">Cobertura</span> ' + _esc(_suGrupo(a.slice(2)).nombre) : _esc(_suNombre(a))) +
-          ' <button type="button" class="btn-icon" title="Quitar" onclick="suQuitarAusente(' + _jsAttr(a) + ')">×</button></th>';
+          ' <button type="button" class="btn-icon solo-edicion" title="Quitar" onclick="suQuitarAusente(' + _jsAttr(a) + ')">×</button></th>';
       }).join('') + '</tr></thead><tbody>';
     SU.tramos.forEach(function(t) {
       if (t.es_recreo) { h += '<tr class="su-recreo"><td colspan="' + (1 + cols.length * 2) + '">RECREO · ' + _esc(t.horas) + '</td></tr>'; return; }
@@ -120,7 +120,7 @@
     var gid = col.slice(2), k = col + '|' + tramo, on = !!SU_NEC[k];
     var ocs = ((SU.grupoHorario || {})[gid] || {})[tramo] || [];
     var pill = ocs.map(function(o) { return '<span class="sb-pill" style="' + _sbPill(o.color) + '">' + _esc(o.texto + (o.area ? ' | ' + o.area : '')) + '</span>'; }).join(' ') || '<span class="su-vacio">—</span>';
-    return '<td class="su-oc' + (on ? '' : ' su-nocubre') + '"><label class="su-chk"><input type="checkbox"' + (on ? ' checked' : '') +
+    return '<td class="su-oc' + (on ? '' : ' su-nocubre') + '"><label class="su-chk"><input type="checkbox"' + (on ? ' checked' : '') + (puedeEditar() ? '' : ' disabled') +
       ' onchange="suNecesita(' + _jsAttr(k) + ', this.checked)" title="Entrar en este tramo"></label>' + pill + '</td>' +
       '<td class="su-sel' + (on ? '' : ' su-vacio') + '">' + (on ? _suSelect(col, tramo) : '') + '</td>';
   }
@@ -145,6 +145,8 @@
   // qué está haciendo; la elegida muestra solo el nombre.
   function _suSelect(aus, tramo) {
     var k = aus + '|' + tramo, val = SU_ASIG[k] || '', c = SU.candidatos[tramo] || { apoyos: [], libres: [] };
+    // Solo lectura: el nombre de quien cubre, sin desplegable.
+    if (!puedeEditar()) return val ? '<b>' + _esc(_suNombre(val)) + '</b>' : '<span class="sb-sin">sin cubrir</span>';
     var usados = {};
     Object.keys(SU_ASIG).forEach(function(x) { if (x !== k && x.split('|')[1] === tramo && SU_ASIG[x]) usados[SU_ASIG[x]] = true; });
     var vistos = {}, opt = function(id, detalle) {

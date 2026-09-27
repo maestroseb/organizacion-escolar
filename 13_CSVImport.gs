@@ -121,6 +121,7 @@ function _analizarFilasCrudas(crudas) {
  * ids definitivos elegidos en la pantalla de revisión.
  */
 function aplicarImportacionCSV(filas, modo) {
+  _exigirEdicion();
   if (!Array.isArray(filas)) throw new Error('Formato inválido.');
   modo = modo || 'anadir';
 

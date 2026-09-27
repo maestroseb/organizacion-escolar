@@ -19,6 +19,7 @@ function obtenerCentro() {
 }
 
 function guardarCentro(datos) {
+  _exigirEdicion();
   if (!datos || !datos.nombre || !String(datos.nombre).trim()) {
     throw new Error('El nombre del centro es obligatorio.');
   }
@@ -56,6 +57,7 @@ function guardarCentro(datos) {
  * campos que ya existieran se conservan.
  */
 function guardarCentroInicial(datos) {
+  _exigirEdicion();
   datos = datos || {};
   const nombre = _str(datos.nombre);
   const codigo = _str(datos.codigo);
@@ -90,6 +92,7 @@ function obtenerPreferenciasWizard() {
 }
 
 function guardarPreferenciasWizard(prefs) {
+  _exigirEdicion();
   PropertiesService.getScriptProperties()
     .setProperty(PROP_KEY_WIZARD, JSON.stringify(prefs));
 }
