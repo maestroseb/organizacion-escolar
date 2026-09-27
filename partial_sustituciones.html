@@ -48,6 +48,9 @@
     };
     if (hayCambios('sustituciones')) confirmar('Hay cambios sin guardar en este día. ¿Descartarlos?', go); else go();
   }
+  // Solo se cubre la clase directa (tipo 'grupo'); coordinaciones, refuerzos,
+  // cargos… del ausente se muestran pero no piden sustituto.
+  function _suClase(a, t) { return (((SU.horario[a] || {})[t]) || []).some(function(o) { return o.tipo === 'grupo'; }); }
   function _suNombre(id) { var d = SU && SU._byId && SU._byId[id]; return d ? d.nombre : '¿?'; }
 
   function _suPintar() {
@@ -76,7 +79,9 @@
         var pill = ocs.map(function(o) {
           return '<span class="sb-pill" style="' + _sbPill(o.color) + '">' + _esc(o.texto + (o.area ? ' | ' + o.area : '')) + '</span>';
         }).join(' ');
-        h += '<td class="su-oc">' + pill + '</td><td class="su-sel">' + _suSelect(a, t.id) + '</td>';
+        h += _suClase(a, t.id)
+          ? '<td class="su-oc">' + pill + '</td><td class="su-sel">' + _suSelect(a, t.id) + '</td>'
+          : '<td class="su-oc su-nocubre" title="No es clase directa: no necesita sustituto">' + pill + '</td><td class="su-sel su-vacio">no se cubre</td>';
       });
       h += '</tr>';
     });
@@ -128,7 +133,7 @@
       SU_AUS.forEach(function(a) { var v = SU_ASIG[a + '|' + t.id]; if (v) usados[v] = true; });
       SU_AUS.forEach(function(a) {
         var k = a + '|' + t.id;
-        if (SU_ASIG[k] || !((SU.horario[a] || {})[t.id] || []).length) return;
+        if (SU_ASIG[k] || !_suClase(a, t.id)) return;
         var libre = function(id) { return !usados[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
         var el = (c.apoyos.filter(function(x) { return libre(x.id); })[0] || {}).id;
         if (el) { SU_ASIG[k] = el; usados[el] = true; SU_DIRTY = true; }
@@ -142,7 +147,7 @@
     var lista = [];
     SU_AUS.forEach(function(a) {
       SU.tramos.forEach(function(t) {
-        if (t.es_recreo || !((SU.horario[a] || {})[t.id] || []).length) return;
+        if (t.es_recreo || !_suClase(a, t.id)) return;
         lista.push({ ausente: a, tramo: t.id, sustituto: SU_ASIG[a + '|' + t.id] || '' });
       });
     });

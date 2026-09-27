@@ -126,6 +126,17 @@ function guardarSustituciones(fecha, lista) {
   lock.waitLock(20000);
   try {
     const resto = getAll(SHEETS.SUSTITUCIONES).filter(function(s) { return String(s.fecha) !== fecha; });
+    // Una persona no puede cubrir dos sustituciones en el mismo tramo, ni
+    // sustituir quien también está ausente ese día.
+    const ausentes = {}, vistos = {};
+    lista.forEach(function(x) { if (x && x.ausente) ausentes[x.ausente] = true; });
+    lista.forEach(function(x) {
+      if (!x || !x.sustituto) return;
+      if (ausentes[x.sustituto]) throw new Error('Un docente ausente no puede sustituir a otro.');
+      const k = x.tramo + '|' + x.sustituto;
+      if (vistos[k]) throw new Error('Una misma persona está asignada a dos sustituciones en el mismo tramo.');
+      vistos[k] = true;
+    });
     const nuevas = lista.filter(function(x) { return x && x.ausente && x.tramo; }).map(function(x) {
       return { fecha: fecha, docente_ausente_id: x.ausente, docente_sustituto_id: x.sustituto || '', tramo_id: x.tramo, notas: x.notas || '' };
     });
