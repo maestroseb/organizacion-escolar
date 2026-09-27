@@ -244,6 +244,7 @@ function _sabanaTramoData(t, ocupDia, ctx) {
       if (!porZona[a.zona]) { porZona[a.zona] = []; zonas.push({ zona: a.zona, docentes: porZona[a.zona] }); }
       porZona[a.zona].push(a.docente);
     });
+    zonas.forEach(function(z) { z.docentes.sort(function(a, b) { return String(a).localeCompare(String(b), 'es', { sensitivity: 'base' }); }); });
   }
   apoyos.forEach(function(a) { delete a._zonaOrden; });
 

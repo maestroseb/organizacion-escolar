@@ -92,7 +92,9 @@
     RC.zonas.forEach(function(z) {
       h += '<tr><th class="rc-zh rc-drop" data-z="' + _esc(z.id) + '" data-d="*" title="Suelta aquí para los cinco días">' + _esc(z.nombre) + '<small>' + z.plazas + ' plaza' + (z.plazas > 1 ? 's' : '') + '</small></th>';
       RC_DIAS.forEach(function(d) {
-        var ts = RC_TUR.filter(function(t) { return t.zona_id === z.id && t.dia === d.k; });
+        var nom = function(t) { var x = _rcDoc(t.docente_id); return x ? x.nombre : ''; };
+        var ts = RC_TUR.filter(function(t) { return t.zona_id === z.id && t.dia === d.k; })
+          .sort(function(a, b) { return nom(a).localeCompare(nom(b), 'es', { sensitivity: 'base' }); }); // orden alfabético
         var falta = Math.max.apply(null, ['A', 'B'].map(function(w) { return z.plazas - ts.filter(function(t) { return _rcSemanas(t.semana).indexOf(w) !== -1; }).length; }));
         h += '<td class="rc-cell rc-drop' + (falta > 0 ? ' rc-corto' : '') + '" data-z="' + _esc(z.id) + '" data-d="' + d.k + '"' + (falta > 0 ? ' title="Falta' + (falta > 1 ? 'n ' + falta : ' 1') + '"' : '') + '>' +
           ts.map(function(t) {
