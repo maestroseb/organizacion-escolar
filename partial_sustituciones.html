@@ -78,6 +78,8 @@
     document.getElementById('su-dia').textContent = SU.finDeSemana ? 'Fin de semana' : (SU.diaLargo + ' · Semana ' + SU.semana);
     if (SU.finDeSemana) { body.innerHTML = '<div class="empty">Ese día no hay clase.</div>'; return; }
     SU._byId = {}; SU.docentes.forEach(function(d) { SU._byId[d.id] = d; });
+    // Por el nombre que se ve (si hay sustituto, el suyo).
+    SU.docentes.sort(function(a, b) { return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }); });
     SU._gById = {}; (SU.grupos || []).forEach(function(g) { SU._gById[g.id] = g; });
     // Selector de ausentes: docentes aún no marcados.
     document.getElementById('su-add').innerHTML = '<option value="">+ Añadir ausente…</option>' +

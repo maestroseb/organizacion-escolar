@@ -76,7 +76,7 @@
     _run().withSuccessHandler(function(docs) {
       HD_DOCS_VERSION = DATOS_VERSION;
       const activos = (docs || []).filter(function(d){ return d.activo !== false; })
-        .sort(function(a, b){ return String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es', { sensitivity: 'base' }); });
+        .sort(function(a, b){ return _hdNomDoc(a).localeCompare(_hdNomDoc(b), 'es', { sensitivity: 'base' }); }); // por el nombre que se ve (el del sustituto)
       sel.innerHTML = '<option value="">— elige docente —</option>' +
         activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(_hdNomDoc(d)) + '</option>'; }).join('');
       if (HD_DOC) cargarHorario(HD_DOC);
@@ -349,6 +349,12 @@
     });
   }
   function _hgNom(arr, id) { var x = (arr || []).filter(function(y) { return y.id === id; })[0]; return x ? x.nombre : ''; }
+  // Docentes para el desplegable: con el nombre que se ve (el del sustituto
+  // si lo hay) y en orden alfabético por ese nombre.
+  function _hgDocsLista() {
+    return (HG_CAT.docentes || []).map(function(d) { return { id: d.id, nombre: d.sust ? d.sust + ' (por ' + d.nombre + ')' : d.nombre }; })
+      .sort(function(a, b) { return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }); });
+  }
   function _hgDoc(id) { var x = (HG_CAT.docentes || []).filter(function(y) { return y.id === id; })[0]; return x ? (x.sust || x.nombre) : ''; }
   function _hgMat(id) { return (HG_CAT.materias || []).filter(function(m) { return m.id === id; })[0] || {}; }
   function _hgPintar() {
@@ -389,7 +395,7 @@
       var sel = function(campo, arr, val) { return '<select onchange="hgSet(' + i + ',\'' + campo + '\',this.value)">' + _optList(arr, val) + '</select>'; };
       var mini = function(campo, ops, val) { return '<select onchange="hgSet(' + i + ',\'' + campo + '\',this.value)">' + ops.map(function(p) { return '<option value="' + p[0] + '"' + (val === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select>'; };
       var otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; });
-      return '<div class="hd-oceditor"><div class="hd-oceditor-head"><div class="hd-f"><label>Docente</label>' + sel('docente_id', HG_CAT.docentes, o.docente_id) + '</div>' +
+      return '<div class="hd-oceditor"><div class="hd-oceditor-head"><div class="hd-f"><label>Docente</label>' + sel('docente_id', _hgDocsLista(), o.docente_id) + '</div>' +
         '<button class="btn-icon" title="Quitar del grupo" onclick="hgDel(' + i + ')">×</button></div>' +
         '<div class="hd-frow"><div class="hd-f"><label>Materia</label>' + sel('materia_id', HG_CAT.materias, o.materia_id) + '</div>' +
         '<div class="hd-f hd-mini"><label>Mitad</label>' + mini('mitad', [['', '—'], ['1', '½ a'], ['2', '½ b']], o.mitad) + '</div>' +
