@@ -14,49 +14,75 @@
  * su id. NO crea las pestañas: de eso se encarga asegurarBaseDatos().
  */
 function getBd() {
+  if (_BD_CACHE) return _BD_CACHE;
   const props = PropertiesService.getScriptProperties();
   const id = props.getProperty(PROP_BD_ID);
   if (id) {
     try {
-      return SpreadsheetApp.openById(id);
+      _BD_CACHE = SpreadsheetApp.openById(id);
+      return _BD_CACHE;
     } catch (e) {
       // El id guardado ya no abre (borrada, sin permiso…): se recrea.
     }
   }
-  const ss = SpreadsheetApp.create(NOMBRE_BD);
-  props.setProperty(PROP_BD_ID, ss.getId());
-  return ss;
+  // Creación protegida con un lock: si dos peticiones llegan a la vez en el
+  // primer arranque no se crean dos hojas-base de datos.
+  const lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    const idTrasLock = props.getProperty(PROP_BD_ID);
+    if (idTrasLock && idTrasLock !== id) {
+      try { _BD_CACHE = SpreadsheetApp.openById(idTrasLock); return _BD_CACHE; } catch (e) {}
+    }
+    const ss = SpreadsheetApp.create(NOMBRE_BD);
+    props.setProperty(PROP_BD_ID, ss.getId());
+    props.deleteProperty(PROP_ESQUEMA_OK);
+    _BD_CACHE = ss;
+    return ss;
+  } finally {
+    lock.releaseLock();
+  }
 }
+
+// Caché por ejecución del libro abierto (openById es de las llamadas más
+// lentas y casi todas las funciones lo necesitan).
+let _BD_CACHE = null;
 
 /**
  * Garantiza que la base de datos existe Y tiene sus pestañas. Es el punto
  * de entrada que llama doGet antes de servir cualquier página.
+ *
+ * inicializarLibro() es idempotente (crea las pestañas que falten y AÑADE
+ * columnas nuevas del esquema sin tocar los datos), pero cuesta ~20 llamadas
+ * a Sheets. Para no repetirlo en cada carga, se guarda una firma del esquema
+ * aplicado: si coincide y están todas las pestañas, no se hace nada.
  */
 function asegurarBaseDatos() {
-  getBd();
-  // Idempotente: crea las pestañas que falten y AÑADE columnas nuevas del
-  // esquema a las que ya existan (p.ej. 'orden' en _RolesEspeciales). No toca
-  // los datos. Así una base creada con una versión anterior se pone al día.
+  // Atajo sin abrir la hoja: esquema ya comprobado recientemente (caché 6 h).
+  const props0 = PropertiesService.getScriptProperties();
+  const id0 = props0.getProperty(PROP_BD_ID);
+  const c = _cache();
+  if (id0 && c) {
+    const f0 = id0 + '|' + _firmaEsquema();
+    if (c.get('bd_ok') === f0 && props0.getProperty(PROP_ESQUEMA_OK) === f0) return true;
+  }
+  const ss = getBd();
+  const firma = ss.getId() + '|' + _firmaEsquema();
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty(PROP_ESQUEMA_OK) === firma) {
+    const existentes = {};
+    ss.getSheets().forEach(function(h) { existentes[h.getName()] = true; });
+    if (SHEET_ORDER.every(function(n) { return existentes[n]; })) { if (c) c.put('bd_ok', firma, 21600); return true; }
+  }
   inicializarLibro();
+  props.setProperty(PROP_ESQUEMA_OK, firma);
+  if (c) c.put('bd_ok', firma, 21600);
   return true;
 }
 
-/**
- * Estado de la base de datos, para diagnóstico y para la pantalla de inicio.
- */
-function estadoBaseDatos() {
-  const id = PropertiesService.getScriptProperties().getProperty(PROP_BD_ID);
-  if (!id) return { creada: false };
-  let url = '';
-  try { url = SpreadsheetApp.openById(id).getUrl(); } catch (e) { return { creada: false }; }
-  return { creada: true, id: id, url: url };
-}
-
-/**
- * URL pública de la propia web app (para construir enlaces internos).
- */
-function urlApp() {
-  return ScriptApp.getService().getUrl();
+function _firmaEsquema() {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, JSON.stringify(SCHEMA));
+  return Utilities.base64Encode(bytes);
 }
 
 /**
@@ -72,13 +98,18 @@ function estadoApp() {
   const configurado = !!(centro && (String(centro.nombre || '').trim() ||
                                     String(centro.codigo || '').trim()));
 
-  const bd = estadoBaseDatos();
+  let bdUrl = '';
+  try {
+    const idBd = PropertiesService.getScriptProperties().getProperty(PROP_BD_ID);
+    bdUrl = idBd ? 'https://docs.google.com/spreadsheets/d/' + idBd + '/edit' : '';
+  } catch (e) {}
 
   return {
     configurado: configurado,
     centro: centro || null,
-    estructuraCompleta: estadoEstructura().completo,
-    bdUrl: bd.creada ? bd.url : '',
+    bdUrl: bdUrl,
+    permisos: permisosUsuario(),
+    urlApp: (function() { try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; } })(),
     contadores: {
       tramos:         _contar(SHEETS.TRAMOS),
       grupos:         _contar(SHEETS.GRUPOS),
@@ -87,13 +118,38 @@ function estadoApp() {
       localizaciones: _contar(SHEETS.LOCALIZACIONES),
       materias:       _contar(SHEETS.MATERIAS),
       roles:          _contar(SHEETS.ROLES),
+      // Solo la columna id: _Ocupaciones es la pestaña grande.
       ocupaciones:    _contar(SHEETS.OCUPACIONES)
     }
   };
 }
 
+/**
+ * Qué puede ver el usuario que abre la app. Admin = propietario del script
+ * (quien despliega). Equipo directivo = docente cuyo email coincide con el
+ * del usuario y tiene marcado «Sustituciones» en Configuración → Docentes.
+ * Session.getActiveUser() solo da el email dentro del mismo dominio.
+ */
+function permisosUsuario() {
+  let email = '', owner = '', admin = false, directivo = false;
+  try { email = String(Session.getActiveUser().getEmail() || '').toLowerCase(); } catch (e) {}
+  try {
+    owner = String(Session.getEffectiveUser().getEmail() || '').toLowerCase();
+    admin = !!email && email === owner;
+  } catch (e) {}
+  if (email && !admin) {
+    try {
+      directivo = getAll(SHEETS.DOCENTES).some(function(d) {
+        return String(d.email || '').trim().toLowerCase() === email &&
+               (d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE') && d.activo !== false;
+      });
+    } catch (e) {}
+  }
+  return { admin: admin, directivo: directivo, sustituciones: admin || directivo, email: email, propietario: owner };
+}
+
 function _contar(sheetName) {
-  try { return getAll(sheetName).length; } catch (e) { return 0; }
+  try { return contarFilas(sheetName); } catch (e) { return 0; }
 }
 
 function _contarConTutor() {

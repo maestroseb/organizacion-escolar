@@ -9,7 +9,11 @@
  * Para actualizarlo, regenerar desde el repo de origen. 3919 centros.
  */
 
-const CATALOGO_CENTROS = {
+// Envuelto en una función para que el objeto (3900 claves) solo se construya
+// cuando se busca un centro, no en CADA ejecución del script (Apps Script
+// evalúa el código de nivel superior de todos los .gs en cada petición).
+function _datosCatalogoCentros() {
+  return {
   "04000018": "C.E.I.P. JOAQUÍN TENA SICILIA",
   "04000021": "C.E.I.P. ANTONIO RELAÑO",
   "04000079": "C.E.I.P. SAN NICOLÁS",
@@ -3929,4 +3933,5 @@ const CATALOGO_CENTROS = {
   "41702278": "I.E.S. EL FONTANAL",
   "41702311": "I.E.S. MATILDE CASANOVA",
   "41710019": "E.M.M."
-};
+  };
+}

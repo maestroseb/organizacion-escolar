@@ -118,9 +118,3 @@ function guardarGrupos(grupos, modo) {
   const resumen = bulkMerge(SHEETS.GRUPOS, filas, ['nombre_corto'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
 }
-
-function nivelesDisponibles() {
-  return NIVELES_INFANTIL.concat(NIVELES_PRIMARIA).map(function(n) {
-    return { nivel: n.nivel, etiqueta: n.largo };
-  });
-}

@@ -1,97 +1,99 @@
 <!-- ================= Vistas de las secciones de datos ================= -->
 
-<!-- Centro -->
+<!-- Centro y horario (datos del centro + tramos horarios) -->
 <section class="view" id="view-centro">
   <div class="page-head">
-    <h2>Datos del centro</h2>
-    <p>Información general del centro y tres preguntas que afinan los valores por defecto de otras secciones (materias, grupos…).</p>
+    <h2>Centro y horario</h2>
+    <p>Datos generales del centro y los tramos en que se divide la jornada (el orden se calcula por la hora de inicio).</p>
   </div>
-  <div class="panelbox">
-    <form class="form" id="form-centro" onsubmit="enviarCentro(event)">
-      <div>
-        <label>Nombre del centro <span class="req">*</span></label>
-        <input type="text" name="nombre" required placeholder="CEIP Carlos III">
+  <div class="two-col centro-cols">
+    <div class="col-sec">
+      <div class="col-head"><h3>Datos del centro</h3></div>
+      <div class="panelbox">
+        <form class="form" id="form-centro" onsubmit="enviarCentro(event)">
+          <div>
+            <label>Nombre del centro <span class="req">*</span></label>
+            <input type="text" name="nombre" required placeholder="CEIP Carlos III">
+          </div>
+          <div>
+            <label>Código Séneca</label>
+            <input type="text" name="codigo" placeholder="14000000">
+          </div>
+          <div>
+            <label>Localidad</label>
+            <input type="text" name="localidad" placeholder="La Carlota">
+          </div>
+          <div>
+            <label>Provincia</label>
+            <input type="text" name="provincia" placeholder="Córdoba">
+          </div>
+          <div>
+            <label>Comunidad</label>
+            <input type="text" name="comunidad" value="Andalucía">
+          </div>
+          <div>
+            <label>Curso académico <span class="req">*</span></label>
+            <input type="text" name="curso_academico" required placeholder="2025-2026">
+          </div>
+          <div>
+            <label>Fecha de inicio</label>
+            <input type="date" name="fecha_inicio">
+          </div>
+          <div>
+            <label>Fecha de fin</label>
+            <input type="date" name="fecha_fin">
+          </div>
+          <fieldset class="full">
+            <legend>Etapas educativas <span class="req">*</span></legend>
+            <div class="check-row">
+              <label><input type="checkbox" name="etapa_inf" value="INFANTIL"> Infantil</label>
+              <label><input type="checkbox" name="etapa_pri" value="PRIMARIA"> Primaria</label>
+            </div>
+          </fieldset>
+          <fieldset class="full">
+            <legend>Líneas por curso</legend>
+            <div class="radio-row">
+              <label><input type="radio" name="lineas" value="1"> Una línea (A)</label>
+              <label><input type="radio" name="lineas" value="2"> Dos líneas (A y B)</label>
+              <label><input type="radio" name="lineas" value="mixto"> Mixto</label>
+            </div>
+          </fieldset>
+          <fieldset class="full">
+            <legend>Bilingüismo</legend>
+            <div class="radio-row">
+              <label><input type="radio" name="bilingue" value="no" checked> No</label>
+              <label><input type="radio" name="bilingue" value="ingles"> Inglés</label>
+              <label><input type="radio" name="bilingue" value="frances"> Francés</label>
+            </div>
+          </fieldset>
+          <div class="full actions" style="margin-top:6px;">
+            <button type="submit" class="primary" id="btn-guardar-centro">Guardar cambios</button>
+          </div>
+        </form>
+        <div id="res-centro"></div>
       </div>
-      <div>
-        <label>Código Séneca</label>
-        <input type="text" name="codigo" placeholder="14000000">
-      </div>
-      <div>
-        <label>Localidad</label>
-        <input type="text" name="localidad" placeholder="La Carlota">
-      </div>
-      <div>
-        <label>Provincia</label>
-        <input type="text" name="provincia" placeholder="Córdoba">
-      </div>
-      <div>
-        <label>Comunidad</label>
-        <input type="text" name="comunidad" value="Andalucía">
-      </div>
-      <div>
-        <label>Curso académico <span class="req">*</span></label>
-        <input type="text" name="curso_academico" required placeholder="2025-2026">
-      </div>
-      <div>
-        <label>Fecha de inicio</label>
-        <input type="date" name="fecha_inicio">
-      </div>
-      <div>
-        <label>Fecha de fin</label>
-        <input type="date" name="fecha_fin">
-      </div>
-      <fieldset class="full">
-        <legend>Etapas educativas <span class="req">*</span></legend>
-        <div class="check-row">
-          <label><input type="checkbox" name="etapa_inf" value="INFANTIL"> Infantil</label>
-          <label><input type="checkbox" name="etapa_pri" value="PRIMARIA"> Primaria</label>
+    </div>
+    <div class="col-sec">
+      <div class="col-head">
+        <h3>Tramos horarios</h3>
+        <div class="toolbar">
+          <button class="secondary" onclick="cargarPlantillaTramos()">Plantilla</button>
+          <button class="secondary" onclick="anadirTramo()">+ Tramo</button>
         </div>
-      </fieldset>
-      <fieldset class="full">
-        <legend>Líneas por curso</legend>
-        <div class="radio-row">
-          <label><input type="radio" name="lineas" value="1"> Una línea (A)</label>
-          <label><input type="radio" name="lineas" value="2"> Dos líneas (A y B)</label>
-          <label><input type="radio" name="lineas" value="mixto"> Mixto</label>
-        </div>
-      </fieldset>
-      <fieldset class="full">
-        <legend>Bilingüismo</legend>
-        <div class="radio-row">
-          <label><input type="radio" name="bilingue" value="no" checked> No</label>
-          <label><input type="radio" name="bilingue" value="ingles"> Inglés</label>
-          <label><input type="radio" name="bilingue" value="frances"> Francés</label>
-        </div>
-      </fieldset>
-      <div class="full actions" style="margin-top:6px;">
-        <button type="submit" class="primary" id="btn-guardar-centro">Guardar cambios</button>
       </div>
-    </form>
-    <div id="res-centro"></div>
+      <div class="tablewrap">
+        <table class="data fit">
+          <thead><tr>
+            <th class="col-num" style="width:32px">#</th><th class="col-center" style="width:64px">Color</th><th style="width:64px">Inicio</th><th style="width:64px">Fin</th>
+            <th class="col-center" style="width:56px">Recreo</th><th style="width:130px">Etiqueta</th><th class="col-acc"></th>
+          </tr></thead>
+          <tbody id="tramos-body" data-anadir="anadirTramo"></tbody>
+        </table>
+      </div>
+      <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar tramos</button></div>
+      <div id="res-tramos"></div>
+    </div>
   </div>
-</section>
-
-<!-- Tramos -->
-<section class="view" id="view-tramos">
-  <div class="page-head">
-    <h2>Tramos horarios</h2>
-    <p>Los tramos en los que se divide la jornada, incluidos los recreos. El orden se calcula por la hora de inicio.</p>
-  </div>
-  <div class="toolbar">
-    <button class="secondary" onclick="cargarPlantillaTramos()">Cargar plantilla</button>
-    <button class="secondary" onclick="anadirTramo()">+ Añadir tramo</button>
-  </div>
-  <div class="tablewrap">
-    <table class="data">
-      <thead><tr>
-        <th class="col-num">#</th><th class="col-center" style="width:56px">Color</th><th style="width:110px">Inicio</th><th style="width:110px">Fin</th>
-        <th class="col-center" style="width:80px">Recreo</th><th>Etiqueta</th><th class="col-acc"></th>
-      </tr></thead>
-      <tbody id="tramos-body"></tbody>
-    </table>
-  </div>
-  <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar cambios</button></div>
-  <div id="res-tramos"></div>
 </section>
 
 <!-- Grupos y aulas (Grupos + Localizaciones) -->
@@ -114,7 +116,7 @@
           <thead><tr>
             <th class="col-num">#</th><th style="width:110px">Nombre</th><th style="width:120px">Nivel</th><th>Tutor/a</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="grupos-body"></tbody>
+          <tbody id="grupos-body" data-anadir="anadirGrupo"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-grupos" onclick="enviarGrupos()">Guardar grupos</button></div>
@@ -133,7 +135,7 @@
           <thead><tr>
             <th class="col-num">#</th><th style="width:170px">Código *</th><th>Descripción</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="locs-body"></tbody>
+          <tbody id="locs-body" data-anadir="anadirLocalizacion"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-locs" onclick="enviarLocalizaciones()">Guardar localizaciones</button></div>
@@ -148,14 +150,15 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><span class="hint" id="doc-sesion"></span></div>
   <div class="tablewrap">
-    <table class="data">
+    <table class="data fit">
       <thead><tr>
-        <th class="col-num">#</th><th style="width:140px">Nombre corto *</th><th style="width:140px">Sustituto/a</th><th>Nombre completo</th>
-        <th>Puesto</th><th style="width:180px">Email</th><th class="col-center" style="width:60px">Activo</th><th class="col-acc"></th>
+        <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:110px">Sustituto/a</th><th style="width:210px">Nombre completo</th>
+        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th class="col-center" style="width:52px">Activo</th>
+        <th class="col-center" style="width:88px" title="Puede ver la pestaña Sustituciones (Equipo Directivo). Requiere email.">Sustituciones</th><th class="col-acc"></th>
       </tr></thead>
-      <tbody id="docentes-body"></tbody>
+      <tbody id="docentes-body" data-anadir="anadirDocente"></tbody>
     </table>
   </div>
   <div class="actions"><button class="primary" id="btn-guardar-docentes" onclick="enviarDocentes()">Guardar cambios</button></div>
@@ -180,10 +183,9 @@
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:110px">Abrev.</th>
-            <th class="col-center" style="width:64px">Recreo</th><th class="col-acc"></th>
+            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th>Nombre *</th><th style="width:110px">Abrev.</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="materias-body"></tbody>
+          <tbody id="materias-body" data-anadir="anadirMateria"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-materias" onclick="enviarMaterias()">Guardar materias</button></div>
@@ -191,19 +193,21 @@
     </div>
     <div class="col-sec">
       <div class="col-head">
-        <h3>Cargos y roles</h3>
+        <h3 class="info-wrap">Cargos y roles
+          <button type="button" class="info-btn" aria-label="Información" onclick="toggleInfo(this, event)">i</button>
+          <span class="info-pop" hidden>El <strong>orden</strong> (arrastra <b>⠿</b>) marca la prioridad de sustitución y numera las localizaciones de la sábana (#01, #02…).</span>
+        </h3>
         <div class="toolbar">
           <button class="secondary" onclick="cargarPlantillaRoles()">Plantilla</button>
           <button class="secondary" onclick="anadirRol()">+ Rol</button>
         </div>
       </div>
-      <p class="hint" style="margin:-2px 0 10px;">El <strong>orden</strong> (arrastra <span style="cursor:grab">⠿</span>) marca la prioridad de sustitución y numera las localizaciones de la sábana.</p>
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
+            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
           </tr></thead>
-          <tbody id="roles-body"></tbody>
+          <tbody id="roles-body" data-anadir="anadirRol"></tbody>
         </table>
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-roles" onclick="enviarRoles()">Guardar cargos</button></div>
@@ -213,13 +217,30 @@
 </section>
 
 <script>
+  // ---------- Bloques guardables (botón flotante «Guardar cambios») ----------
+  // (el módulo vive en app.html, que se evalúa después: se encolan)
+  function _regGuardable() { (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(arguments); }
+  function _estadoFormCentro() {
+    const f = document.getElementById('form-centro'); if (!f) return null;
+    return Array.prototype.map.call(f.elements, function(el) {
+      return el.name ? el.name + '=' + ((el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? el.value : '') : el.value) : '';
+    }).join('&');
+  }
+  _regGuardable('centro', 'centro', _estadoFormCentro, function() { enviarCentro({ preventDefault: function() {} }); });
+  _regGuardable('centro', 'tramos', function() { return tramosLocal; }, function() { enviarTramos(); });
+  _regGuardable('grupos', 'grupos', function() { return gruposLocal; }, function() { enviarGrupos(); });
+  _regGuardable('grupos', 'localizaciones', function() { return locsLocal; }, function() { enviarLocalizaciones(); });
+  _regGuardable('docentes', 'docentes', function() { return docentesLocal; }, function() { enviarDocentes(); });
+  _regGuardable('areas', 'materias', function() { return materiasLocal; }, function() { enviarMaterias(); });
+  _regGuardable('areas', 'roles', function() { return rolesLocal; }, function() { enviarRoles(); });
+
   // ---------- Helpers de resultado / botón ----------
   function _res(key, tipo, msg) {
     const el = document.getElementById('res-' + key);
     if (el) el.innerHTML = '<div class="result ' + tipo + '">' + msg + '</div>';
   }
   function _cargando(btn, txt) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + txt; }
-  function _restaurar(btn, txt) { btn.disabled = false; btn.textContent = txt; }
+  function _restaurar(btn, txt) { btn.disabled = false; btn.textContent = txt; if (typeof _fabListo === 'function') _fabListo(); }
   // Tras guardar una sección: refresca contadores y, en modo guiado, avanza.
   function _trasGuardar() {
     refrescarEstado(function() { if (GUIADO) setTimeout(avanzarGuiado, 500); });
@@ -237,8 +258,8 @@
 
   // ================= Centro =================
   function cargarCentro() {
-    google.script.run
-      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); })
+    _run()
+      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); _snap('centro'); })
       .withFailureHandler(mostrarErrorGenerico)
       .obtenerCentro();
   }
@@ -271,25 +292,26 @@
       etapas: etapas.join(','), lineas: lineasEl ? lineasEl.value : '', bilingue: bilingueEl ? bilingueEl.value : ''
     };
     _cargando(btn,'Guardando…'); document.getElementById('res-centro').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function() { _restaurar(btn,'Guardar cambios'); _res('centro','ok','✓ Datos del centro guardados.'); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('centro','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('centro','err','✗ ' + _errMsg(err)); })
       .guardarCentro(datos);
   }
 
   // ================= Tramos =================
   let tramosLocal = [];
   function cargarTramos() {
-    google.script.run.withSuccessHandler(function(tramos) {
+    _run().withSuccessHandler(function(tramos) {
       tramosLocal = (tramos || []).map(function(t) {
         return { id: t.id, hora_inicio: _fmtHora(t.hora_inicio), hora_fin: _fmtHora(t.hora_fin), es_recreo: !!t.es_recreo, etiqueta: t.etiqueta || '', color: t.color || '' };
       });
-      if (tramosLocal.length === 0) anadirTramo(); else renderTramos();
+      renderTramos(); _snap('tramos');
+      if (tramosLocal.length === 0) anadirTramo();
     }).withFailureHandler(mostrarErrorGenerico).listarTramos();
   }
   function cargarPlantillaTramos() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) {
+      _run().withSuccessHandler(function(pl) {
         tramosLocal = pl.map(function(t) { return { id: null, hora_inicio: t.hora_inicio, hora_fin: t.hora_fin, es_recreo: t.es_recreo, etiqueta: t.etiqueta, color: t.color || '' }; });
         renderTramos();
       }).withFailureHandler(mostrarErrorGenerico).plantillaTramos();
@@ -322,9 +344,9 @@
   function enviarTramos() {
     if (tramosLocal.length === 0) { _res('tramos','err','Debes definir al menos un tramo.'); return; }
     const btn = document.getElementById('btn-guardar-tramos'); _cargando(btn,'Guardando…'); document.getElementById('res-tramos').innerHTML = '';
-    google.script.run
-      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('tramos','ok','✓ Guardados ' + res.total + ' tramos.'); cargarTramos(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('tramos','err','✗ ' + (err.message || err)); })
+    _run()
+      .withSuccessHandler(function(res) { _restaurar(btn,'Guardar tramos'); _res('tramos','ok','✓ Guardados ' + res.total + ' tramos.'); cargarTramos(); _trasGuardar(); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar tramos'); _res('tramos','err','✗ ' + _errMsg(err)); })
       .guardarTramos(tramosLocal);
   }
 
@@ -338,18 +360,25 @@
   var GRUPOS_DOCENTES = [];
   function _mapearGrupo(g) { return { id: g.id || null, nombre_corto: g.nombre_corto || '', nombre_largo: g.nombre_largo || '', nivel: g.nivel || '', tutor_id: g.tutor_id || '', color: g.color || '' }; }
   function cargarGrupos() {
-    // Cargamos docentes (para el desplegable de tutor) y luego los grupos.
-    google.script.run.withSuccessHandler(function(docs) {
+    // Docentes (para el desplegable de tutor) y grupos se piden en paralelo.
+    let grupos = null, pendientes = 2, fallo = false;
+    const fin = function() {
+      if (--pendientes > 0 || fallo) return;
+      if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); _snap('grupos'); return; }
+      _SNAP.grupos = '[]';
+      if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
+    };
+    const error = function(err) { if (!fallo) { fallo = true; mostrarErrorGenerico(err); } };
+    _run().withSuccessHandler(function(docs) {
       GRUPOS_DOCENTES = (docs || []).filter(function(d){ return d.activo !== false; });
-      google.script.run.withSuccessHandler(function(grupos) {
-        if (grupos && grupos.length > 0) { gruposLocal = grupos.map(_mapearGrupo); renderGrupos(); }
-        else if (gruposLocal.length === 0) { cargarPlantillaGrupos(); } else { renderGrupos(); }
-      }).withFailureHandler(mostrarErrorGenerico).listarGrupos();
-    }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
+      fin();
+    }).withFailureHandler(error).listarDocentes();
+    _run().withSuccessHandler(function(gs) { grupos = gs; fin(); })
+      .withFailureHandler(error).listarGrupos();
   }
   function cargarPlantillaGrupos() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) {
+      _run().withSuccessHandler(function(pl) {
         gruposLocal = (pl || []).map(function(g) { return _mapearGrupo({ id:null, nombre_corto:g.nombre_corto, nombre_largo:g.nombre_largo, nivel:g.nivel }); });
         renderGrupos();
       }).withFailureHandler(mostrarErrorGenerico).plantillaGrupos();
@@ -376,7 +405,7 @@
       let opts = '<option value="">—</option>';
       NIVELES.forEach(function(n) { opts += '<option value="' + n.v + '"' + (g.nivel===n.v?' selected':'') + '>' + n.t + '</option>'; });
       let tut = '<option value="">— sin tutor —</option>';
-      GRUPOS_DOCENTES.forEach(function(d) { tut += '<option value="' + d.id + '"' + (g.tutor_id===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; });
+      GRUPOS_DOCENTES.forEach(function(d) { tut += '<option value="' + _esc(d.id) + '"' + (g.tutor_id===d.id?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; });
       const tr = document.createElement('tr');
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
@@ -390,19 +419,34 @@
   function enviarGrupos() {
     if (gruposLocal.length === 0) { _res('grupos','err','Debes definir al menos un grupo.'); return; }
     const btn = document.getElementById('btn-guardar-grupos'); _cargando(btn,'Guardando…'); document.getElementById('res-grupos').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar grupos'); _res('grupos','ok','✓ Guardados ' + res.total + ' grupos.'); cargarGrupos(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar grupos'); _res('grupos','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar grupos'); _res('grupos','err','✗ ' + _errMsg(err)); })
       .guardarGrupos(gruposLocal);
   }
 
   // ================= Docentes =================
   let docentesLocal = [];
-  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '' }; }
+  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '', acceso_sust: d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE' }; }
+  // Quién ha entrado y si ve Sustituciones (ayuda a diagnosticar permisos).
+  function _pintarSesion() {
+    const el = document.getElementById('doc-sesion'), p = (ESTADO && ESTADO.permisos) || {};
+    if (!el) return;
+    el.textContent = !p.email ? 'Google no identifica tu cuenta en esta sesión: la casilla «Sustituciones» no puede aplicarse.'
+      : 'Sesión: ' + p.email + (p.admin ? ' (administrador)' : '') + ' · Sustituciones: ' + (p.sustituciones ? 'sí' : 'no');
+  }
   function cargarDocentes() {
-    google.script.run.withSuccessHandler(function(docs) {
-      if (docs && docs.length > 0) { docentesLocal = docs.map(_mapearDocente); renderDocentes(); }
-      else if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
+    _pintarSesion();
+    _run().withSuccessHandler(function(docs) {
+      if (docs && docs.length > 0) {
+        // Orden alfabético por nombre corto (al guardar queda así en la hoja).
+        docentesLocal = docs.map(_mapearDocente).sort(function(a, b) {
+          return a.nombre_corto.localeCompare(b.nombre_corto, 'es', { sensitivity: 'base' });
+        });
+        renderDocentes(); _snap('docentes'); return;
+      }
+      _SNAP.docentes = '[]';
+      if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
   function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
@@ -420,6 +464,7 @@
         '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (d.acceso_sust?' checked':'') + ' title="Acceso a Sustituciones" onchange="actualizarDocente(' + i + ',\'acceso_sust\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });
@@ -427,9 +472,9 @@
   function enviarDocentes() {
     if (docentesLocal.length === 0) { _res('docentes','err','Debes añadir al menos un docente.'); return; }
     const btn = document.getElementById('btn-guardar-docentes'); _cargando(btn,'Guardando…'); document.getElementById('res-docentes').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('docentes','ok','✓ Guardados ' + res.total + ' docentes.'); cargarDocentes(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + _errMsg(err)); })
       .guardarDocentes(docentesLocal);
   }
 
@@ -437,14 +482,15 @@
   let locsLocal = [];
   function _mapearLocalizacion(l) { return { id: l.id || null, codigo: l.codigo || '', descripcion: l.descripcion || '' }; }
   function cargarLocalizaciones() {
-    google.script.run.withSuccessHandler(function(locs) {
-      if (locs && locs.length > 0) { locsLocal = locs.map(_mapearLocalizacion); renderLocalizaciones(); }
-      else if (locsLocal.length === 0) { cargarPlantillaLocalizaciones(); } else { renderLocalizaciones(); }
+    _run().withSuccessHandler(function(locs) {
+      if (locs && locs.length > 0) { locsLocal = locs.map(_mapearLocalizacion); renderLocalizaciones(); _snap('localizaciones'); return; }
+      _SNAP.localizaciones = '[]';
+      if (locsLocal.length === 0) { cargarPlantillaLocalizaciones(); } else { renderLocalizaciones(); }
     }).withFailureHandler(mostrarErrorGenerico).listarLocalizaciones();
   }
   function cargarPlantillaLocalizaciones() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) { locsLocal = (pl || []).map(_mapearLocalizacion); renderLocalizaciones(); })
+      _run().withSuccessHandler(function(pl) { locsLocal = (pl || []).map(_mapearLocalizacion); renderLocalizaciones(); })
         .withFailureHandler(mostrarErrorGenerico).plantillaLocalizaciones();
     };
     if (locsLocal.length > 0) confirmar('Esto reemplazará la lista actual de localizaciones. ¿Continuar?', aplicar); else aplicar();
@@ -467,9 +513,9 @@
   function enviarLocalizaciones() {
     if (locsLocal.length === 0) { _res('localizaciones','err','Debes definir al menos una localización.'); return; }
     const btn = document.getElementById('btn-guardar-locs'); _cargando(btn,'Guardando…'); document.getElementById('res-localizaciones').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','ok','✓ Guardadas ' + res.total + ' localizaciones.'); cargarLocalizaciones(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar localizaciones'); _res('localizaciones','err','✗ ' + _errMsg(err)); })
       .guardarLocalizaciones(locsLocal);
   }
 
@@ -477,14 +523,15 @@
   let materiasLocal = [];
   function _mapearMateria(m) { return { id: m.id || null, nombre: m.nombre || '', abreviatura: m.abreviatura || '', es_recreo: !!m.es_recreo, color: m.color || '' }; }
   function cargarMaterias() {
-    google.script.run.withSuccessHandler(function(ms) {
-      if (ms && ms.length > 0) { materiasLocal = ms.map(_mapearMateria); renderMaterias(); }
-      else if (materiasLocal.length === 0) { cargarPlantillaMaterias(); } else { renderMaterias(); }
+    _run().withSuccessHandler(function(ms) {
+      if (ms && ms.length > 0) { materiasLocal = ms.map(_mapearMateria); renderMaterias(); _snap('materias'); return; }
+      _SNAP.materias = '[]';
+      if (materiasLocal.length === 0) { cargarPlantillaMaterias(); } else { renderMaterias(); }
     }).withFailureHandler(mostrarErrorGenerico).listarMaterias();
   }
   function cargarPlantillaMaterias() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) { materiasLocal = (pl || []).map(_mapearMateria); renderMaterias(); })
+      _run().withSuccessHandler(function(pl) { materiasLocal = (pl || []).map(_mapearMateria); renderMaterias(); })
         .withFailureHandler(mostrarErrorGenerico).plantillaMaterias();
     };
     if (materiasLocal.length > 0) confirmar('Esto reemplazará la lista actual de materias. ¿Continuar?', aplicar); else aplicar();
@@ -501,7 +548,6 @@
         '<td class="col-center">' + _colorCell(m.color, 'setColorMateria', i) + '</td>' +
         '<td><input type="text" value="' + _esc(m.nombre) + '" placeholder="Lengua, Matemáticas…" oninput="actualizarMateria(' + i + ',\'nombre\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(m.abreviatura) + '" placeholder="LCL" oninput="actualizarMateria(' + i + ',\'abreviatura\',this.value)"></td>' +
-        '<td class="col-center"><input type="checkbox"' + (m.es_recreo?' checked':'') + ' onchange="actualizarMateria(' + i + ',\'es_recreo\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarMateria(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });
@@ -509,9 +555,9 @@
   function enviarMaterias() {
     if (materiasLocal.length === 0) { _res('materias','err','Debes definir al menos una materia.'); return; }
     const btn = document.getElementById('btn-guardar-materias'); _cargando(btn,'Guardando…'); document.getElementById('res-materias').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar materias'); _res('materias','ok','✓ Guardadas ' + res.total + ' materias.'); cargarMaterias(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar materias'); _res('materias','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar materias'); _res('materias','err','✗ ' + _errMsg(err)); })
       .guardarMaterias(materiasLocal);
   }
 
@@ -519,14 +565,15 @@
   let rolesLocal = [];
   function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '' }; }
   function cargarRoles() {
-    google.script.run.withSuccessHandler(function(rs) {
-      if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); }
-      else if (rolesLocal.length === 0) { cargarPlantillaRoles(); } else { renderRoles(); }
+    _run().withSuccessHandler(function(rs) {
+      if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); _snap('roles'); return; }
+      _SNAP.roles = '[]';
+      if (rolesLocal.length === 0) { cargarPlantillaRoles(); } else { renderRoles(); }
     }).withFailureHandler(mostrarErrorGenerico).listarRoles();
   }
   function cargarPlantillaRoles() {
     const aplicar = function() {
-      google.script.run.withSuccessHandler(function(pl) { rolesLocal = (pl || []).map(_mapearRol); renderRoles(); })
+      _run().withSuccessHandler(function(pl) { rolesLocal = (pl || []).map(_mapearRol); renderRoles(); })
         .withFailureHandler(mostrarErrorGenerico).plantillaRoles();
     };
     if (rolesLocal.length > 0) confirmar('Esto reemplazará la lista actual de roles. ¿Continuar?', aplicar); else aplicar();
@@ -546,40 +593,48 @@
         '<td><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(r.nombre_largo) + '" placeholder="Dirección" oninput="actualizarRol(' + i + ',\'nombre_largo\',this.value)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarRol(' + i + ')">×</button></td>';
-      _hacerArrastrable(tr, i);
       tb.appendChild(tr);
     });
   }
 
-  // Arrastrar y soltar filas de roles para reordenarlas.
+  // Arrastrar y soltar filas de roles para reordenarlas (listeners delegados
+  // en el <tbody>, registrados una sola vez: no se acumulan en cada render).
   var _dragFrom = null;
-  function _hacerArrastrable(tr, i) {
-    tr.addEventListener('dragstart', function(e) {
-      _dragFrom = i; tr.classList.add('dragging');
-      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(i)); } catch (err) {}
+  (function() {
+    const tb = document.getElementById('roles-body');
+    const fila = function(e) { return e.target.closest ? e.target.closest('tr[data-i]') : null; };
+    tb.addEventListener('dragstart', function(e) {
+      const tr = fila(e); if (!tr) return;
+      _dragFrom = +tr.getAttribute('data-i'); tr.classList.add('dragging');
+      try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(_dragFrom)); } catch (err) {}
     });
-    tr.addEventListener('dragend', function() { tr.classList.remove('dragging'); document.querySelectorAll('#roles-body tr').forEach(function(x){x.classList.remove('drop-target');}); });
-    tr.addEventListener('dragover', function(e) { e.preventDefault(); tr.classList.add('drop-target'); });
-    tr.addEventListener('dragleave', function() { tr.classList.remove('drop-target'); });
-    tr.addEventListener('drop', function(e) {
+    tb.addEventListener('dragend', function() {
+      tb.querySelectorAll('tr').forEach(function(x){ x.classList.remove('dragging', 'drop-target'); });
+    });
+    tb.addEventListener('dragover', function(e) { const tr = fila(e); if (!tr) return; e.preventDefault(); tr.classList.add('drop-target'); });
+    tb.addEventListener('dragleave', function(e) { const tr = fila(e); if (tr) tr.classList.remove('drop-target'); });
+    tb.addEventListener('drop', function(e) {
+      const tr = fila(e); if (!tr) return;
       e.preventDefault();
-      const to = i;
+      const to = +tr.getAttribute('data-i');
       if (_dragFrom == null || _dragFrom === to) return;
       const item = rolesLocal.splice(_dragFrom, 1)[0];
       rolesLocal.splice(to, 0, item);
       _dragFrom = null;
       renderRoles();
     });
-  }
-  function setColorRol(i, v) { rolesLocal[i].color = v; renderRoles(); }
-  function setColorMateria(i, v) { materiasLocal[i].color = v; renderMaterias(); }
+  })();
+  // `soloDato`: mientras se arrastra en el selector (input) solo se guarda el
+  // valor; re-renderizar ahí destruiría el <input type=color> abierto.
+  function setColorRol(i, v, soloDato) { rolesLocal[i].color = v; if (!soloDato) renderRoles(); }
+  function setColorMateria(i, v, soloDato) { materiasLocal[i].color = v; if (!soloDato) renderMaterias(); }
 
   // Celda de selector de color reutilizable (materias, roles y tramos).
   // `fallback` es el color que muestra el selector cuando aún no hay uno propio.
   function _colorCell(color, fn, i, fallback) {
-    const val = color || fallback || '#cccccc';
-    let h = '<span class="colorpick"><input type="color" value="' + val + '" oninput="' + fn + '(' + i + ', this.value)">';
-    if (color) h += '<button class="colorclear" title="Color por defecto" onclick="' + fn + '(' + i + ', \'\')">×</button>';
+    const val = /^#[0-9a-f]{6}$/i.test(color) ? color : (fallback || '#cccccc');
+    let h = '<span class="colorpick"><input type="color" value="' + _esc(val) + '" oninput="' + fn + '(' + i + ', this.value, true)" onchange="' + fn + '(' + i + ', this.value)">';
+    h += '<button class="colorclear' + (color ? '' : ' is-empty') + '" title="Color por defecto" onclick="' + fn + '(' + i + ', \'\')"' + (color ? '' : ' tabindex="-1" aria-hidden="true"') + '>×</button>';
     h += '</span>';
     return h;
   }
@@ -592,13 +647,21 @@
     if (total >= L) return PALETA_TRAMOS[i % L];
     return PALETA_TRAMOS[Math.round(i * (L - 1) / (total - 1))];
   }
-  function setColorTramo(i, v) { tramosLocal[i].color = v; renderTramos(); }
+  function setColorTramo(i, v, soloDato) { tramosLocal[i].color = v; if (!soloDato) renderTramos(); }
+
+  // Olvida las listas locales (tras vaciar una sección o reiniciar el centro),
+  // para que la próxima carga no muestre datos que ya no existen.
+  function resetSeccionesLocal() {
+    tramosLocal = []; gruposLocal = []; docentesLocal = []; locsLocal = []; materiasLocal = []; rolesLocal = [];
+    GRUPOS_DOCENTES = [];
+    const f = document.getElementById('form-centro'); if (f) f.reset();
+  }
   function enviarRoles() {
     if (rolesLocal.length === 0) { _res('roles','err','Debes definir al menos un rol.'); return; }
     const btn = document.getElementById('btn-guardar-roles'); _cargando(btn,'Guardando…'); document.getElementById('res-roles').innerHTML = '';
-    google.script.run
+    _run()
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cargos'); _res('roles','ok','✓ Guardados ' + res.total + ' cargos.'); cargarRoles(); _trasGuardar(); })
-      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cargos'); _res('roles','err','✗ ' + (err.message || err)); })
+      .withFailureHandler(function(err) { _restaurar(btn,'Guardar cargos'); _res('roles','err','✗ ' + _errMsg(err)); })
       .guardarRoles(rolesLocal);
   }
 </script>

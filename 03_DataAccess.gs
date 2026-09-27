@@ -16,17 +16,27 @@
  * Si la pestaña está vacía, devuelve [].
  */
 function getAll(sheetName) {
+  // Caché por ejecución: una misma petición (estadoApp, sábana, importación…)
+  // suele leer la misma pestaña varias veces. Se lee UNA vez y se devuelven
+  // copias, para que los llamantes puedan ordenar/mutar sin afectar a otros.
+  let filas = _TABLAS_CACHE[sheetName];
+  if (!filas) {
+    filas = _leerTabla(sheetName);
+    _TABLAS_CACHE[sheetName] = filas;
+  }
+  return filas.map(function(o) { return Object.assign({}, o); });
+}
+
+/** Número de filas con id de una pestaña, leyendo solo la columna id. */
+function contarFilas(sheetName) {
+  if (_TABLAS_CACHE[sheetName]) return _TABLAS_CACHE[sheetName].length;
+  const enCache = _leerCache(sheetName);
+  if (enCache) { _TABLAS_CACHE[sheetName] = enCache; return enCache.length; }
   const sheet = _getSheet(sheetName);
   const lastRow = sheet.getLastRow();
-  const headers = SCHEMA[sheetName];
-  if (lastRow < 2) return [];
-
-  const values = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
-  return values.map(function(row) {
-    return _rowToObject(row, headers);
-  }).filter(function(obj) {
-    return obj.id !== '' && obj.id !== null;
-  });
+  if (lastRow < 2) return 0;
+  return sheet.getRange(2, 1, lastRow - 1, 1).getValues()
+    .filter(function(r) { return r[0] !== '' && r[0] !== null; }).length;
 }
 
 /** Busca una fila por id. Devuelve el objeto o null. */
@@ -49,10 +59,9 @@ function insert(sheetName, obj) {
 
   if (!obj.id) obj.id = _nextId(sheetName, prefix);
 
-  const row = headers.map(function(h) {
-    return obj[h] === undefined ? '' : obj[h];
-  });
+  const row = headers.map(function(h) { return _celda(obj[h]); });
   sheet.appendRow(row);
+  _invalidarTabla(sheetName);
   return obj;
 }
 
@@ -69,10 +78,9 @@ function update(sheetName, id, cambios) {
   const range = sheet.getRange(idx, 1, 1, headers.length);
   const current = _rowToObject(range.getValues()[0], headers);
   const merged = Object.assign({}, current, cambios, { id: id });
-  const newRow = headers.map(function(h) {
-    return merged[h] === undefined ? '' : merged[h];
-  });
+  const newRow = headers.map(function(h) { return _celda(merged[h]); });
   range.setValues([newRow]);
+  _invalidarTabla(sheetName);
   return merged;
 }
 
@@ -104,22 +112,25 @@ function bulkReplace(sheetName, objects) {
   const headers = SCHEMA[sheetName];
   const prefix = _idPrefix(sheetName);
 
-  const existentes = getAll(sheetName);
-  let maxN = 0;
-  existentes.forEach(function(o) {
-    const m = String(o.id).match(new RegExp('^' + prefix + '_(\\d+)$'));
-    if (m) {
-      const n = parseInt(m[1], 10);
-      if (n > maxN) maxN = n;
-    }
-  });
-
-  objects.forEach(function(o) {
-    if (!o.id) {
-      maxN++;
-      o.id = prefix + '_' + maxN;
-    }
-  });
+  // Solo hace falta conocer el máximo id existente si hay objetos sin id
+  // (vaciar una sección o reescribir con ids conocidos no lee la pestaña).
+  if (objects.some(function(o) { return !o.id; })) {
+    const re = new RegExp('^' + prefix + '_(\\d+)$');
+    let maxN = 0;
+    getAll(sheetName).concat(objects).forEach(function(o) {
+      const m = String(o.id || '').match(re);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > maxN) maxN = n;
+      }
+    });
+    objects.forEach(function(o) {
+      if (!o.id) {
+        maxN++;
+        o.id = prefix + '_' + maxN;
+      }
+    });
+  }
 
   const lastRow = sheet.getLastRow();
   if (lastRow >= 2) {
@@ -128,11 +139,12 @@ function bulkReplace(sheetName, objects) {
 
   if (objects.length > 0) {
     const rows = objects.map(function(o) {
-      return headers.map(function(h) { return o[h] === undefined || o[h] === null ? '' : o[h]; });
+      return headers.map(function(h) { return _celda(o[h]); });
     });
     sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
   }
 
+  _invalidarTabla(sheetName);
   return objects;
 }
 
@@ -207,22 +219,108 @@ function _keyNorm(v) {
   return String(v == null ? '' : v).trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
-/** Borra una fila por id. */
-function remove(sheetName, id) {
-  const sheet = _getSheet(sheetName);
-  const idx = _findRowIndex(sheet, id);
-  if (idx === -1) return false;
-  sheet.deleteRow(idx);
-  return true;
-}
-
 // ---------- Internos ----------
 
+// Cachés por ejecución (Apps Script reinicia el estado global en cada
+// petición, así que no hay riesgo de servir datos de otra llamada).
+const _TABLAS_CACHE = {};
+const _HOJAS_CACHE = {};
+let _TZ_CACHE = null;
+
+// ---------- Caché compartida entre peticiones (CacheService) ----------
+// Cada llamada desde el navegador es una ejecución nueva: sin esto, cada una
+// relee las pestañas de la hoja. Las tablas se guardan como JSON (troceado,
+// límite 100 KB por clave) bajo una versión por pestaña; cualquier escritura
+// de la app cambia la versión. Caducan a los 10 min por si alguien edita la
+// hoja a mano (o usa «Recargar datos de la hoja» en Ajustes).
+const _CACHE_TTL = 600, _CACHE_TROZO = 90000;
+function _cache() { try { return CacheService.getScriptCache(); } catch (e) { return null; } }
+function _versionTabla(c, sheetName) {
+  let v = c.get('v:' + sheetName);
+  if (!v) { v = String(Date.now()); c.put('v:' + sheetName, v, 21600); }
+  return v;
+}
+function _leerCache(sheetName) {
+  const c = _cache(); if (!c) return null;
+  try {
+    const k = 't:' + sheetName + ':' + _versionTabla(c, sheetName);
+    const n = parseInt(c.get(k + ':n'), 10);
+    if (!n) return null;
+    const claves = []; for (let i = 0; i < n; i++) claves.push(k + ':' + i);
+    const trozos = c.getAll(claves);
+    let json = '';
+    for (let i = 0; i < n; i++) { if (trozos[claves[i]] == null) return null; json += trozos[claves[i]]; }
+    return JSON.parse(json);
+  } catch (e) { return null; }
+}
+function _guardarCache(sheetName, filas) {
+  const c = _cache(); if (!c) return;
+  try {
+    const json = JSON.stringify(filas);
+    if (json.length > _CACHE_TROZO * 80) return; // demasiado grande: sin caché
+    const k = 't:' + sheetName + ':' + _versionTabla(c, sheetName), obj = {};
+    let n = 0;
+    for (let i = 0; i < json.length; i += _CACHE_TROZO) obj[k + ':' + (n++)] = json.slice(i, i + _CACHE_TROZO);
+    obj[k + ':n'] = String(n);
+    c.putAll(obj, _CACHE_TTL);
+  } catch (e) {}
+}
+/** Vacía la caché de todas las pestañas (tras editar la hoja a mano). */
+function vaciarCacheDatos() {
+  const c = _cache();
+  if (c) { Object.keys(SCHEMA).forEach(function(t) { c.put('v:' + t, String(Date.now()) + Math.random(), 21600); }); c.remove('bd_ok'); }
+  Object.keys(_TABLAS_CACHE).forEach(function(k) { delete _TABLAS_CACHE[k]; });
+  return { ok: true };
+}
+
+function _invalidarTabla(sheetName) {
+  delete _TABLAS_CACHE[sheetName];
+  const c = _cache();
+  if (c) try { c.put('v:' + sheetName, String(Date.now()) + Math.random(), 21600); } catch (e) {}
+}
+
+function _leerTabla(sheetName) {
+  const enCache = _leerCache(sheetName);
+  if (enCache) return enCache;
+  const filas = _leerTablaHoja(sheetName);
+  _guardarCache(sheetName, filas);
+  return filas;
+}
+
+function _leerTablaHoja(sheetName) {
+  const sheet = _getSheet(sheetName);
+  const lastRow = sheet.getLastRow();
+  const headers = SCHEMA[sheetName];
+  if (lastRow < 2) return [];
+
+  const values = sheet.getRange(2, 1, lastRow - 1, headers.length).getValues();
+  const out = [];
+  for (let i = 0; i < values.length; i++) {
+    const obj = _rowToObject(values[i], headers);
+    if (obj.id !== '' && obj.id !== null) out.push(obj);
+  }
+  return out;
+}
+
 function _getSheet(sheetName) {
-  const ss = getBd();
-  const sheet = ss.getSheetByName(sheetName);
+  let sheet = _HOJAS_CACHE[sheetName];
+  if (sheet) return sheet;
+  sheet = getBd().getSheetByName(sheetName);
   if (!sheet) throw new Error('Pestaña no encontrada: ' + sheetName);
+  _HOJAS_CACHE[sheetName] = sheet;
   return sheet;
+}
+
+/**
+ * Valor listo para escribir en una celda. Las cadenas que Sheets
+ * reinterpretaría (códigos con ceros a la izquierda como "04000018", horas,
+ * fechas, "1"/"2" de mitad, textos que empiezan por "=" o "+") se fuerzan a
+ * texto con un apóstrofo inicial, que Sheets no guarda como parte del valor.
+ */
+function _celda(v) {
+  if (v === undefined || v === null) return '';
+  if (typeof v === 'string' && /^[=+\-'\d.]/.test(v)) return "'" + v;
+  return v;
 }
 
 function _rowToObject(row, headers) {
@@ -241,7 +339,7 @@ function _rowToObject(row, headers) {
  */
 function _normalizar(v) {
   if (!(v instanceof Date)) return v;
-  const tz = Session.getScriptTimeZone();
+  const tz = _TZ_CACHE || (_TZ_CACHE = Session.getScriptTimeZone());
   const h = v.getHours(), m = v.getMinutes(), s = v.getSeconds();
   if (h === 0 && m === 0 && s === 0) {
     return Utilities.formatDate(v, tz, 'yyyy-MM-dd');

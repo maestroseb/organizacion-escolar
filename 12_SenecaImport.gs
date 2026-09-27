@@ -67,19 +67,25 @@ function aplicarSeneca(seleccion, modo) {
   if (seleccion.centro) {
     const c = seleccion.centro;
     const etapasDetect = _detectarEtapas(seleccion.unidades || []);
-    const centroPrevio = findById(SHEETS.CENTRO, CENTRO_ID);
-    // En modo "añadir" no se pisa un centro ya configurado.
-    if (!(modo === 'anadir' && centroPrevio && String(centroPrevio.nombre || '').trim())) {
+    const previo = findById(SHEETS.CENTRO, CENTRO_ID) || {};
+    const prefsPrevias = obtenerPreferenciasWizard();
+    const cursoFinal = c.curso_academico || previo.curso_academico || '';
+    // En modo "añadir" no se pisa un centro ya configurado. En el resto, el
+    // XML (que no trae nombre, código ni localidad) solo rellena lo que venga
+    // con valor: se conservan los datos que ya había.
+    if (!(modo === 'anadir' && String(previo.nombre || '').trim()) && cursoFinal) {
       guardarCentro({
-        nombre: c.nombre || 'Centro',
-        codigo: c.codigo || '',
-        localidad: '', provincia: '', comunidad: 'Andalucía',
-        curso_academico: c.curso_academico || '',
-        fecha_inicio: c.fecha_inicio || '',
-        fecha_fin: c.fecha_fin || '',
-        etapas: etapasDetect.join(','),
-        lineas: '',
-        bilingue: 'no'
+        nombre: c.nombre || previo.nombre || 'Centro',
+        codigo: c.codigo || previo.codigo || '',
+        localidad: previo.localidad || '',
+        provincia: previo.provincia || '',
+        comunidad: previo.comunidad || 'Andalucía',
+        curso_academico: cursoFinal,
+        fecha_inicio: c.fecha_inicio || previo.fecha_inicio || '',
+        fecha_fin: c.fecha_fin || previo.fecha_fin || '',
+        etapas: etapasDetect.join(',') || previo.etapas || '',
+        lineas: prefsPrevias.lineas || '',
+        bilingue: prefsPrevias.bilingue || 'no'
       });
       resumen.centro = 1;
     }
@@ -326,10 +332,6 @@ function _minsAHora(mins) {
   return _pad2(h) + ':' + _pad2(m);
 }
 function _pad2(n) { return (n < 10 ? '0' : '') + n; }
-function _minutos(hhmm) {
-  const p = String(hhmm).split(':');
-  return parseInt(p[0], 10) * 60 + parseInt(p[1], 10);
-}
 
 function _fechaSeneca(s) {
   if (!s) return '';
@@ -339,10 +341,13 @@ function _fechaSeneca(s) {
 }
 
 function _detectarNivel(cursoTxt) {
-  const t = (cursoTxt || '').toLowerCase();
+  const t = String(cursoTxt || '').toLowerCase().trim();
   if (/tres/.test(t))   return 'INF3';
   if (/cuatro/.test(t)) return 'INF4';
   if (/cinco/.test(t))  return 'INF5';
+  // "INF 5A", "Inf5", "I5", "5 años", "3 años B"…
+  const mi = t.match(/^(?:inf\S*|i)\s*([345])/) || t.match(/^([345])\s*a(?:ñ|n)os/);
+  if (mi) return 'INF' + mi[1];
   const m = t.match(/^([1-6])/);
   if (m) return m[1] + 'P';
   return '';

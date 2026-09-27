@@ -1,0 +1,71 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sábana: filas fijas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@400;600;700&display=swap">
+<style>
+:root{--bg:#f3f4f7;--surf:#fff;--s2:#f6f7fa;--s3:#eceef3;--bd:#e3e5eb;--tx:#1f2430;--mu:#6b7080;--fa:#9aa0ad}
+body{margin:0;padding:16px;background:var(--bg);font-family:"Roboto Condensed","Arial Narrow",sans-serif;color:var(--tx)}
+h1{font-size:18px;margin:0 0 4px}p.i{margin:0 0 14px;color:var(--mu);font-size:13px}
+.wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px}
+.op{background:var(--surf);border:1px solid var(--bd);border-radius:10px;overflow:hidden}
+.op h2{margin:0;font-size:14px;padding:6px 10px;background:#e8683a;color:#fff;letter-spacing:.02em}
+.op .d{font-size:12px;color:var(--mu);padding:6px 10px 8px;border-top:1px solid var(--bd);line-height:1.35}
+table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+th{background:var(--s3);font-size:11px;text-transform:uppercase;text-align:left;padding:3px 6px;letter-spacing:.04em}
+td{height:22px;padding:0 6px;border-top:1px solid var(--bd);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;vertical-align:middle}
+tr:nth-child(even) td{background:var(--s2)}
+.c{font-weight:700;width:46px}.doc{font-weight:600}
+.p{display:inline-block;border-radius:4px;padding:0 6px;font-weight:700;font-size:12px;line-height:17px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb{display:block;text-align:center}
+.m{background:#f7c5c1}.at{background:#e3d44f}.re{background:#e9e1f7}.le{background:#fde68a}.in{background:#c7f0cf}.ef{background:#a7f3e0}
+.mates{background:#d5433c;color:#fff}
+/* A: pill segmentada */
+.seg{display:flex;border-radius:4px;overflow:hidden;line-height:17px;font-size:12px;font-weight:700}
+.seg span{flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;padding:0 3px;min-width:0}
+.sep{color:var(--fa);font-weight:400;margin:0 2px}
+/* B: +N */
+.more{display:inline-block;margin-left:4px;font-size:11px;font-weight:700;background:var(--tx);color:#fff;border-radius:999px;padding:0 5px;line-height:15px}
+.pop{position:relative}.pop .tip{position:absolute;right:4px;top:22px;z-index:3;background:var(--surf);border:1px solid var(--bd);border-radius:6px;box-shadow:0 6px 18px rgba(0,0,0,.15);padding:4px 6px;font-size:12px;white-space:nowrap}
+.tip div{display:flex;gap:6px;align-items:center;padding:1px 0}
+/* C: slots */
+.slots{display:flex;gap:3px;height:22px;align-items:stretch}
+.slot{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;font-size:12px;font-weight:600;line-height:1;overflow:hidden;border-bottom:3px solid;padding:0 2px}
+.slot i{font-style:normal;font-weight:400;font-size:10px;color:var(--mu);overflow:hidden;text-overflow:ellipsis}
+/* D: doble línea */
+.dl{display:flex;flex-direction:column;justify-content:center;line-height:10px;font-size:10.5px}
+.dl .p{font-size:9.5px;line-height:10px;padding:0 4px}
+.dl2{display:flex;flex-direction:column;gap:1px}
+</style></head><body>
+<h1>Sábana · filas de altura fija cuando hay varias personas en un curso</h1>
+<p class="i">Todas las opciones mantienen <b>una fila por curso y la misma altura (22 px)</b>, así cada curso cae siempre en la misma línea todos los días. Ejemplo: 5º B con Inma B. (ATEDU + Mates) y Puri (Religión).</p>
+<div class="wrap">
+
+<div class="op"><h2>A · Nombres en línea + pill segmentada</h2>
+<table><tr><th class="c">Curso</th><th>Docente</th><th style="width:42%">Ocup.</th></tr>
+<tr><td class="c">5º A</td><td class="doc">Lucía</td><td><span class="p pb re">Religión</span></td></tr>
+<tr><td class="c">5º B</td><td class="doc" title="Inma B. · Puri">Inma B.<span class="sep">·</span>Puri</td><td><div class="seg"><span class="at">ATEDU</span><span class="mates">Mates</span><span class="re">Rel.</span></div></td></tr>
+<tr><td class="c">6º A</td><td class="doc">Manuel</td><td><span class="p pb ef">E. Física</span></td></tr></table>
+<div class="d">Todo visible sin interacción. La pill se parte en tantos colores como áreas. Con 3+ personas el texto se abrevia (tooltip con el detalle).</div></div>
+
+<div class="op"><h2>B · Titular + contador «+N»</h2>
+<table><tr><th class="c">Curso</th><th>Docente</th><th style="width:42%">Ocup.</th></tr>
+<tr><td class="c">5º A</td><td class="doc">Lucía</td><td><span class="p pb re">Religión</span></td></tr>
+<tr><td class="c">5º B</td><td class="doc">Inma B. <span class="more">+1</span></td><td class="pop"><div class="seg"><span class="at">ATEDU</span><span class="mates">Mates</span></div>
+<div class="tip"><div><b>Inma B.</b> <span class="p at">ATEDU</span> <span class="p mates">Mates</span></div><div><b>Puri</b> <span class="p re">Religión</span></div></div></td></tr>
+<tr><td class="c">6º A</td><td class="doc">Manuel</td><td><span class="p pb ef">E. Física</span></td></tr></table>
+<div class="d">Lo más limpio: se ve la persona principal y un indicador. Al pasar el ratón / tocar, se despliega el resto (en la exportación PDF/PNG se imprimiría la versión A).</div></div>
+
+<div class="op"><h2>C · Sub-columnas con subrayado de color</h2>
+<table><tr><th class="c">Curso</th><th colspan="2">Docente · área</th></tr>
+<tr><td class="c">5º A</td><td colspan="2"><div class="slots"><div class="slot" style="border-color:#c7b3ef">Lucía <i>Religión</i></div></div></td></tr>
+<tr><td class="c">5º B</td><td colspan="2"><div class="slots"><div class="slot" style="border-color:#e3d44f">Inma B. <i>ATEDU·Mates</i></div><div class="slot" style="border-color:#c7b3ef">Puri <i>Religión</i></div></div></td></tr>
+<tr><td class="c">6º A</td><td colspan="2"><div class="slots"><div class="slot" style="border-color:#5fd4b8">Manuel <i>E. Física</i></div></div></td></tr></table>
+<div class="d">Docente y área fusionados; cada persona es un bloque con una barra del color del área. Muy compacto y homogéneo, pero pierde las pills rellenas.</div></div>
+
+<div class="op"><h2>D · Doble línea mini (solo en filas compartidas)</h2>
+<table><tr><th class="c">Curso</th><th>Docente</th><th style="width:42%">Ocup.</th></tr>
+<tr><td class="c">5º A</td><td class="doc">Lucía</td><td><span class="p pb re">Religión</span></td></tr>
+<tr><td class="c">5º B</td><td class="doc"><div class="dl"><span>Inma B.</span><span>Puri</span></div></td><td><div class="dl2 dl"><span class="p pb at">ATEDU · Mates</span><span class="p pb re">Religión</span></div></td></tr>
+<tr><td class="c">6º A</td><td class="doc">Manuel</td><td><span class="p pb ef">E. Física</span></td></tr></table>
+<div class="d">Mantiene la estructura actual comprimiendo dos líneas en la misma altura (letra ~10 px). Legible en pantalla; con 3+ personas añade «+N».</div></div>
+
+</div></body></html>

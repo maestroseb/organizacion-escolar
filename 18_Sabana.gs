@@ -13,28 +13,22 @@
  *     su color (el del rol; configurable por el usuario).
  *   - libres: docentes activos sin ninguna ocupación ese tramo.
  *
- * "Todo junto": alternancias de semana (A/B) y desdobles (a/b) se muestran
- * juntos en la misma casilla.
+ * Alternancia semanal: se muestra una semana (A o B). Las ocupaciones sin
+ * semana valen para ambas. Los desdobles (a/b) se muestran juntos.
  */
-
-function sabanaDia(dia) {
-  dia = _diaCanon(dia);
-  const ctx = _sabanaContexto();
-  const ocupDia = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === dia; });
-  return {
-    dia: dia,
-    diaLargo: _diaLargo(dia),
-    hayTramos: ctx.tramos.length > 0,
-    tramos: ctx.tramos.map(function(t) { return _sabanaTramoData(t, ocupDia, ctx); })
-  };
-}
 
 /**
  * Toda la semana de una vez: una matriz tramos × días. Cada celda trae los
  * cursos, apoyos y libres de ese (día, tramo). Para la vista "semana completa".
  */
-function sabanaSemana() {
+function sabanaSemana(semana) {
   const ctx = _sabanaContexto();
+  const actual = semanaActual();
+  semana = (semana === 'A' || semana === 'B') ? semana : actual;
+  ctx.ocupaciones = ctx.ocupaciones.filter(function(o) {
+    const s = String(o.semana || '').trim().toUpperCase();
+    return !s || s === semana;
+  });
   const dias = ['L', 'M', 'X', 'J', 'V'];
   const ocupPorDia = {};
   dias.forEach(function(d) { ocupPorDia[d] = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === d; }); });
@@ -51,19 +45,45 @@ function sabanaSemana() {
   });
 
   return {
+    semana: semana,
+    semanaActual: actual,
     dias: dias.map(function(d) { return { k: d, n: _diaLargo(d) }; }),
     hayTramos: ctx.tramos.length > 0,
     tramos: tramos
   };
 }
 
-function sabanaTramo(dia, tramoId) {
-  dia = _diaCanon(dia);
-  const ctx = _sabanaContexto();
-  const t = ctx.tramos.filter(function(x) { return x.id === tramoId; })[0];
-  if (!t) throw new Error('Tramo no encontrado.');
-  const ocupDia = ctx.ocupaciones.filter(function(o) { return _diaCanon(o.dia) === dia; });
-  return { dia: dia, diaLargo: _diaLargo(dia), tramo: _sabanaTramoData(t, ocupDia, ctx) };
+/**
+ * Semana alterna ('A' o 'B') de una fecha (por defecto, hoy). La semana A es
+ * la que contiene la fecha de inicio del curso (Centro) y se alterna cada
+ * semana natural; sin fecha, se usa la paridad de la semana ISO. Sábado y
+ * domingo cuentan ya como la semana siguiente.
+ */
+function semanaActual(fecha) {
+  const DIA = 86400000;
+  const lunes = function(d) {
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() - (x.getDay() + 6) % 7);
+    return x;
+  };
+  let hoy = fecha ? _fechaLocal(fecha) : new Date();
+  if (hoy.getDay() === 0 || hoy.getDay() === 6) hoy = new Date(hoy.getTime() + 2 * DIA);
+  const centro = findById(SHEETS.CENTRO, CENTRO_ID) || {};
+  const ini = centro.fecha_inicio ? _fechaLocal(centro.fecha_inicio) : null;
+  let n;
+  if (ini && !isNaN(ini)) {
+    n = Math.round((lunes(hoy) - lunes(ini)) / (7 * DIA));
+  } else {
+    n = Math.round((lunes(hoy) - lunes(new Date(hoy.getFullYear(), 0, 4))) / (7 * DIA));
+  }
+  return (((n % 2) + 2) % 2) === 0 ? 'A' : 'B';
+}
+
+/** 'yyyy-MM-dd' (o Date) → Date a medianoche local. */
+function _fechaLocal(v) {
+  if (v instanceof Date) return new Date(v.getFullYear(), v.getMonth(), v.getDate());
+  const m = String(v).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(String(v));
 }
 
 // ---------- Internos ----------
@@ -92,12 +112,44 @@ function _sabanaContexto() {
   const colorTramo = {};
   tramos.forEach(function(t, i) { colorTramo[t.id] = t.color || paleta[i] || '#4f9d84'; });
 
+  const ocupaciones = getAll(SHEETS.OCUPACIONES);
+  _emparejarRelAtedu(ocupaciones, materiaById, rolById);
+
   return {
     docentes: docentes, grupos: grupos, tramos: tramos,
-    ocupaciones: getAll(SHEETS.OCUPACIONES),
+    ocupaciones: ocupaciones,
     docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById,
     colorTramo: colorTramo
   };
+}
+
+/**
+ * Religión y ATEDU (Atención Educativa) se dan a la vez con el mismo grupo:
+ * si una de las dos alterna por semanas (A/B) y la otra no tiene semana, esta
+ * hereda la semana de aquella en ese (día, tramo, grupo). Así la semana que
+ * no toca, el grupo aparece entero con su asignatura habitual.
+ */
+function _emparejarRelAtedu(ocupaciones, materiaById, rolById) {
+  const esRA = function(o) {
+    let t = '', grupos = '';
+    if (o.tipo === 'grupo') { const m = materiaById[o.materia_id]; t = m ? (m.nombre + ' ' + (m.abreviatura || '')) : ''; grupos = o.grupo_id; }
+    else { const r = rolById[o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id]; t = r ? (r.nombre + ' ' + (r.nombre_largo || '')) : String(o.notas || ''); grupos = o.grupo_destino_id; }
+    return /relig|atedu|atenci[oó]n educ/i.test(t) ? String(grupos || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean) : null;
+  };
+  const semanaSlot = {}, sinSemana = [];
+  ocupaciones.forEach(function(o) {
+    const gs = esRA(o);
+    if (!gs) return;
+    const s = String(o.semana || '').trim().toUpperCase();
+    const claves = gs.map(function(g) { return _diaCanon(o.dia) + '|' + o.tramo_id + '|' + g; });
+    if (s) claves.forEach(function(k) { semanaSlot[k] = s; });
+    else sinSemana.push({ o: o, claves: claves });
+  });
+  sinSemana.forEach(function(x) {
+    for (let i = 0; i < x.claves.length; i++) {
+      if (semanaSlot[x.claves[i]]) { x.o.semana = semanaSlot[x.claves[i]]; break; }
+    }
+  });
 }
 
 // Paleta base (tipo arcoíris) y selección de N colores repartidos: con menos
@@ -138,7 +190,7 @@ function _sabanaTramoData(t, ocupDia, ctx) {
           docente: nombreDoc(o.docente_id),
           materia: m ? (m.abreviatura || m.nombre) : '',
           color: m ? (m.color || '') : '',
-          mitad: o.mitad || '', semana: o.semana || ''
+          mitad: String(o.mitad || ''), semana: String(o.semana || '')
         };
       });
 
@@ -211,6 +263,7 @@ function _nombresGrupos(csv, ctx) {
 
 function _diaCanon(d) {
   const s = String(d || '').trim().toUpperCase();
+  if (s.indexOf('MI') === 0) return 'X'; // 'MIÉRCOLES' no es martes
   return s.charAt(0); // 'LUNES'→'L', ya viene 'L'…'V'
 }
 

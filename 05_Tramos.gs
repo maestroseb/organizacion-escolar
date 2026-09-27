@@ -40,14 +40,26 @@ function guardarTramos(tramos, modo) {
     return {
       id: t.id || undefined,
       orden: i + 1,
-      hora_inicio: t.hora_inicio,
-      hora_fin: t.hora_fin,
+      // Normalizado a HH:MM ("9:00" → "09:00") para que la clave natural
+      // de la fusión coincida con lo ya guardado.
+      hora_inicio: _hhmmPad(t.hora_inicio),
+      hora_fin: _hhmmPad(t.hora_fin),
       es_recreo: !!t.es_recreo,
       etiqueta: t.etiqueta || '',
       color: t.color || ''
     };
   });
-  const resumen = bulkMerge(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo || 'reemplazar');
+  modo = modo || 'reemplazar';
+  const resumen = bulkMerge(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo);
+  if (modo !== 'reemplazar') {
+    // Al combinar/añadir se mezclan tramos viejos y nuevos: el `orden` (que
+    // usan la importación CSV y la sábana) debe volver a ser 1..N por hora.
+    const todos = getAll(SHEETS.TRAMOS).sort(function(a, b) {
+      return _minutos(a.hora_inicio) - _minutos(b.hora_inicio);
+    });
+    todos.forEach(function(t, i) { t.orden = i + 1; });
+    bulkReplace(SHEETS.TRAMOS, todos);
+  }
   return { ok: true, total: resumen.total, resumen: resumen };
 }
 
@@ -74,6 +86,11 @@ function plantillaTramos() {
       etiqueta: 'TR' + String(i + 1).padStart(2, '0')
     };
   });
+}
+
+function _hhmmPad(hhmm) {
+  const p = String(hhmm).split(':');
+  return ('0' + parseInt(p[0], 10)).slice(-2) + ':' + ('0' + parseInt(p[1], 10)).slice(-2);
 }
 
 function _minutos(hhmm) {
