@@ -225,6 +225,9 @@
   .col-sec .col-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
   .col-sec .col-head h3 { margin: 0; font-size: var(--fs-md); font-weight: 650; }
   .col-sec .col-head .toolbar { margin: 0; }
+  /* Columna con tabla ajustada: cabecera y botones del ancho de la tabla. */
+  .col-sec:has(> .tablewrap > table.data.fit) { width: fit-content; max-width: 100%; }
+  .col-sec:has(> .tablewrap > table.data.fit) > :not(.tablewrap) { width: 0; min-width: 100%; }
   @media (max-width: 960px) { .two-col { grid-template-columns: minmax(0, 1fr); gap: var(--s6); } }
 
   /* ---------- Formularios ---------- */
@@ -763,4 +766,8 @@
   .rc-zfila input[type=number] { width: 64px; }
   @media (max-width: 800px) { .rc-layout { grid-template-columns: 1fr; } .rc-pool { position: static; max-height: 30vh; } }
   @media print { body:not(.print-sabana) .rc-toolbar, body:not(.print-sabana) .rc-pool, body:not(.print-sabana) .rc-x, body:not(.print-sabana) #view-recreos .page-head p { display: none !important; } body:not(.print-sabana) .rc-layout { display: block; } }
+  .rol-nom { display: flex; align-items: center; gap: 4px; }
+  .rol-nom input { min-width: 0; }
+  .rol-usos { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rol-usos.cero { color: var(--danger); font-weight: 700; }
 </style>

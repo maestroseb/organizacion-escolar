@@ -57,7 +57,14 @@ const ROLES_PLANTILLA = [
 function listarRoles() {
   const roles = getAll(SHEETS.ROLES);
   roles.sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
-  roles.forEach(function(r) { r.categoria = categoriaRol(r); });
+  // `usos`: tramos semanales en los horarios con ese rol (A/B cuenta ½).
+  // Ayuda a detectar duplicados: un rol a 0 se puede borrar sin perder nada.
+  const usos = {};
+  getAll(SHEETS.OCUPACIONES).forEach(function(o) {
+    const id = o.tipo === 'localizacion' ? o.rol_loc_id : (o.tipo === 'especial' ? o.rol_especial_id : '');
+    if (id) usos[id] = (usos[id] || 0) + (String(o.semana || '').trim() ? 0.5 : 1);
+  });
+  roles.forEach(function(r) { r.categoria = categoriaRol(r); r.usos = usos[r.id] || 0; });
   return roles;
 }
 

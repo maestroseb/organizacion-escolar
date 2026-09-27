@@ -266,7 +266,7 @@
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th style="width:110px" title="Apoyo: entra a sustituir antes. PT/AL: clase a 1-2 alumnos (solo sustituye por fuerza mayor). Cargo: dirección, coordinaciones…">Tipo</th><th class="col-acc"></th>
+            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:150px">Nombre * <span class="hint">(horas)</span></th><th>Nombre largo</th><th style="width:110px" title="Apoyo: entra a sustituir antes. PT/AL: clase a 1-2 alumnos (solo sustituye por fuerza mayor). Cargo: dirección, coordinaciones…">Tipo</th><th class="col-acc"></th>
           </tr></thead>
           <tbody id="roles-body" data-anadir="anadirRol"></tbody>
         </table>
@@ -938,7 +938,13 @@
 
   // ================= Roles =================
   let rolesLocal = [];
-  function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '', categoria: r.categoria || '' }; }
+  function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '', categoria: r.categoria || '', usos: r.usos || 0 }; }
+  // «(n)» horas semanales en los horarios; a 0 se puede borrar sin perder nada.
+  function _rolUsos(r) {
+    if (!r.id) return '';
+    var n = r.usos || 0, t = (Math.floor(n) || (n ? '' : '0')) + (n % 1 ? '½' : '');
+    return '<span class="rol-usos' + (n ? '' : ' cero') + '" title="' + (n ? 'Horas semanales en los horarios' : 'Sin uso en los horarios: se puede eliminar') + '">(' + t + ')</span>';
+  }
   function cargarRoles() {
     _run().withSuccessHandler(function(rs) {
       if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); _snap('roles'); return; }
@@ -965,7 +971,7 @@
       tr.innerHTML =
         '<td class="col-num"><span class="drag" title="Arrastrar para reordenar">⠿</span> ' + (i+1) + '</td>' +
         '<td class="col-center">' + _colorCell(r.color, 'setColorRol', i) + '</td>' +
-        '<td><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)"></td>' +
+        '<td><div class="rol-nom"><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)">' + _rolUsos(r) + '</div></td>' +
         '<td><input type="text" value="' + _esc(r.nombre_largo) + '" placeholder="Dirección" oninput="actualizarRol(' + i + ',\'nombre_largo\',this.value)"></td>' +
         '<td><select onchange="actualizarRol(' + i + ',\'categoria\',this.value)">' + [['', '(auto)'], ['apoyo', 'Apoyo'], ['atencion', 'PT / AL'], ['cargo', 'Cargo']].map(function(p) {
           return '<option value="' + p[0] + '"' + (r.categoria === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select></td>' +
