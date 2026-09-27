@@ -112,6 +112,7 @@ function estadoApp() {
     urlApp: (function() { try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; } })(),
     contadores: {
       tramos:         _contar(SHEETS.TRAMOS),
+      semanas:        _contar(SHEETS.SEMANAS),
       grupos:         _contar(SHEETS.GRUPOS),
       docentes:       _contar(SHEETS.DOCENTES),
       tutorias:       _contarConTutor(),
@@ -164,6 +165,7 @@ function _contarConTutor() {
  */
 const SECCIONES_VACIABLES = {
   tramos:         'TRAMOS',
+  semanas:        'SEMANAS',
   grupos:         'GRUPOS',
   docentes:       'DOCENTES',
   localizaciones: 'LOCALIZACIONES',

@@ -48,6 +48,16 @@ function findById(sheetName, id) {
   return null;
 }
 
+/** Borra una fila por id. Devuelve true si existía. */
+function remove(sheetName, id) {
+  const sheet = _getSheet(sheetName);
+  const idx = _findRowIndex(sheet, id);
+  if (idx === -1) return false;
+  sheet.deleteRow(idx);
+  _invalidarTabla(sheetName);
+  return true;
+}
+
 /**
  * Inserta una fila nueva. Si obj.id no viene, se autogenera.
  * Devuelve el objeto guardado (con id).
@@ -368,6 +378,7 @@ function _idPrefix(sheetName) {
   const prefijos = {
     '_Centro': 'centro',
     '_Tramos': 'tramo',
+    '_SemanasAlternas': 'sem',
     '_Grupos': 'grupo',
     '_Docentes': 'doc',
     '_Localizaciones': 'loc',

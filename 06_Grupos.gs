@@ -88,9 +88,9 @@ function guardarGrupos(grupos, modo) {
     if (!g.nombre_corto || !String(g.nombre_corto).trim()) {
       throw new Error('Grupo ' + n + ': el nombre corto es obligatorio.');
     }
-    if (!g.nivel) {
-      throw new Error('Grupo ' + n + ' (' + g.nombre_corto + '): falta el nivel.');
-    }
+    // Sin nivel: se deduce del nombre ("I3 C" → INF3, "1º B" → 1P). Si aun así
+    // no se reconoce, se crea igualmente (Revisión avisa de «grupos sin nivel»).
+    if (!g.nivel || !String(g.nivel).trim()) g.nivel = _detectarNivel(g.nombre_corto) || '';
   });
 
   const nombres = {};
@@ -103,7 +103,7 @@ function guardarGrupos(grupos, modo) {
   });
 
   const filas = grupos.map(function(g, i) {
-    const etapa = g.nivel.indexOf('INF') === 0 ? 'INFANTIL' : 'PRIMARIA';
+    const etapa = String(g.nivel).indexOf('INF') === 0 ? 'INFANTIL' : (String(g.nivel).trim() ? 'PRIMARIA' : '');
     return {
       id: g.id || undefined,
       nombre_corto: String(g.nombre_corto).trim(),

@@ -345,8 +345,8 @@ function _detectarNivel(cursoTxt) {
   if (/tres/.test(t))   return 'INF3';
   if (/cuatro/.test(t)) return 'INF4';
   if (/cinco/.test(t))  return 'INF5';
-  // "INF 5A", "Inf5", "I5", "5 años", "3 años B"…
-  const mi = t.match(/^(?:inf\S*|i)\s*([345])/) || t.match(/^([345])\s*a(?:ñ|n)os/);
+  // "INF 5A", "Inf5", "I5", "I-3", "EI 3", "5 años", "3 años B"…
+  const mi = t.match(/^(?:inf\S*|e?i)\s*\.?\s*-?\s*([345])/) || t.match(/(?:^|[^0-9])([345])\s*a(?:ñ|n)os/);
   if (mi) return 'INF' + mi[1];
   const m = t.match(/^([1-6])/);
   if (m) return m[1] + 'P';

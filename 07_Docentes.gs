@@ -47,9 +47,20 @@ function guardarDocentes(docentes, modo) {
       orden: i + 1,
       color: d.color || '',
       sustituto: d.sustituto || '',
-      acceso_sust: d.acceso_sust === true
+      acceso_sust: d.acceso_sust === true,
+      parcial: d.parcial === true
     };
   });
   const resumen = bulkMerge(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
+}
+
+/**
+ * Marca (o desmarca) a un docente como de jornada parcial: no viene todos los
+ * días, así que Revisión no avisa de «horario incompleto».
+ */
+function marcarDocenteParcial(id, parcial) {
+  if (!id) throw new Error('Falta el docente.');
+  update(SHEETS.DOCENTES, id, { parcial: !!parcial });
+  return { ok: true };
 }
