@@ -60,6 +60,11 @@ function sabanaSemana(semana) {
  * domingo cuentan ya como la semana siguiente.
  */
 function semanaActual(fecha) {
+  // 1.º el calendario de semanas alternas (Centro y horario), si cubre la fecha.
+  try {
+    const cal = semanaDeFecha(fecha || _hoyISO());
+    if (cal && (cal.tipo === 'A' || cal.tipo === 'B')) return cal.tipo;
+  } catch (e) {}
   const DIA = 86400000;
   const lunes = function(d) {
     const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());

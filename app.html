@@ -73,6 +73,11 @@
         <?!= include('partial_importar') ?>
       </section>
 
+      <!-- Configuración → Revisión (resolución de problemas) -->
+      <section class="view" id="view-revision">
+        <?!= include('partial_revision') ?>
+      </section>
+
       <!-- Configuración → Ajustes generales -->
       <section class="view" id="view-ajustes">
         <?!= include('partial_config') ?>
@@ -117,11 +122,12 @@
       { key: 'docentes',       label: 'Docentes',        cont: 'docentes' },
       { key: 'areas',          label: 'Áreas y cargos',  cont: 'materias' },
       { key: 'importar',       label: 'Importar' },
+      { key: 'revision',       label: 'Revisión' },
       { key: 'ajustes',        label: 'Ajustes' }
     ];
     var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
     // Claves antiguas o de secciones fusionadas (modo guiado, enlaces, hash).
-    var ALIAS = { tramos: 'centro' };
+    var ALIAS = { tramos: 'centro', semanas: 'centro' };
     function _alias(k) { return ALIAS[k] || k; }
 
     var ESTADO = null;         // último estadoApp()
@@ -166,7 +172,7 @@
     // (LECTURAS) se sirven de memoria mientras DATOS_VERSION no cambie (se
     // incrementa tras cada guardado) y dos peticiones iguales a la vez se
     // fusionan en una. Cada llamante recibe su propia copia (pueden mutarla).
-    var LECTURAS = { listarDocentes: 1, listarGrupos: 1, listarTramos: 1, listarMaterias: 1, listarRoles: 1,
+    var LECTURAS = { listarSemanas: 1, listarDocentes: 1, listarGrupos: 1, listarTramos: 1, listarMaterias: 1, listarRoles: 1,
                      listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1 };
     var _RPC = {}, _RPC_V = -1;
     function _copia(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
@@ -285,7 +291,8 @@
       horario: function() { renderHorario(); },
       importar: function() { prepararImportar(); },
       ajustes: function() { renderConfig(); },
-      centro: function() { cargarCentro(); cargarTramos(); },
+      centro: function() { cargarCentro(); cargarTramos(); cargarSemanas(); },
+      revision: function() { renderProblemas(); },
       grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
       areas: function() { cargarMaterias(); cargarRoles(); }
