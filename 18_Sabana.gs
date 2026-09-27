@@ -39,7 +39,7 @@ function sabanaSemana(semana) {
     dias.forEach(function(d) {
       const data = _sabanaTramoData(t, ocupPorDia[d], ctx);
       if (!meta) meta = data.tramo;
-      porDia[d] = { cursos: data.cursos, apoyos: data.apoyos, libres: data.libres };
+      porDia[d] = { cursos: data.cursos, apoyos: data.apoyos, libres: data.libres, zonas: data.zonas };
     });
     return { tramo: meta, porDia: porDia };
   });
@@ -110,6 +110,7 @@ function _sabanaContexto() {
   const grupoById = {}; grupos.forEach(function(g) { grupoById[g.id] = g; });
   const materiaById = {}; materias.forEach(function(m) { materiaById[m.id] = m; });
   const rolById = {}; roles.forEach(function(r) { rolById[r.id] = r; });
+  const zonaById = {}; getAll(SHEETS.ZONAS_RECREO).forEach(function(z) { zonaById[z.id] = z; });
 
   // Color de cada tramo: el elegido por el usuario o, si no, el de la paleta
   // arcoíris repartida según el número de tramos.
@@ -123,7 +124,7 @@ function _sabanaContexto() {
   return {
     docentes: docentes, grupos: grupos, tramos: tramos,
     ocupaciones: ocupaciones,
-    docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById,
+    docById: docById, grupoById: grupoById, materiaById: materiaById, rolById: rolById, zonaById: zonaById,
     colorTramo: colorTramo
   };
 }
@@ -228,6 +229,8 @@ function _sabanaTramoData(t, ocupDia, ctx) {
         categoria: categoriaRol(rol || { nombre: nombre }),
         tipo: o.tipo,
         destino: _nombresGrupos(o.grupo_destino_id, ctx),
+        zona: (ctx.zonaById[o.localizacion_id] || {}).nombre || '', // turno de recreo
+        _zonaOrden: (ctx.zonaById[o.localizacion_id] || {}).orden || 0,
         _docOrden: (ctx.docById[o.docente_id] || {}).orden || 0
       };
     });
@@ -235,6 +238,17 @@ function _sabanaTramoData(t, ocupDia, ctx) {
     return (a.orden - b.orden) || (a._docOrden - b._docOrden) || String(a.docente).localeCompare(b.docente);
   });
   apoyos.forEach(function(a, i) { a.loc = i + 1; delete a._docOrden; });
+
+  // Recreo: quién vigila cada zona (en el orden de las zonas).
+  let zonas = [];
+  if (t.es_recreo) {
+    const porZona = {};
+    apoyos.filter(function(a) { return a.zona; }).sort(function(a, b) { return a._zonaOrden - b._zonaOrden; }).forEach(function(a) {
+      if (!porZona[a.zona]) { porZona[a.zona] = []; zonas.push({ zona: a.zona, docentes: porZona[a.zona] }); }
+      porZona[a.zona].push(a.docente);
+    });
+  }
+  apoyos.forEach(function(a) { delete a._zonaOrden; });
 
   // --- Libres ---
   const ocupados = {};
@@ -252,7 +266,8 @@ function _sabanaTramoData(t, ocupDia, ctx) {
     },
     cursos: cursos,
     apoyos: apoyos,
-    libres: libres
+    libres: libres,
+    zonas: zonas
   };
 }
 

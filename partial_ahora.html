@@ -81,7 +81,7 @@
         '<span class="ah-reloj" id="ah-reloj">' + _ahReloj() + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
-    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>';
+    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
     else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t) + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
       '<div class="sb-pane">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';

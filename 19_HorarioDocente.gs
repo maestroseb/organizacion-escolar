@@ -27,6 +27,7 @@ function datosHorarioDocente(docenteId) {
         grupo_id: o.grupo_id || '',
         rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
         grupo_destino_id: o.grupo_destino_id || '',
+        localizacion_id: o.localizacion_id || '', // zona de recreo (24_Recreos)
         // Filas antiguas guardaron la mitad como número (1/2): el editor
         // compara con '1'/'2'.
         mitad: String(o.mitad || ''),
@@ -61,7 +62,7 @@ function guardarHorarioDocente(docenteId, ocupaciones) {
       tramo_id: f.tramo_id,
       tipo: f.tipo,
       grupo_id: '', materia_id: '',
-      localizacion_id: '', rol_loc_id: '', grupo_destino_id: '',
+      localizacion_id: f.localizacion_id || '', rol_loc_id: '', grupo_destino_id: '',
       rol_especial_id: '',
       notas: f.notas || '',
       mitad: f.mitad || '',
@@ -180,9 +181,10 @@ function datosHorarios() {
       dia: _diaCanon(o.dia), tramo_id: o.tramo_id || '', tipo: o.tipo || 'grupo',
       materia_id: o.materia_id || '', grupo_id: o.grupo_id || '',
       rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
-      grupo_destino_id: o.grupo_destino_id || '',
+      grupo_destino_id: o.grupo_destino_id || '', localizacion_id: o.localizacion_id || '',
       mitad: String(o.mitad || ''), semana: String(o.semana || ''), notas: o.notas || ''
     };
   });
+  cat.zonas = listarZonasRecreo().map(function(z) { return { id: z.id, nombre: z.nombre }; });
   return { catalogo: cat, ocupaciones: ocupaciones };
 }

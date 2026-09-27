@@ -79,7 +79,7 @@
   function _sbGridHtml(res) {
     var badge = res.semana ? '<span class="sb-semb" title="Semana ' + _esc(res.semana) + '">' + _esc(res.semana) + '</span>' : '';
     var html = res.tramos.map(function(t){
-      if (t.tramo.es_recreo) return _sbRecreo(t.tramo);
+      if (t.tramo.es_recreo) return _sbRecreoSemana(t, res.dias);
       var col = _sbColor(t.tramo.color) || '#4f9d84', st = _sbHeadStyle(col);
       var cols = res.dias.map(function(d){
         var cell = t.porDia[d.k] || { cursos: [], apoyos: [], libres: [] };
@@ -220,6 +220,19 @@
   }
   function _sbRecreo(tr) {
     return '<div class="sb-recreo">RECREO' + (tr.horas ? (' · ' + _esc(tr.horas)) : '') + '</div>';
+  }
+  // Recreo con turnos: una franja por día con «Zona: nombres». Sin turnos,
+  // la banda de siempre.
+  function _sbRecreoSemana(t, dias) {
+    var hay = dias.some(function(d) { return ((t.porDia[d.k] || {}).zonas || []).length; });
+    if (!hay) return _sbRecreo(t.tramo);
+    return '<div class="sb-weekrow sb-recreo-w"><div class="sb-rail sb-rail-recreo">RECREO</div>' + dias.map(function(d) {
+      return '<div class="sb-daycol sb-recreo-col">' + _sbZonas(((t.porDia[d.k] || {}).zonas) || []) + '</div>';
+    }).join('') + '</div>';
+  }
+  function _sbZonas(zonas) {
+    return zonas.length ? zonas.map(function(z) { return '<span class="sb-zona"><b>' + _esc(z.zona) + ':</b> ' + z.docentes.map(_esc).join(', ') + '</span>'; }).join('')
+      : '<span class="sb-zona sb-zona-vacia">—</span>';
   }
   // «No en el centro» va bajo los apoyos (hueco libre del 2.º panel): una fila menos.
   function _sbCols(cursos, apoyos, libres) {

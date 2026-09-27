@@ -64,6 +64,11 @@
         <?!= include('partial_pintado') ?>
       </section>
 
+      <!-- Turnos de recreo -->
+      <section class="view" id="view-recreos">
+        <?!= include('partial_recreos') ?>
+      </section>
+
       <!-- Secciones de datos (centro, tramos, grupos, docentes, tutorías, localizaciones, materias, roles) -->
       <?!= include('partial_secciones') ?>
 
@@ -112,6 +117,7 @@
       { key: 'horario',        label: 'Horarios individuales' },
       { key: 'apoyos',         label: 'Refuerzo, PT y AL' },
       { key: 'ahora',          label: 'Ahora' },
+      { key: 'recreos',        label: 'Recreos' },
       { key: 'sustituciones',  label: 'Sustituciones', permiso: 'sustituciones' },
       { key: 'config',         label: 'Configuración' }
     ];
@@ -306,6 +312,7 @@
       ahora: function() { renderAhora(); },
       sustituciones: function() { renderSustituciones(); },
       horario: function() { renderHorario(); },
+      recreos: function() { renderRecreos(); },
       importar: function() { prepararImportar(); },
       centro: function() { cargarCentro(); renderConfig(); },
       tramos: function() { cargarTramos(); cargarSemanas(); },
@@ -567,7 +574,7 @@
     // Cada caja (tabla, rejilla…) mide como mucho lo que queda de pantalla
     // desde su borde superior, dejando sitio a lo que va debajo en su columna
     // (p. ej. el botón Guardar). Se recalcula al cambiar de vista o de tamaño.
-    var _CAJAS = '.view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
+    var _CAJAS = '.view.active .rc-body, .view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
     function ajustarAltos() {
       document.querySelectorAll(_CAJAS).forEach(function(c) {
         if (!c.offsetParent) return;

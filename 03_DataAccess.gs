@@ -385,6 +385,7 @@ function _idPrefix(sheetName) {
     '_Materias': 'mat',
     '_RolesEspeciales': 'rol',
     '_Ocupaciones': 'ocup',
+    '_ZonasRecreo': 'zona',
     '_Sustituciones': 'sus'
   };
   return prefijos[sheetName] || 'row';

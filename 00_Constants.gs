@@ -29,6 +29,7 @@ const SHEETS = {
   MATERIAS:        '_Materias',
   ROLES:           '_RolesEspeciales',
   OCUPACIONES:    '_Ocupaciones',
+  ZONAS_RECREO:   '_ZonasRecreo',
   SUSTITUCIONES:  '_Sustituciones'
 };
 
@@ -67,6 +68,9 @@ const SCHEMA = {
     'localizacion_id', 'rol_loc_id', 'grupo_destino_id',
     'rol_especial_id', 'notas', 'mitad', 'semana'
   ],
+  [SHEETS.ZONAS_RECREO]: [
+    'id', 'nombre', 'plazas', 'orden', 'color'
+  ],
   [SHEETS.SUSTITUCIONES]: [
     'id', 'fecha', 'docente_ausente_id', 'docente_sustituto_id',
     'tramo_id', 'notas', 'grupo_id'
@@ -84,5 +88,6 @@ const SHEET_ORDER = [
   SHEETS.MATERIAS,
   SHEETS.ROLES,
   SHEETS.OCUPACIONES,
+  SHEETS.ZONAS_RECREO,
   SHEETS.SUSTITUCIONES
 ];

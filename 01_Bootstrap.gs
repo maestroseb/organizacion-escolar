@@ -174,7 +174,8 @@ const SECCIONES_VACIABLES = {
   localizaciones: 'LOCALIZACIONES',
   materias:       'MATERIAS',
   roles:          'ROLES',
-  ocupaciones:    'OCUPACIONES'
+  ocupaciones:    'OCUPACIONES',
+  zonas_recreo:   'ZONAS_RECREO'
 };
 
 function vaciarSeccion(clave) {
