@@ -560,6 +560,28 @@
       if (sucio) { e.preventDefault(); e.returnValue = ''; }
     });
 
+    // ---------- Modales: clic fuera o Esc = Cancelar ----------
+    // Se pulsa el propio botón Cancelar del modal (así se respetan sus
+    // confirmaciones, p. ej. el pintado con cambios). Solo cuenta si el clic
+    // empieza y acaba en el fondo (arrastrar desde dentro no cierra).
+    function _cancelarModal(ov) {
+      var b = Array.prototype.filter.call(ov.querySelectorAll('button'), function(x) {
+        return /^cancelar$/i.test(x.textContent.trim()) || /^cerrar/i.test(x.title || '');
+      })[0];
+      if (b) b.click(); else ov.classList.remove('show');
+    }
+    var _ovDown = null;
+    document.addEventListener('mousedown', function(e) { _ovDown = e.target.classList && e.target.classList.contains('modal-overlay') ? e.target : null; });
+    document.addEventListener('click', function(e) {
+      if (_ovDown && e.target === _ovDown && _ovDown.classList.contains('show')) _cancelarModal(_ovDown);
+      _ovDown = null;
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      var abiertos = document.querySelectorAll('.modal-overlay.show');
+      if (abiertos.length) { e.preventDefault(); _cancelarModal(abiertos[abiertos.length - 1]); }
+    });
+
     // ---------- Pegar desde una hoja de cálculo en las tablas editables ----------
     // Si el portapapeles trae varias celdas (tabuladores / saltos de línea), se
     // reparten a partir de la celda donde se pega: filas hacia abajo, columnas a
