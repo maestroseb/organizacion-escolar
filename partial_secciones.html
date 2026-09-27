@@ -181,7 +181,7 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
-  <div class="toolbar"><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><span class="hint" id="doc-sesion"></span></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
