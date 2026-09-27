@@ -118,6 +118,9 @@
   .brandrow { display: contents; }
   .brand { grid-area: brand; display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 300px; padding: 8px 0; }
   .top-acc { grid-area: tema; display: flex; align-items: center; gap: 4px; }
+  .zoom-grp { display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  .zoom-grp button { min-height: 30px; padding: 0 8px; border-radius: 0; font-weight: 700; font-size: var(--fs-sm); }
+  .zoom-grp .zoom-val { font-weight: 600; color: var(--muted); min-width: 46px; font-variant-numeric: tabular-nums; }
   .tab-config { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
   .tab-config[hidden] { display: none; }
   .tab-config.active { color: var(--accent-text); background: var(--accent-weak); }
