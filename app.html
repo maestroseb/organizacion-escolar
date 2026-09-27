@@ -585,6 +585,10 @@
         for (var el = c; el && el !== col; el = el.parentElement)
           for (var sb = el.nextElementSibling; sb; sb = sb.nextElementSibling) if (sb.offsetParent) debajo += sb.offsetHeight + 10;
         c.style.maxHeight = Math.max(220, window.innerHeight - top - debajo - 16) + 'px';
+        // Si aun así la página se desplaza (márgenes, rellenos…), se recorta lo
+        // que sobra: la caja no debe meterse bajo la cabecera fija.
+        var sobra = document.documentElement.scrollHeight - window.innerHeight;
+        if (sobra > 0 && sobra < 150 && c.scrollHeight > c.clientHeight) c.style.maxHeight = Math.max(220, parseFloat(c.style.maxHeight) - sobra) + 'px';
       });
     }
     var _altoPend = false;

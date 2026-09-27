@@ -52,7 +52,11 @@
     const cont = document.getElementById('sb-body');
     if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
     if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos y semanas</b>.</div>'; return; }
+    // Al cambiar de semana se conserva la posición del scroll para comparar A y B.
+    var prev = cont.querySelector('.sb-weekscroll'), sx = prev ? prev.scrollLeft : 0, sy = prev ? prev.scrollTop : 0;
     cont.innerHTML = _sbGridHtml(res);
+    var nuevo = cont.querySelector('.sb-weekscroll');
+    if (nuevo && (sx || sy)) { if (window.ajustarAltos) ajustarAltos(); nuevo.scrollLeft = sx; nuevo.scrollTop = sy; }
     _sbPrecargar();
     if (document.fonts && document.fonts.status !== 'loaded' && !_sbFuenteEspera) {
       _sbFuenteEspera = true;
