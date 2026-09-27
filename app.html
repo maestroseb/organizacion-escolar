@@ -579,7 +579,10 @@
     document.addEventListener('keydown', function(e) {
       if (e.key !== 'Escape') return;
       var abiertos = document.querySelectorAll('.modal-overlay.show');
-      if (abiertos.length) { e.preventDefault(); _cancelarModal(abiertos[abiertos.length - 1]); }
+      if (!abiertos.length) return;
+      // La confirmación va siempre por encima del resto.
+      var conf = document.querySelector('#modal-confirm.show');
+      e.preventDefault(); _cancelarModal(conf || abiertos[abiertos.length - 1]);
     });
 
     // ---------- Pegar desde una hoja de cálculo en las tablas editables ----------
