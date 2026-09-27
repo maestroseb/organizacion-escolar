@@ -72,6 +72,11 @@
     var act = _ahActual(), estado = 'ahora';
     // Clases terminadas por hoy: escena animada (‹ vuelve al último tramo).
     if (!AH_FIJO && act.estado === 'terminado') { AH_IDX = AH.tramos.length; _ahDescanso(cont, 'fin'); return; }
+    // De madrugada seguimos durmiendo: el primer tramo se muestra una hora antes.
+    if (!AH_FIJO && act.estado === 'proximo' && act.i === 0) {
+      var d0 = new Date(), ini = _ahMin(String(AH.tramos[0].tramo.horas).split('–')[0]);
+      if (ini != null && d0.getHours() * 60 + d0.getMinutes() < ini - 60) { AH_IDX = -1; _ahDescanso(cont, 'pronto'); return; }
+    }
     if (AH_FIJO) estado = (AH_IDX === act.i && act.estado === 'ahora') ? 'ahora' : 'otro';
     else { AH_IDX = act.i; estado = act.estado; }
     var t = AH.tramos[AH_IDX], tr = t.tramo;
@@ -79,12 +84,12 @@
     var etq = { ahora: 'AHORA', proximo: 'PRÓXIMO', terminado: 'ÚLTIMO TRAMO', otro: 'TRAMO' }[estado];
     var html = '<div class="ah-card">' +
       '<div class="ah-head" style="' + st + '"><span class="ah-etq">' + etq + '</span>' +
-        _esc(String(AH.diaLargo).toUpperCase() + (tr.es_recreo ? ' · RECREO · ' : ' · TRAMO ' + tr.orden + ' · ') + tr.horas) +
+        '<span class="ah-tit">' + _esc(String(AH.diaLargo).toUpperCase() + (tr.es_recreo ? ' · RECREO · ' : ' · TRAMO ' + tr.orden + ' · ') + tr.horas) + '</span>' +
         '<span class="ah-reloj" id="ah-reloj">' + _ahReloj() + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
     if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
-    else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t) + '">' +
+    else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t, cont.clientWidth - 2) + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
       '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
     cont.innerHTML = html + '</div>';
@@ -94,7 +99,11 @@
     var d = new Date(), h = d.getHours(), dow = d.getDay();
     var modo = (h >= 21 || h < 7) ? 'noche' : (h >= 16 ? 'tarde' : 'dia');
     var tit, sub;
-    if (tipo === 'fin') {
+    if (tipo === 'pronto') {
+      var p0 = String(AH.tramos[0].tramo.horas).split('–')[0].trim();
+      tit = modo === 'noche' ? 'El cole duerme… 🌙' : 'Aún es pronto ☕';
+      sub = 'Hoy la primera es a las ' + p0 + '; aparecerá una hora antes. › para verla ya.';
+    } else if (tipo === 'fin') {
       tit = modo === 'noche' ? 'El cole duerme… 🌙' : '¡Clases terminadas por hoy!';
       var pri = AH.tramos[0] && String(AH.tramos[0].tramo.horas).split('–')[0];
       sub = (dow === 5 ? 'El lunes' : 'Mañana') + (pri ? ', la primera a las ' + pri.trim() : ' volvemos') + '. ‹ para repasar los tramos de hoy.';
@@ -242,7 +251,24 @@
     requestAnimationFrame(frame);
   }
 
-  function _ahAnchos(t) { return _sbAnchosDe([t], 14); }
+  // Anchos de columna a 14px; si no caben las dos columnas (móvil), se reduce
+  // la letra para que quepan lado a lado a todo el ancho.
+  function _ahAnchos(t, disp) {
+    var suma = function(px) {
+      var v = {}; _sbAnchosDe([t], px).replace(/--([\w-]+):([\d.]+)px/g, function(_, k, n) { v[k] = +n; });
+      return v['sb-cw'] + v['sb-docw'] + v['sb-ocw'] + v['sb-lw'] + v['sb-dw2'] + v['sb-ow2'] + 1;
+    };
+    var px = 14, w14 = suma(14);
+    if (disp > 0 && w14 > disp) {
+      var w7 = suma(7), a = (w14 - w7) / 7, b = w14 - a * 14;   // ancho ≈ a·px + b
+      px = Math.max(7, Math.floor(((disp - b) / a) * 4) / 4);
+    }
+    return _sbAnchosDe([t], px) + '--ah-fs:' + px + 'px;';
+  }
+  // Al girar el móvil o cambiar el ancho, se reajusta.
+  window.addEventListener('resize', function() {
+    clearTimeout(window._ahRz); window._ahRz = setTimeout(function() { var b = document.getElementById('ah-body'); if (AH && b && b.offsetParent !== null && b.querySelector('.ah-cols')) _ahPintar(); }, 150);
+  });
 
   // Panel con la URL (copiar / abrir) en lugar de un alert del navegador.
   function ahCopiarEnlace(copiar) {

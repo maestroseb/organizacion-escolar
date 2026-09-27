@@ -84,6 +84,8 @@
     --shadow-lg: 0 16px 50px rgba(0,0,0,.6);
     color-scheme: dark;
   }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .tabs { --tab-s: 70%; --tab-l: 55%; --tab-a: .2; --tab-brillo: .07; --tab-txt: 80%; } }
+  :root[data-theme="dark"] .tabs { --tab-s: 70%; --tab-l: 55%; --tab-a: .2; --tab-brillo: .07; --tab-txt: 80%; }
 
   /* ---------- Base ---------- */
   *, *::before, *::after { box-sizing: border-box; }
@@ -108,7 +110,10 @@
     position: sticky; top: 0; z-index: 20;
     /* Degradado pastel suave; la pestaña activa "sale" del fondo de la página. */
     background:
-      linear-gradient(100deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 40%, color-mix(in srgb, #10b981 8%, transparent)),
+      radial-gradient(40% 140% at 12% 0%, color-mix(in srgb, #a78bfa 22%, transparent), transparent 70%),
+      radial-gradient(35% 160% at 48% 100%, color-mix(in srgb, #38bdf8 18%, transparent), transparent 70%),
+      radial-gradient(35% 150% at 78% 0%, color-mix(in srgb, #f472b6 16%, transparent), transparent 70%),
+      radial-gradient(30% 160% at 100% 100%, color-mix(in srgb, #34d399 18%, transparent), transparent 70%),
       color-mix(in srgb, var(--surface) 92%, transparent);
     backdrop-filter: saturate(1.4) blur(10px);
     box-shadow: inset 0 -1px 0 var(--border);
@@ -147,26 +152,32 @@
      la anterior (z-index y --k desde construirTabs) y es algo más oscura y
      esmerilada; la activa va delante con el color de fondo de la página. */
   .tabs {
+    --tab-s: 85%; --tab-l: 62%; --tab-a: .26; --tab-brillo: .5; --tab-txt: 34%;
     grid-area: tabs; display: flex; overflow-x: auto; align-self: end;
     padding: 8px 12px 0; scrollbar-width: none; -ms-overflow-style: none;
   }
   .tabs::-webkit-scrollbar { display: none; }
   .tab {
-    --k: 0; position: relative; appearance: none; border: none; background: none; cursor: pointer;
+    --k: 0; --h: 240; position: relative; appearance: none; border: none; background: none; cursor: pointer;
     font: inherit; font-size: var(--fs); color: var(--muted); font-weight: 550;
     padding: 0 50px 0 30px; margin-right: -30px; min-width: 150px; min-height: 42px; white-space: nowrap;
-    display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color .15s;
+    display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; transition: color .15s;
   }
   .tab::before {
     content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-    background: color-mix(in srgb, color-mix(in srgb, var(--text) calc(6% + var(--k) * 5%), var(--bg)) 72%, transparent);
+    /* Cristal esmerilado teñido con el tono de cada pestaña (--h) y brillo arriba. */
+    background:
+      linear-gradient(to bottom, rgba(255,255,255,var(--tab-brillo)), rgba(255,255,255,0) 70%),
+      hsl(var(--h) var(--tab-s) var(--tab-l) / calc(var(--tab-a) + var(--k) * .03));
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
     -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 42' preserveAspectRatio='none'%3E%3Cpath d='M18 0V42H0V16C0 6 6 0 16 0Z'/%3E%3C/svg%3E") left / 18px 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 42' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6C13 0 16 3 19 9L31 33C34 39 38 42 48 42H0Z'/%3E%3C/svg%3E") right / 48px 100% no-repeat, linear-gradient(#000, #000) 18px 0 / calc(100% - 66px) 100% no-repeat;
     mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 42' preserveAspectRatio='none'%3E%3Cpath d='M18 0V42H0V16C0 6 6 0 16 0Z'/%3E%3C/svg%3E") left / 18px 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 42' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6C13 0 16 3 19 9L31 33C34 39 38 42 48 42H0Z'/%3E%3C/svg%3E") right / 48px 100% no-repeat, linear-gradient(#000, #000) 18px 0 / calc(100% - 66px) 100% no-repeat;
     transition: background .2s;
   }
   .tab:hover:not(:disabled) { color: var(--text); }
-  .tab:hover:not(:disabled):not(.active)::before { background: color-mix(in srgb, color-mix(in srgb, var(--text) 4%, var(--bg)) 85%, transparent); }
+  .tab:not(.active):not(:disabled) { color: hsl(var(--h) 55% var(--tab-txt)); }
+  .tab:hover:not(:disabled):not(.active)::before { background: linear-gradient(to bottom, rgba(255,255,255,var(--tab-brillo)), rgba(255,255,255,0) 70%), hsl(var(--h) var(--tab-s) var(--tab-l) / calc(var(--tab-a) + .14)); }
   .tab.active { z-index: 50 !important; color: var(--text); font-weight: 650; }
   .tab.active::before { background: var(--bg); }
   .tab:focus-visible { outline-offset: -4px; }
@@ -536,7 +547,8 @@
   .ah-solo #ah-toolbar { display: none; }
   .ah-solo .shell { padding: 10px; }
   .ah-card { font-family: var(--font-cond); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); width: fit-content; max-width: 100%; }
-  .ah-head { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: .03em; padding: 6px 12px; }
+  .ah-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; font-weight: 700; font-size: 17px; letter-spacing: .03em; padding: 6px 12px; }
+  .ah-tit { white-space: nowrap; }
   .ah-etq { font-size: 11px; letter-spacing: .08em; background: rgba(0,0,0,.22); color: #fff; border-radius: 999px; padding: 2px 8px; }
   .ah-reloj { margin-left: auto; font-size: 13px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; opacity: .95; white-space: nowrap; }
   .ah-sem { font-size: 11px; background: rgba(255,255,255,.92); color: #1f2430; border-radius: 4px; padding: 0 6px; line-height: 18px; }
@@ -545,8 +557,24 @@
   .ah-desc-t { font-size: var(--fs-lg); font-weight: 700; margin-top: var(--s4); }
   .ah-desc-s { color: var(--muted); margin-top: var(--s1); }
   .ah-aus { font-size: var(--fs-sm); padding: 4px 12px; background: var(--warn-weak, #fff4e0); color: var(--text); border-bottom: 1px solid var(--border); }
-  .ah-cols { overflow-x: auto; }
-  .ah-cols table.sb { font-size: 14px; }
+  /* Las columnas ocupan todo el ancho de la tarjeta (alineadas con la cabecera)
+     y nunca se apilan: en móvil se reduce la letra (--ah-fs) para que quepan. */
+  .ah-cols { overflow-x: auto; flex-direction: row !important; }
+  .ah-cols .sb-pane { flex: 1 1 auto; }
+  .ah-cols .sb-pane + .sb-pane { border-left: 1px solid var(--border-strong) !important; border-top: none !important; }
+  .ah-cols table.sb { font-size: var(--ah-fs, 14px); width: 100%; min-width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); }
+  .ah-cols table.sb thead th { font-size: .8em; }
+  .ah-cols .sb-pill { font-size: .88em; line-height: 1.3; }
+  .ah-cols .sb-libres { max-width: none; font-size: calc(var(--ah-fs, 14px) * .85); }
+  @media (max-width: 560px) {
+    .ah-head { font-size: min(15px, 3.6vw); padding: 6px 10px; gap: 4px 8px; }
+    .ah-etq { font-size: 10px; padding: 2px 6px; }
+    /* Dos líneas: etiqueta + tramo arriba; fecha, hora y semana abajo. */
+    .ah-tit { flex: 1 1 auto; }
+    .ah-reloj { margin-left: 0; font-size: 13px; flex: 0 1 calc(100% - 40px); }
+    .ah-cols table.sb td { padding: 2px 3px; }
+    .ah-cols table.sb thead th { padding: 3px 3px; }
+  }
   .ah-recreo { padding: 10px; font-size: var(--fs-md); }
   .sb-sus { background: var(--accent-weak); color: var(--accent-text); border-radius: 3px; padding: 0 4px; font-weight: 700; }
   .sb-cubre { font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--accent-text); }
