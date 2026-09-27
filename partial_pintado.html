@@ -1,0 +1,211 @@
+<!-- ============ Editor de horario por pintado (docente) ============ -->
+<div class="modal-overlay" id="pt-modal">
+  <div class="modal-box pt-box">
+    <div class="pt-head">
+      <h3>Pintar horario · <span id="pt-doc"></span></h3>
+      <div class="pt-head-acc">
+        <button class="secondary btn-sm" id="pt-undo" onclick="ptDeshacer()" title="Deshacer (Ctrl+Z)">↶ Deshacer</button>
+        <button class="ghost" onclick="ptCerrar()" title="Cerrar sin guardar">✕</button>
+      </div>
+    </div>
+    <div class="pt-body">
+      <aside class="pt-left">
+        <div class="pt-brush" id="pt-brush"></div>
+        <div class="pt-lbl">Tipo</div>
+        <div class="segmented pt-seg" id="pt-tipo"></div>
+        <div class="pt-lbl">Semana</div>
+        <div class="segmented pt-seg" id="pt-sem"></div>
+        <div class="pt-lbl">Parte del tramo</div>
+        <div class="segmented pt-seg" id="pt-mitad"></div>
+        <div id="pt-listas"></div>
+        <p class="hint pt-ayuda">Pulsa o arrastra sobre las celdas para pintar. <b>Mayús+clic</b> copia la brocha de una celda. Cada celda se divide en cuatro: columnas <b>A | B</b> (semana) y filas <b>1ª | 2ª</b> (mitad del tramo).</p>
+      </aside>
+      <div class="pt-gridwrap"><div id="pt-grid"></div></div>
+    </div>
+    <div class="pt-foot">
+      <span class="hint" id="pt-estado"></span>
+      <button class="secondary" onclick="ptCerrar()">Cancelar</button>
+      <button class="primary" onclick="ptGuardar()">Guardar y cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Modelo: cada ocupación ocupa uno o varios "cuartos" de la celda (día, tramo):
+  //   semana ''|'A'|'B'  ×  mitad ''|'1'|'2'  →  cuartos A1, A2, B1, B2.
+  // Pintar con un alcance (semana, mitad) sustituye lo que había en esos cuartos
+  // y conserva, recortadas, las ocupaciones que quedan parcialmente fuera.
+  var PT = { ocs: [], hist: [], tipo: 'grupo', materia: '', grupos: [], rol: '', sem: '', mitad: '', pintando: false };
+
+  function abrirPintado() {
+    if (!HD_DOC || !HD_CAT) { aviso('Elige primero un docente', 'err'); return; }
+    if (typeof hayCambios === 'function' && hayCambios('horario_grupo')) { aviso('Guarda antes los cambios del horario del grupo', 'err'); return; }
+    PT.ocs = JSON.parse(JSON.stringify(HD_OCUPS)); PT.hist = [];
+    var sel = document.getElementById('hd-select');
+    document.getElementById('pt-doc').textContent = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : '';
+    _ptPanel(); _ptGrid();
+    document.getElementById('pt-modal').classList.add('show');
+  }
+  function ptCerrar() {
+    if (PT.hist.length && !confirm('¿Cerrar sin guardar los cambios pintados?')) return;
+    document.getElementById('pt-modal').classList.remove('show');
+  }
+  function ptGuardar() {
+    HD_OCUPS = PT.ocs; HD_DIRTY = true; _hdActualizarGuardar();
+    document.getElementById('pt-modal').classList.remove('show');
+    renderGrid(); revisarCambios();
+    guardarHorario();
+  }
+  function ptDeshacer() { if (!PT.hist.length) return; PT.ocs = PT.hist.pop(); _ptGrid(); }
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.getElementById('pt-modal').classList.contains('show')) { e.preventDefault(); ptDeshacer(); }
+  });
+
+  // ---------- Cuartos ----------
+  var _Q = ['A1', 'A2', 'B1', 'B2'];
+  function _ptQ(sem, mit) {
+    return _Q.filter(function(q) { return (!sem || q[0] === sem) && (!mit || q[1] === mit); });
+  }
+  // Conjunto de cuartos → mínima lista de (semana, mitad).
+  function _ptRect(qs) {
+    var has = {}; qs.forEach(function(q) { has[q] = 1; });
+    var out = [], usado = {};
+    var tomar = function(sem, mit) { var c = _ptQ(sem, mit); if (c.every(function(q) { return has[q] && !usado[q]; })) { c.forEach(function(q) { usado[q] = 1; }); out.push([sem, mit]); } };
+    tomar('', '');
+    ['A', 'B'].forEach(function(s) { tomar(s, ''); });
+    ['1', '2'].forEach(function(m) { tomar('', m); });
+    _Q.forEach(function(q) { if (has[q] && !usado[q]) { usado[q] = 1; out.push([q[0], q[1]]); } });
+    return out;
+  }
+
+  // ---------- Pintar ----------
+  function _ptBrochaValida() {
+    if (PT.tipo === 'borrar') return true;
+    if (PT.tipo === 'grupo') return PT.materia && PT.grupos.length;
+    return !!PT.rol;
+  }
+  function _ptPintar(dia, tramo) {
+    if (!_ptBrochaValida()) { _ptEstado('Completa la brocha: ' + (PT.tipo === 'grupo' ? 'elige área y grupo' : 'elige el cargo o apoyo')); return; }
+    PT.hist.push(JSON.parse(JSON.stringify(PT.ocs)));
+    if (PT.hist.length > 60) PT.hist.shift();
+    var alcance = _ptQ(PT.sem, PT.mitad), nuevas = [];
+    PT.ocs.forEach(function(o) {
+      if (o.dia !== dia || o.tramo_id !== tramo) { nuevas.push(o); return; }
+      var resto = _ptQ(o.semana, o.mitad).filter(function(q) { return alcance.indexOf(q) === -1; });
+      _ptRect(resto).forEach(function(r) { var c = JSON.parse(JSON.stringify(o)); c.semana = r[0]; c.mitad = r[1]; nuevas.push(c); });
+    });
+    if (PT.tipo !== 'borrar') {
+      var g = PT.grupos.join(',');
+      nuevas.push({ dia: dia, tramo_id: tramo, tipo: PT.tipo, materia_id: PT.tipo === 'grupo' ? PT.materia : '',
+        grupo_id: PT.tipo === 'grupo' ? g : '', rol_id: PT.tipo !== 'grupo' ? PT.rol : '',
+        grupo_destino_id: PT.tipo === 'localizacion' ? g : '', mitad: PT.mitad, semana: PT.sem, notas: '' });
+    }
+    PT.ocs = nuevas;
+    _ptCelda(dia, tramo);
+    _ptEstado('');
+  }
+  function _ptCopiar(dia, tramo) {
+    var o = PT.ocs.filter(function(x) { return x.dia === dia && x.tramo_id === tramo; })[0];
+    if (!o) return;
+    PT.tipo = o.tipo; PT.materia = o.materia_id || ''; PT.rol = o.rol_id || '';
+    PT.grupos = _hdCsvArr(o.tipo === 'localizacion' ? o.grupo_destino_id : o.grupo_id);
+    PT.sem = o.semana || ''; PT.mitad = o.mitad || '';
+    _ptPanel(); _ptEstado('Brocha copiada de la celda');
+  }
+
+  // ---------- Panel de brocha ----------
+  function _ptSeg(id, ops, val, fn) {
+    document.getElementById(id).innerHTML = ops.map(function(o) {
+      return '<button type="button" class="' + (o[0] === val ? 'active' : '') + '" onclick="' + fn + '(\'' + o[0] + '\')">' + o[1] + '</button>';
+    }).join('');
+  }
+  function ptSet(k, v) { PT[k] = v; _ptPanel(); }
+  function ptTipo(v) { PT.tipo = v; if (v !== 'grupo' && v !== 'localizacion') PT.grupos = []; _ptPanel(); }
+  function ptSem(v) { PT.sem = v; _ptPanel(); }
+  function ptMit(v) { PT.mitad = v; _ptPanel(); }
+  function ptMat(id) { PT.materia = id; _ptPanel(); }
+  function ptRol(id) { PT.rol = id; _ptPanel(); }
+  function ptGrupo(id) { var i = PT.grupos.indexOf(id); if (i === -1) PT.grupos.push(id); else PT.grupos.splice(i, 1); _ptPanel(); }
+
+  function _ptColor(arr, id) { var x = (arr || []).filter(function(y) { return y.id === id; })[0]; return x ? _sbColor(x.color) : ''; }
+  function _ptNom(arr, id, corto) { var x = (arr || []).filter(function(y) { return y.id === id; })[0]; return x ? ((corto && x.extra) || x.nombre) : '¿?'; }
+  function _ptEtq(o) {
+    if (o.tipo === 'grupo') return _ptNom(HD_CAT.materias, o.materia_id, true) + ' ' + _hdGruposNombres(o.grupo_id);
+    return _ptNom(HD_CAT.roles, o.rol_id) + (o.grupo_destino_id ? ' ' + _hdGruposNombres(o.grupo_destino_id) : '');
+  }
+  function _ptEstilo(o) {
+    var c = o.tipo === 'grupo' ? _ptColor(HD_CAT.materias, o.materia_id) : _ptColor(HD_CAT.roles, o.rol_id);
+    return c ? _sbPill(c) : '';
+  }
+
+  function _ptPanel() {
+    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['localizacion', 'Apoyo'], ['especial', 'Cargo'], ['borrar', 'Borrar']], PT.tipo, 'ptTipo');
+    _ptSeg('pt-sem', [['', 'Todas'], ['A', 'Sem A'], ['B', 'Sem B']], PT.sem, 'ptSem');
+    _ptSeg('pt-mitad', [['', 'Entero'], ['1', '1ª mitad'], ['2', '2ª mitad']], PT.mitad, 'ptMit');
+    var chips = function(arr, sel, fn, multi, corto) {
+      return '<div class="pt-chips">' + (arr || []).map(function(x) {
+        var on = multi ? sel.indexOf(x.id) !== -1 : sel === x.id, c = _sbColor(x.color);
+        return '<button type="button" class="pt-chip' + (on ? ' on' : '') + '" onclick="' + fn + '(' + _jsAttr(x.id) + ')"' +
+          (c ? ' style="--c:' + _esc(c) + '"' : '') + ' title="' + _esc(x.nombre) + '">' + _esc((corto && x.extra) || x.nombre) + '</button>';
+      }).join('') + '</div>';
+    };
+    var h = '';
+    if (PT.tipo === 'grupo') {
+      h += '<div class="pt-lbl">Área</div>' + chips(HD_CAT.materias, PT.materia, 'ptMat', false, true);
+      h += '<div class="pt-lbl">Grupo(s)</div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
+    } else if (PT.tipo === 'localizacion') {
+      h += '<div class="pt-lbl">Apoyo</div>' + chips(HD_CAT.roles, PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Grupo(s) destino <span class="hint">(opcional)</span></div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
+    } else if (PT.tipo === 'especial') {
+      h += '<div class="pt-lbl">Cargo</div>' + chips(HD_CAT.roles, PT.rol, 'ptRol');
+    }
+    document.getElementById('pt-listas').innerHTML = h;
+    // Vista previa de la brocha.
+    var b = document.getElementById('pt-brush');
+    var alc = (PT.sem ? 'Semana ' + PT.sem : 'Todas las semanas') + ' · ' + (PT.mitad ? PT.mitad + 'ª mitad' : 'tramo entero');
+    if (PT.tipo === 'borrar') b.innerHTML = '<span class="pt-prev pt-prev-borrar">Borrar</span><small>' + alc + '</small>';
+    else if (!_ptBrochaValida()) b.innerHTML = '<span class="pt-prev pt-prev-vacia">Elige ' + (PT.tipo === 'grupo' ? 'área y grupo' : 'cargo') + '</span><small>' + alc + '</small>';
+    else {
+      var o = { tipo: PT.tipo, materia_id: PT.materia, rol_id: PT.rol, grupo_id: PT.tipo === 'grupo' ? PT.grupos.join(',') : '', grupo_destino_id: PT.tipo === 'localizacion' ? PT.grupos.join(',') : '' };
+      b.innerHTML = '<span class="pt-prev" style="' + _ptEstilo(o) + '">' + _esc(_ptEtq(o)) + '</span><small>' + alc + '</small>';
+    }
+  }
+
+  // ---------- Rejilla ----------
+  function _ptGrid() {
+    var head = '<thead><tr><th class="pt-th-t">Tramo</th>' + HD_DIAS.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
+    var rows = HD_CAT.tramos.map(function(t) {
+      if (t.es_recreo) return '<tr class="pt-recreo"><th class="pt-th-t">Recreo</th><td colspan="5"></td></tr>';
+      return '<tr><th class="pt-th-t">T' + _esc(t.orden) + '<span>' + _esc(String(t.horas || '').replace('-', '–')) + '</span></th>' +
+        HD_DIAS.map(function(d) { return '<td class="pt-cell" id="pt-' + d.k + '-' + _esc(t.id) + '" data-d="' + d.k + '" data-t="' + _esc(t.id) + '"></td>'; }).join('') + '</tr>';
+    }).join('');
+    document.getElementById('pt-grid').innerHTML = '<table class="pt-t">' + head + '<tbody>' + rows + '</tbody></table>';
+    HD_CAT.tramos.forEach(function(t) { if (!t.es_recreo) HD_DIAS.forEach(function(d) { _ptCelda(d.k, t.id); }); });
+  }
+  function _ptCelda(dia, tramo) {
+    var td = document.getElementById('pt-' + dia + '-' + tramo); if (!td) return;
+    var ocs = PT.ocs.filter(function(o) { return o.dia === dia && o.tramo_id === tramo; });
+    var partida = ocs.some(function(o) { return o.semana || o.mitad; });
+    td.classList.toggle('pt-partida', partida);
+    td.innerHTML = '<div class="pt-q">' + ocs.map(function(o) {
+      var col = o.semana === 'A' ? '1' : o.semana === 'B' ? '2' : '1 / 3', row = o.mitad === '1' ? '1' : o.mitad === '2' ? '2' : '1 / 3';
+      var tag = (o.semana ? o.semana : '') + (o.mitad ? (o.semana ? '·' : '') + o.mitad + 'ª' : '');
+      return '<div class="pt-oc" style="grid-column:' + col + ';grid-row:' + row + ';' + _ptEstilo(o) + '" title="' + _esc(_ptEtq(o) + (tag ? ' (' + tag + ')' : '')) + '">' +
+        _esc(_ptEtq(o)) + (tag ? '<i>' + tag + '</i>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+  // Pintar con clic o arrastrando.
+  document.addEventListener('mousedown', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
+    e.preventDefault();
+    if (e.shiftKey) { _ptCopiar(td.dataset.d, td.dataset.t); return; }
+    PT.pintando = true; PT._ult = td.id; _ptPintar(td.dataset.d, td.dataset.t);
+  });
+  document.addEventListener('mouseover', function(e) {
+    if (!PT.pintando) return;
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td || td.id === PT._ult) return;
+    PT._ult = td.id; _ptPintar(td.dataset.d, td.dataset.t);
+  });
+  document.addEventListener('mouseup', function() { PT.pintando = false; PT._ult = null; });
+  function _ptEstado(t) { document.getElementById('pt-estado').textContent = t; }
+</script>

@@ -541,6 +541,43 @@
   .toast.err { background: var(--danger); color: var(--on-danger, #fff); }
   .toast.fuera { opacity: 0; transform: translateY(6px); }
 
+  /* ---------- Editor por pintado ---------- */
+  .pt-box { width: min(1400px, 96vw); max-width: none; height: min(900px, 94vh); display: flex; flex-direction: column; padding: 12px 14px; }
+  .pt-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .pt-head h3 { margin: 0; }
+  .pt-head-acc { display: flex; gap: 6px; align-items: center; }
+  .pt-body { flex: 1; min-height: 0; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; margin-top: 8px; }
+  .pt-left { overflow: auto; padding-right: 4px; font-family: var(--font-cond); }
+  .pt-lbl { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin: 10px 0 4px; }
+  .pt-seg { display: flex; width: 100%; }
+  .pt-seg button { flex: 1; }
+  .pt-brush { position: sticky; top: 0; z-index: 1; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+  .pt-brush small { color: var(--muted); font-size: var(--fs-xs); }
+  .pt-prev { display: inline-block; border-radius: var(--radius-xs); padding: 2px 10px; font-weight: 700; background: var(--surface-3); }
+  .pt-prev-borrar { background: var(--danger-weak); color: var(--danger); }
+  .pt-prev-vacia { color: var(--faint); font-style: italic; font-weight: 400; }
+  .pt-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .pt-chip { --c: var(--border-strong); min-height: 24px; padding: 0 8px; font-size: 12px; font-weight: 600; border-radius: 999px; background: var(--surface); color: var(--text); border: 1px solid var(--border-strong); box-shadow: inset 3px 0 0 var(--c); }
+  .pt-chip.on { background: var(--c); color: #fff; border-color: var(--c); box-shadow: 0 0 0 2px var(--accent); text-shadow: 0 1px 1px rgba(0,0,0,.35); }
+  .pt-ayuda { margin-top: 12px; font-size: var(--fs-sm); }
+  .pt-gridwrap { overflow: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+  table.pt-t { width: 100%; min-width: 760px; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-family: var(--font-cond); user-select: none; }
+  table.pt-t th { position: sticky; top: 0; z-index: 2; background: var(--surface-3); font-size: var(--fs-xs); text-transform: uppercase; padding: 4px; }
+  table.pt-t .pt-th-t { position: sticky; left: 0; z-index: 1; width: 70px; background: var(--surface-2); text-align: left; font-size: var(--fs-sm); }
+  table.pt-t thead .pt-th-t { z-index: 3; }
+  .pt-th-t span { display: block; font-weight: 400; color: var(--faint); font-size: 10px; text-transform: none; }
+  table.pt-t td, table.pt-t tbody th { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .pt-cell { height: 58px; padding: 2px; cursor: crosshair; vertical-align: top; }
+  .pt-cell:hover { background: var(--accent-weak); }
+  .pt-q { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 2px; height: 100%; }
+  .pt-cell.pt-partida .pt-q { background-image: linear-gradient(to right, transparent calc(50% - .5px), var(--border-strong) calc(50% - .5px), var(--border-strong) calc(50% + .5px), transparent calc(50% + .5px)), linear-gradient(to bottom, transparent calc(50% - .5px), var(--border) calc(50% - .5px), var(--border) calc(50% + .5px), transparent calc(50% + .5px)); }
+  .pt-oc { border-radius: 4px; padding: 1px 4px; font-size: 11px; font-weight: 700; line-height: 1.15; overflow: hidden; background: var(--surface-3); display: flex; align-items: center; justify-content: center; text-align: center; gap: 3px; min-width: 0; }
+  .pt-oc i { font-style: normal; font-size: 9px; opacity: .75; }
+  tr.pt-recreo td, tr.pt-recreo th { background: var(--recreo) !important; color: #fff; height: 14px; font-size: 10px; }
+  .pt-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .pt-foot .hint { margin-right: auto; }
+  @media (max-width: 900px) { .pt-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); } .pt-left { max-height: 38vh; } }
+
   /* ---------- Refuerzo, PT y AL ---------- */
   #view-apoyos { font-family: var(--font-cond); }
   .ap-resumen { width: fit-content; max-width: 100%; margin-bottom: var(--s4); }
