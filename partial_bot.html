@@ -209,7 +209,12 @@
       dia = diaPedido;
     }
     var finde = dia === 0 || dia === 6;
-    if (finde && diaPedido == null) { dia = 1; salto = hoy.getDay() === 6 ? 2 : 1; otroDia = true; }
+    // Fin de semana sin día pedido: se avisa y se responde por el lunes.
+    var avisoFinde = '';
+    if (finde && diaPedido == null) {
+      avisoFinde = 'Hoy es ' + (hoy.getDay() === 0 ? 'domingo' : 'sábado') + ': no hay clase. 😴';
+      dia = 1; salto = hoy.getDay() === 6 ? 2 : 1; otroDia = true;
+    }
     // Semana: si el día pedido cae en la semana siguiente, la otra A/B.
     var cambiaSemana = (hoy.getDay() === 0 || hoy.getDay() === 6) ? false : (hoy.getDay() + salto) > 5;
 
@@ -228,7 +233,7 @@
       if (cambiaSemana) sem = sem === 'A' ? 'B' : 'A';
       _botSabana(sem, function(err2, res) {
         if (err2 || !res) return cb('No he podido leer la semana ' + sem + '.');
-        cb(_botContestar(n, res, BOT_DIAS[dia - 1], otroDia, sem, q));
+        cb(_botContestar(n, res, BOT_DIAS[dia - 1], otroDia, sem, q, avisoFinde));
       });
     });
     }
@@ -248,7 +253,13 @@
     }).withFailureHandler(function(e) { cb(e); }).datosAhora();
   }
 
-  function _botContestar(n, res, d, otroDia, sem, q) {
+  function _botContestar(n, res, d, otroDia, sem, q, avisoFinde) {
+    if (avisoFinde) {
+      // El reloj no tiene sentido en fin de semana.
+      if (/ (cuanto queda|cuanto falta|falta mucho|queda mucho|que tramo|en que tramo|que hora toca|que sesion|quien falta|faltan) /.test(n)) return avisoFinde + ' Pregúntame por el lunes o por cualquier día. 🛋️';
+      var r0 = _botContestar(n, res, d, otroDia, sem, q, '');
+      return avisoFinde + '<br>' + r0; // r0 ya dice «el lunes a 1ª…»
+    }
     var ts = _botTramos(res), ahora = new Date(), min = ahora.getHours() * 60 + ahora.getMinutes();
     var lect = ts.filter(function(x) { return !x.recreo; });
     // Reloj: cuánto queda, qué tramo es, qué semana es.
