@@ -65,7 +65,7 @@ function guardarSemanas(semanas) {
       etiqueta: s.etiqueta || ''
     };
   });
-  bulkReplace(SHEETS.SEMANAS, filas);
+  bulkReplace_(SHEETS.SEMANAS, filas);
   return { ok: true, total: filas.length };
 }
 

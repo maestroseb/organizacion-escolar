@@ -193,7 +193,9 @@ function vaciarSeccion(clave) {
   _exigirEdicion();
   const nombreConst = SECCIONES_VACIABLES[clave];
   if (!nombreConst) throw new Error('Sección desconocida: ' + clave);
-  bulkReplace(SHEETS[nombreConst], []);
+  bulkReplace_(SHEETS[nombreConst], []);
+  // Sin zonas, los turnos de recreo quedarían huérfanos: fuera también.
+  if (clave === 'zonas_recreo') bulkReplace_(SHEETS.OCUPACIONES, getAll(SHEETS.OCUPACIONES).filter(function(o) { return !_esTurnoRecreo(o); }));
   return { ok: true };
 }
 
@@ -205,9 +207,9 @@ function vaciarSeccion(clave) {
 function reiniciarCentro() {
   _exigirEdicion();
   Object.keys(SECCIONES_VACIABLES).forEach(function(clave) {
-    bulkReplace(SHEETS[SECCIONES_VACIABLES[clave]], []);
+    bulkReplace_(SHEETS[SECCIONES_VACIABLES[clave]], []);
   });
-  bulkReplace(SHEETS.CENTRO, []);
+  bulkReplace_(SHEETS.CENTRO, []);
   try {
     PropertiesService.getScriptProperties().deleteProperty(PROP_KEY_WIZARD);
   } catch (e) {}

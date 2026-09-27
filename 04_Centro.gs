@@ -39,7 +39,7 @@ function guardarCentro(datos) {
     fecha_inicio: datos.fecha_inicio || '',
     fecha_fin: datos.fecha_fin || ''
   };
-  upsert(SHEETS.CENTRO, fila);
+  upsert_(SHEETS.CENTRO, fila);
 
   guardarPreferenciasWizard({
     etapas: datos.etapas || '',
@@ -78,7 +78,7 @@ function guardarCentroInicial(datos) {
     fecha_inicio: datos.fecha_inicio || previo.fecha_inicio || '',
     fecha_fin: datos.fecha_fin || previo.fecha_fin || ''
   };
-  upsert(SHEETS.CENTRO, fila);
+  upsert_(SHEETS.CENTRO, fila);
   return { ok: true, centro: fila };
 }
 

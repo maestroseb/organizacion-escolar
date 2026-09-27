@@ -54,7 +54,7 @@ function guardarDocentes(docentes, modo) {
       parcial: d.parcial === true
     };
   });
-  const resumen = bulkMerge(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
+  const resumen = bulkMerge_(SHEETS.DOCENTES, filas, ['nombre_corto'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
 }
 
@@ -65,7 +65,7 @@ function guardarDocentes(docentes, modo) {
 function marcarDocenteParcial(id, parcial) {
   _exigirEdicion();
   if (!id) throw new Error('Falta el docente.');
-  update(SHEETS.DOCENTES, id, { parcial: !!parcial });
+  update_(SHEETS.DOCENTES, id, { parcial: !!parcial });
   return { ok: true };
 }
 

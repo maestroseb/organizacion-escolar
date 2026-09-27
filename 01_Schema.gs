@@ -56,7 +56,7 @@ function aplicarCabeceras_(sheet, cabeceras) {
 
   if (sheet.getFrozenRows() !== 1) sheet.setFrozenRows(1);
 
-  // getAll()/bulkReplace() acceden por POSICIÓN según SCHEMA: si las columnas
+  // getAll()/bulkReplace_() acceden por POSICIÓN según SCHEMA: si las columnas
   // de la hoja no siguen ese orden (p.ej. alguien las movió a mano), avisar.
   const desordenada = existentes.some(function(c, i) {
     return i < cabeceras.length && cabeceras.indexOf(c) !== -1 && cabeceras[i] !== c;

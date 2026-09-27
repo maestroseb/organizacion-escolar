@@ -48,7 +48,6 @@ function datosAhora() {
     data.cursos.forEach(function(c) {
       const n = cubreGrupo[c.grupo.id];
       if (!n) return;
-      if (c.fallbackTutor) c.ocupantes = [];
       c.ocupantes.push({ docente: n, materia: '', color: '', cubre: true });
       c.vacio = false;
       cubren[n] = true;
@@ -171,7 +170,7 @@ function guardarSustituciones(fecha, lista) {
       return { fecha: fecha, docente_ausente_id: x.ausente || '', docente_sustituto_id: x.sustituto || '', tramo_id: x.tramo, notas: x.notas || '',
         grupo_id: x.ausente ? '' : (x.grupo || '') };
     });
-    bulkReplace(SHEETS.SUSTITUCIONES, resto.concat(nuevas));
+    bulkReplace_(SHEETS.SUSTITUCIONES, resto.concat(nuevas));
     return { ok: true, total: nuevas.length };
   } finally {
     lock.releaseLock();

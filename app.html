@@ -210,7 +210,7 @@
     // incrementa tras cada guardado) y dos peticiones iguales a la vez se
     // fusionan en una. Cada llamante recibe su propia copia (pueden mutarla).
     var LECTURAS = { listarSemanas: 1, listarDocentes: 1, listarGrupos: 1, listarTramos: 1, listarMaterias: 1, listarRoles: 1,
-                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1, datosHorarios: 1 };
+                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarios: 1 };
     var _RPC = {}, _RPC_V = -1;
     function _copia(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
     function _srv(nombre, args) {
