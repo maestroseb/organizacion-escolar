@@ -16,7 +16,7 @@
 <div class="rc-layout">
   <aside class="rc-pool">
     <input type="search" id="rc-buscar" placeholder="🔍 Buscar…" oninput="_rcPool()">
-    <label class="rc-ocultar" title="Retira de la lista a quien ya tiene algún turno en este recreo"><input type="checkbox" id="rc-ocultar" onchange="rcOcultar(this.checked)"> Ocultar ya asignados</label>
+    <label class="rc-ocultar" title="Retira de la lista a quien ya llega a ese número de turnos por semana en este recreo (un turno solo de semana A o B cuenta ½). Vacío: no oculta a nadie.">Ocultar con ≥ <input type="number" id="rc-tope" min="0.5" step="0.5" placeholder="—" oninput="rcTope(this.value)"> turnos</label>
     <div id="rc-pool-list"></div>
   </aside>
   <div id="rc-body" class="rc-body"></div>
@@ -116,9 +116,10 @@
     var q = _rcNorm(document.getElementById('rc-buscar').value);
     var carga = {};
     RC_TUR.forEach(function(t) { carga[t.docente_id] = (carga[t.docente_id] || 0) + (t.semana ? 0.5 : 1); });
-    document.getElementById('rc-ocultar').checked = RC_OCULTAR;
+    var tope = document.getElementById('rc-tope');
+    if (document.activeElement !== tope) tope.value = RC_TOPE || '';
     document.getElementById('rc-pool-list').innerHTML = RC.docentes.filter(function(d) {
-      return (!q || _rcNorm(d.nombre + ' ' + d.titular).indexOf(q) !== -1) && !(RC_OCULTAR && carga[d.id] && d.id !== RC_SEL);
+      return (!q || _rcNorm(d.nombre + ' ' + d.titular).indexOf(q) !== -1) && !(RC_TOPE && (carga[d.id] || 0) >= RC_TOPE && d.id !== RC_SEL);
     }).map(function(d) {
       var n = carga[d.id] || 0, txt = n ? (Math.floor(n) || '') + (n % 1 ? '½' : '') : '';
       return '<div class="rc-pchip' + (RC_SEL === d.id ? ' on' : '') + '" draggable="true" data-doc="' + _esc(d.id) + '" onclick="rcElegir(' + _jsAttr(d.id) + ')">' +
@@ -127,9 +128,10 @@
   }
   function _rcNorm(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
 
-  // Ocultar a quien ya tiene turno (se recuerda en este navegador).
-  var RC_OCULTAR = (function() { try { return localStorage.getItem('rc_ocultar') === '1'; } catch (e) { return false; } })();
-  function rcOcultar(v) { RC_OCULTAR = v; try { localStorage.setItem('rc_ocultar', v ? '1' : '0'); } catch (e) {} _rcPool(); }
+  // Ocultar a quien ya llega a los turnos semanales fijados (2, 2,5, 3…).
+  // Se recuerda en este navegador.
+  var RC_TOPE = (function() { try { return parseFloat(localStorage.getItem('rc_tope')) || 0; } catch (e) { return 0; } })();
+  function rcTope(v) { RC_TOPE = parseFloat(String(v).replace(',', '.')) || 0; try { localStorage.setItem('rc_tope', RC_TOPE || ''); } catch (e) {} _rcPool(); }
   function rcElegir(id) { RC_SEL = RC_SEL === id ? '' : id; _rcPool(); }
   function rcSemana(i) { var t = RC_TUR[i]; t.semana = t.semana === '' ? 'A' : t.semana === 'A' ? 'B' : ''; _rcCambio(); }
   function rcQuitar(i) { RC_TUR.splice(i, 1); _rcCambio(); }
