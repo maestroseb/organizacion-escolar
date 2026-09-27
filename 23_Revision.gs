@@ -32,6 +32,13 @@
 
 const _DIAS_REV = ['L', 'M', 'X', 'J', 'V'];
 
+/** Duración de un tramo en horas (1 si no tiene horas válidas). */
+function _durTramoH(t) {
+  if (!t) return 1;
+  const a = _horaAMin(t.hora_inicio), b = _horaAMin(t.hora_fin);
+  return a >= 0 && b > a ? (b - a) / 60 : 1;
+}
+
 function _horaAMin(v) {
   if (v instanceof Date) return v.getHours() * 60 + v.getMinutes();
   const m = String(v || '').match(/(\d{1,2}):(\d{2})/);
@@ -350,8 +357,10 @@ function revisarProblemas() {
   // ---- I3) Más comprobaciones pedagógicas ----
   const lectivosT = tramos.filter(function(t) { return !t.es_recreo; });
   const nomG = function(id) { return (grupoById[id] || {}).nombre_corto || id; };
-  const peso = function(o) { return (String(o.semana || '').trim() ? 0.5 : 1) * (String(o.mitad || '').trim() ? 0.5 : 1); };
-  const horas = function(n) { return (Math.round(n * 10) / 10 + '').replace('.', ',') + ' h'; };
+  // Horas reales de una ocupación por semana: duración del tramo (los hay de
+  // media hora y de una hora) × ½ si es media clase × ½ si es de semana A/B.
+  const peso = function(o) { return _durTramoH(tramoById[o.tramo_id]) * (String(o.semana || '').trim() ? 0.5 : 1) * (String(o.mitad || '').trim() ? 0.5 : 1); };
+  const horas = function(n) { return (Math.round(n * 100) / 100 + '').replace('.', ',') + ' h'; };
   const accDocs = function(ids) { const v = {}; return ids.filter(function(id) { if (!id || !docSet[id] || v[id]) return false; v[id] = 1; return true; }).map(function(id) { return { t: 'horario', docente_id: id }; }); };
 
   // Aula vacía: tramo lectivo en que un grupo no tiene clase (algún cuarto libre).
@@ -479,10 +488,10 @@ function revisarProblemas() {
     const h = { A: 0, B: 0 };
     copia.forEach(function(o) {
       if (o.docente_id !== d.id || !tramoById[o.tramo_id] || tramoById[o.tramo_id].es_recreo) return;
-      const s0 = String(o.semana || '').trim().toUpperCase(), w = String(o.mitad || '').trim() ? 0.5 : 1;
+      const s0 = String(o.semana || '').trim().toUpperCase(), w = _durTramoH(tramoById[o.tramo_id]) * (String(o.mitad || '').trim() ? 0.5 : 1);
       if (s0 === 'A' || s0 === 'B') h[s0] += w; else { h.A += w; h.B += w; }
     });
-    if (Math.abs(h.A - h.B) >= 1) semDesc.push(_gen(d.nombre_corto + ' — semana A ' + horas(h.A) + ' · semana B ' + horas(h.B), [{ t: 'horario', docente_id: d.id }]));
+    if (Math.abs(h.A - h.B) >= 0.5) semDesc.push(_gen(d.nombre_corto + ' — semana A ' + horas(h.A) + ' · semana B ' + horas(h.B), [{ t: 'horario', docente_id: d.id }]));
   });
   if (semDesc.length) gruposProblemas.push({
     tipo: 'semanas_descompensadas', gravedad: 'aviso', titulo: 'Semana A y B descompensadas',

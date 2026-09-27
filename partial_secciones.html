@@ -942,7 +942,8 @@
   // «(n)» horas semanales en los horarios; a 0 se puede borrar sin perder nada.
   function _rolUsos(r) {
     if (!r.id) return '';
-    var n = r.usos || 0, t = (Math.floor(n) || (n ? '' : '0')) + (n % 1 ? '½' : '');
+    var n = Math.round((r.usos || 0) * 4) / 4, e = Math.floor(n), f = n - e;
+    var t = (e || (f ? '' : '0')) + (f === 0.5 ? '½' : f === 0.25 ? '¼' : f === 0.75 ? '¾' : '');
     return '<span class="rol-usos' + (n ? '' : ' cero') + '" title="' + (n ? 'Horas semanales en los horarios' : 'Sin uso en los horarios: se puede eliminar') + '">(' + t + ')</span>';
   }
   function cargarRoles() {
