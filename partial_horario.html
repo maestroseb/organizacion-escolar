@@ -172,7 +172,7 @@
     var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d){ return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
     var rows = HD_CAT.tramos.map(function(t){
       var celdas = HD_DIAS.map(function(d){
-        var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; });
+        var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; }).sort(_hdOrdenOc);
         var cont = ocs.length
           ? ocs.map(function(o){ var st = _hdEstilo(o); return '<div class="hd-oc t-'+_esc(o.tipo)+(st?' hd-col':'')+'"' + (st ? ' style="' + st + '"' : '') + ' title="' + _esc(_hdTitulo(o)) + '">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
           : '<span class="hd-add">+</span>';
@@ -181,6 +181,11 @@
       return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + _esc(t.orden))) + '<span class="hd-horas">' + _esc(t.horas||'') + '</span></th>' + celdas + '</tr>';
     }).join('');
     document.getElementById('hd-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
+  }
+  // Dentro de una celda: 1ª mitad antes que 2ª, y semana A antes que B.
+  function _hdOrdenOc(a, b) {
+    var k = function(o) { return (o.mitad === '2' ? 2 : o.mitad === '1' ? 1 : 0) * 3 + (o.semana === 'B' ? 2 : o.semana === 'A' ? 1 : 0); };
+    return k(a) - k(b);
   }
   function _hdSufijo(o) {
     var s = [];
@@ -351,7 +356,7 @@
     var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
     var rows = HG_CAT.tramos.map(function(t) {
       var celdas = HD_DIAS.map(function(d) {
-        var ocs = HG_OCUPS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; });
+        var ocs = HG_OCUPS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; }).sort(_hdOrdenOc);
         var aps = HG_APOYOS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; });
         var h = ocs.map(function(o) {
           var m = _hgMat(o.materia_id), otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; }).map(function(g) { return _hgNom(HG_CAT.grupos, g); });
