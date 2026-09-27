@@ -583,6 +583,12 @@
   .pt-cell.pt-partida .pt-q { background-image: linear-gradient(to right, transparent calc(50% - .5px), var(--border-strong) calc(50% - .5px), var(--border-strong) calc(50% + .5px), transparent calc(50% + .5px)), linear-gradient(to bottom, transparent calc(50% - .5px), var(--border) calc(50% - .5px), var(--border) calc(50% + .5px), transparent calc(50% + .5px)); }
   .pt-oc { border-radius: 4px; padding: 1px 4px; font-size: 11px; font-weight: 700; line-height: 1.15; overflow: hidden; background: var(--surface-3); display: flex; align-items: center; justify-content: center; text-align: center; gap: 3px; min-width: 0; }
   .pt-oc i { font-style: normal; font-size: 9px; opacity: .75; }
+  .pt-oc { position: relative; }
+  .pt-asa, .pt-del { position: absolute; top: 0; opacity: 0; transition: opacity .1s; line-height: 1; font-size: 11px; }
+  .pt-asa { left: 1px; cursor: grab; padding: 1px 3px; font-size: 14px; }
+  .pt-del { right: 1px; min-height: 0; height: 14px; width: 14px; padding: 0; border: none; border-radius: 50%; background: rgba(0,0,0,.35); color: #fff; font-size: 11px; cursor: pointer; }
+  .pt-oc:hover .pt-asa, .pt-oc:hover .pt-del { opacity: 1; }
+  .pt-cell.pt-over { outline: 2px solid var(--accent); outline-offset: -2px; }
   tr.pt-recreo td, tr.pt-recreo th { background: var(--recreo) !important; color: #fff; height: 14px; font-size: 10px; }
   .pt-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 10px; }
   .pt-foot .hint { margin-right: auto; }

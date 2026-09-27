@@ -18,7 +18,7 @@
         <div class="pt-lbl">Parte del tramo</div>
         <div class="segmented pt-seg" id="pt-mitad"></div>
         <div id="pt-listas"></div>
-        <p class="hint pt-ayuda">Pulsa o arrastra sobre las celdas para pintar. <b>Mayús+clic</b> copia la brocha de una celda. Cada celda se divide en cuatro: columnas <b>A | B</b> (semana) y filas <b>1ª | 2ª</b> (mitad del tramo).</p>
+        <p class="hint pt-ayuda">Pulsa o arrastra sobre las celdas para pintar. <b>Mayús+clic</b> copia la brocha de una celda. Con <b>⠿</b> arrastras una clase a otra celda (si hay otra, se intercambian) y con <b>×</b> la borras. Cada celda se divide en cuatro: columnas <b>A | B</b> (semana) y filas <b>1ª | 2ª</b> (mitad del tramo).</p>
       </aside>
       <div class="pt-gridwrap"><div id="pt-grid"></div></div>
     </div>
@@ -156,7 +156,7 @@
   }
 
   function _ptPanel() {
-    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['atencion', 'PT/AL'], ['localizacion', 'Apoyo'], ['especial', 'Cargo'], ['borrar', 'Borrar']], PT.tipo, 'ptTipo');
+    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['atencion', 'PT/AL'], ['localizacion', 'Apoyo'], ['especial', 'Cargo']], PT.tipo, 'ptTipo');
     _ptSeg('pt-sem', [['', 'Todas'], ['A', 'Sem A'], ['B', 'Sem B']], PT.sem, 'ptSem');
     _ptSeg('pt-mitad', [['', 'Entero'], ['1', '1ª mitad'], ['2', '2ª mitad']], PT.mitad, 'ptMit');
     var chips = function(arr, sel, fn, multi, corto) {
@@ -208,14 +208,58 @@
     var partida = ocs.some(function(o) { return o.semana || o.mitad; });
     td.classList.toggle('pt-partida', partida);
     td.innerHTML = '<div class="pt-q">' + ocs.map(function(o) {
+      var gi = PT.ocs.indexOf(o);
       var col = o.semana === 'A' ? '1' : o.semana === 'B' ? '2' : '1 / 3', row = o.mitad === '1' ? '1' : o.mitad === '2' ? '2' : '1 / 3';
       var tag = (o.semana ? o.semana : '') + (o.mitad ? (o.semana ? '·' : '') + o.mitad + 'ª' : '');
       return '<div class="pt-oc" style="grid-column:' + col + ';grid-row:' + row + ';' + _ptEstilo(o) + '" title="' + _esc(_ptEtq(o) + (tag ? ' (' + tag + ')' : '')) + '">' +
+        '<span class="pt-asa" draggable="true" data-i="' + gi + '" title="Arrastra para mover (si hay otra, se intercambian)">⠿</span>' +
+        '<button type="button" class="pt-del" data-i="' + gi + '" title="Borrar">×</button>' +
         _esc(_ptEtq(o)) + (tag ? '<i>' + tag + '</i>' : '') + '</div>';
     }).join('') + '</div>';
   }
-  // Pintar con clic o arrastrando.
+  // ---------- Mover (asa ⠿) e intercambiar; borrar (×) ----------
+  function _ptHist() { PT.hist.push(JSON.parse(JSON.stringify(PT.ocs))); if (PT.hist.length > 60) PT.hist.shift(); }
+  function _ptSolapa(a, b) { var qa = _ptQ(a.semana, a.mitad); return _ptQ(b.semana, b.mitad).some(function(q) { return qa.indexOf(q) !== -1; }); }
+  // Mueve la ocupación i a (dia, tramo) conservando su semana/mitad; lo que
+  // ocupaba esos mismos cuartos en el destino pasa a la celda de origen.
+  function _ptMover(i, dia, tramo) {
+    var o = PT.ocs[i]; if (!o || (o.dia === dia && o.tramo_id === tramo)) return;
+    _ptHist();
+    var d0 = o.dia, t0 = o.tramo_id;
+    PT.ocs.filter(function(x) { return x !== o && x.dia === dia && x.tramo_id === tramo && _ptSolapa(o, x); })
+      .forEach(function(x) { x.dia = d0; x.tramo_id = t0; });
+    o.dia = dia; o.tramo_id = tramo;
+    _ptCelda(d0, t0); _ptCelda(dia, tramo); _ptEstado('');
+  }
+  function _ptBorrar(i) {
+    var o = PT.ocs[i]; if (!o) return;
+    _ptHist(); PT.ocs.splice(i, 1); _ptGrid();
+  }
+  document.addEventListener('click', function(e) {
+    var b = e.target.closest && e.target.closest('#pt-grid .pt-del'); if (b) _ptBorrar(+b.dataset.i);
+  });
+  document.addEventListener('dragstart', function(e) {
+    var a = e.target.closest && e.target.closest('#pt-grid .pt-asa'); if (!a) return;
+    PT.pintando = false;
+    e.dataTransfer.setData('text/plain', a.dataset.i); e.dataTransfer.effectAllowed = 'move';
+  });
+  document.addEventListener('dragover', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
+    e.preventDefault(); td.classList.add('pt-over');
+  });
+  document.addEventListener('dragleave', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (td) td.classList.remove('pt-over');
+  });
+  document.addEventListener('drop', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
+    e.preventDefault(); td.classList.remove('pt-over');
+    var i = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (!isNaN(i)) _ptMover(i, td.dataset.d, td.dataset.t);
+  });
+
+  // Pintar con clic o arrastrando (salvo sobre el asa o la ×).
   document.addEventListener('mousedown', function(e) {
+    if (e.target.closest && e.target.closest('#pt-grid .pt-asa, #pt-grid .pt-del')) return;
     var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
     e.preventDefault();
     if (e.shiftKey) { _ptCopiar(td.dataset.d, td.dataset.t); return; }
