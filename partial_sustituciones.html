@@ -137,9 +137,9 @@
       ocs.every(function(o) { return o.tipo !== 'grupo' || (o.grupos || []).some(function(g) { return tut[g]; }); });
   }
 
-  // Opciones: apoyos del tramo (prioridad), quien queda libre porque su grupo
-  // está con un ausente (excursión), el resto con clase, PT/AL (solo por
-  // fuerza mayor) y, al final, quien no está en el centro. Cada opción dice
+  // Opciones: apoyos y PT/AL del tramo (por la prioridad de Cargos y roles),
+  // quien queda libre porque su grupo está con un ausente (excursión), el
+  // resto con clase y, al final, quien no está en el centro. Cada opción dice
   // qué está haciendo; la elegida muestra solo el nombre.
   function _suSelect(aus, tramo) {
     var k = aus + '|' + tramo, val = SU_ASIG[k] || '', c = SU.candidatos[tramo] || { apoyos: [], libres: [] };
@@ -154,8 +154,8 @@
     var carga = function(id) { return ' (' + ((SU._byId[id] || {}).carga || 0) + ')'; };
     var disp = function(id) { return !vistos[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
     var aps = c.apoyos.filter(function(x) { return disp(x.id); });
-    var g1 = aps.filter(function(x) { return x.cat !== 'atencion'; }).map(function(x) { return opt(x.id, (_suHace(x.id, tramo) || x.rol) + carga(x.id)); }).join('');
-    var gPt = aps.filter(function(x) { return x.cat === 'atencion' && !vistos[x.id]; }).map(function(x) { return opt(x.id, (_suHace(x.id, tramo) || x.rol) + carga(x.id)); }).join('');
+    // Apoyos y PT/AL, en el orden de Cargos y roles (lo decide el Equipo Directivo).
+    var g1 = aps.map(function(x) { return opt(x.id, (x.cat === 'atencion' ? '[PT/AL] ' : '') + (_suHace(x.id, tramo) || x.rol) + carga(x.id)); }).join('');
     var fuera = {}; c.libres.forEach(function(id) { fuera[id] = true; });
     var gLib = SU.docentes.filter(function(d) { return disp(d.id) && !fuera[d.id] && _suLiberado(d.id, tramo); })
       .map(function(d) { return opt(d.id, _suHace(d.id, tramo) + ' (grupo fuera)' + carga(d.id)); }).join('');
@@ -168,7 +168,6 @@
       (g1 ? '<optgroup label="Apoyos (prioridad)">' + g1 + '</optgroup>' : '') +
       (gLib ? '<optgroup label="Su grupo está con un ausente (¿excursión?)">' + gLib + '</optgroup>' : '') +
       (g3 ? '<optgroup label="Con clase">' + g3 + '</optgroup>' : '') +
-      (gPt ? '<optgroup label="PT / AL (solo por fuerza mayor)">' + gPt + '</optgroup>' : '') +
       (g4 ? '<optgroup label="No en el centro">' + g4 + '</optgroup>' : '') + '</select>';
   }
 
@@ -224,8 +223,9 @@
   }
 
   // Rellena huecos con los apoyos del tramo por prioridad de sustitución.
-  // Nunca repite persona en un tramo. PT/AL no se asignan solos (fuerza
-  // mayor) y quien no tiene nada ese tramo no está en el centro.
+  // Nunca repite persona en un tramo. Sigue el orden de Cargos y roles (si
+  // PT/AL van al final, solo entran cuando no queda nadie antes) y quien no
+  // tiene nada ese tramo no está en el centro.
   function suAutoasignar() {
     if (!SU) return;
     var cols = _suCols();
@@ -238,7 +238,7 @@
         var k = a + '|' + t.id;
         if (SU_ASIG[k] || !_suClase(a, t.id)) return;
         var libre = function(id) { return !usados[id] && SU_AUS.indexOf(id) === -1 && SU._byId[id]; };
-        var el = (c.apoyos.filter(function(x) { return x.cat !== 'atencion' && libre(x.id); })[0] || {}).id;
+        var el = (c.apoyos.filter(function(x) { return libre(x.id); })[0] || {}).id;
         if (el) { SU_ASIG[k] = el; usados[el] = true; SU_DIRTY = true; }
       });
     });
