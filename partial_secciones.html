@@ -185,8 +185,8 @@
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
-        <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:110px">Sustituto/a</th><th style="width:190px" title="Email del sustituto/a: hereda el acceso a Sustituciones del titular">Email sustituto/a</th><th style="width:210px">Nombre completo</th>
-        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th style="width:110px">Teléfono</th><th class="col-center" style="width:52px">Activo</th>
+        <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:210px">Nombre completo</th>
+        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th style="width:230px" title="Pulsa + si hay una baja: su nombre sustituye al del titular en la sábana y las vistas, y su email hereda el acceso a Sustituciones. Pulsa − cuando vuelva el titular.">Sustituto/a</th><th class="col-center" style="width:52px">Activo</th>
         <th class="col-center" style="width:88px" title="Puede ver la pestaña Sustituciones (Equipo Directivo). Requiere email.">Sustituciones</th>
         <th class="col-center" style="width:60px" title="Jornada parcial (no viene todos los días): Revisión no avisa de horario incompleto">Parcial</th><th class="col-acc"></th>
       </tr></thead>
@@ -497,6 +497,23 @@
       if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
+  // Sustituto/a: «+» abre nombre y email (solo en esa fila); «−» lo quita
+  // de golpe cuando vuelve el titular. Filas abiertas sin datos aún: _docSustAbre.
+  var _docSustAbre = [];
+  function _docSustCelda(d, i) {
+    var abierta = String(d.sustituto || '').trim() || String(d.sustituto_email || '').trim() || _docSustAbre.indexOf(d) !== -1;
+    if (!abierta) return '<button type="button" class="btn-icon doc-sust-btn" title="Añadir sustituto/a (baja)" onclick="docSustituto(' + i + ', true)">+</button>';
+    return '<div class="doc-sust"><button type="button" class="btn-icon doc-sust-btn" title="Quitar sustituto/a (vuelve el titular)" onclick="docSustituto(' + i + ', false)">−</button>' +
+      '<input type="text" value="' + _esc(d.sustituto) + '" placeholder="Nombre" title="Aparece en la sábana y las vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)">' +
+      '<input type="email" value="' + _esc(d.sustituto_email) + '" placeholder="Email" title="Hereda el acceso a Sustituciones del titular" oninput="actualizarDocente(' + i + ',\'sustituto_email\',this.value)"></div>';
+  }
+  function docSustituto(i, abrir) {
+    var d = docentesLocal[i];
+    if (abrir) _docSustAbre.push(d);
+    else { d.sustituto = ''; d.sustituto_email = ''; _docSustAbre = _docSustAbre.filter(function(x) { return x !== d; }); }
+    renderDocentes();
+    if (abrir) { var inp = document.querySelectorAll('#docentes-body tr')[i].querySelector('.doc-sust input'); if (inp) inp.focus(); }
+  }
   function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
   function eliminarDocente(i) { docentesLocal.splice(i,1); renderDocentes(); }
   function actualizarDocente(i, c, v) { docentesLocal[i][c] = v; }
@@ -507,12 +524,10 @@
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
         '<td><input type="text" value="' + _esc(d.nombre_corto) + '" placeholder="Sebastián" oninput="actualizarDocente(' + i + ',\'nombre_corto\',this.value)"></td>' +
-        '<td><input type="text" value="' + _esc(d.sustituto) + '" placeholder="(si hay baja)" title="Si hay un sustituto, su nombre aparece en la sábana y vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)"></td>' +
-        '<td><input type="email" value="' + _esc(d.sustituto_email) + '" placeholder="(email del sustituto/a)" title="El sustituto/a hereda el acceso a Sustituciones del titular" oninput="actualizarDocente(' + i + ',\'sustituto_email\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(d.nombre_completo) + '" placeholder="Sebastián García Rodríguez" oninput="actualizarDocente(' + i + ',\'nombre_completo\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
-        '<td><input type="tel" value="' + _esc(d.telefono) + '" placeholder="600000000" oninput="actualizarDocente(' + i + ',\'telefono\',this.value)"></td>' +
+        '<td>' + _docSustCelda(d, i) + '</td>' +
         '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.acceso_sust?' checked':'') + ' title="Acceso a Sustituciones" onchange="actualizarDocente(' + i + ',\'acceso_sust\',this.checked)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.parcial?' checked':'') + ' title="Jornada parcial" onchange="actualizarDocente(' + i + ',\'parcial\',this.checked)"></td>' +
