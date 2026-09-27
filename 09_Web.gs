@@ -28,6 +28,7 @@ function doGet(e) {
 
   const t = HtmlService.createTemplateFromFile('app');
   t.pestanaInicial = page;
+  t.inicial = _datosIniciales();
 
   return t.evaluate()
     .setTitle('Gestor de Horarios y Sustituciones')
@@ -44,3 +45,24 @@ function include(nombre) {
   return HtmlService.createHtmlOutputFromFile(nombre).getContent();
 }
 
+
+/**
+ * Datos que viajan DENTRO de la página: estado, sábanas A y B, horarios y
+ * docentes. El cliente pinta la sábana sin llamar al servidor y el resto de
+ * vistas de consulta son instantáneas. Las lecturas salen de la caché de
+ * datos (03_DataAccess), así que servir la página apenas se retrasa.
+ * Si algo falla, null: el cliente lo pide como siempre.
+ */
+function _datosIniciales() {
+  try {
+    const estado = estadoApp();
+    const ini = { estado: estado };
+    if (!estado.configurado) return ini;
+    const a = sabanaSemana('');
+    ini.sabanas = [a, sabanaSemana(a.semana === 'A' ? 'B' : 'A')];
+    ini.lecturas = { datosHorarios: datosHorarios(), listarDocentes: listarDocentes() };
+    return ini;
+  } catch (e) {
+    return null;
+  }
+}

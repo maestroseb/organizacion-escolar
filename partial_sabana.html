@@ -32,6 +32,8 @@
   function _cargarSemana() {
     const cont = document.getElementById('sb-body');
     if (_sbCacheVersion !== DATOS_VERSION) { _sbCache = {}; _sbCacheVersion = DATOS_VERSION; _sbPrecargado = false; }
+    // Las dos semanas vienen ya en la página al arrancar.
+    if (window.SB_INICIAL) { if (DATOS_VERSION === 0) { window.SB_INICIAL.forEach(function(r) { _sbCache[r.semana] = r; }); if (!SB_SEM) SB_SEM = window.SB_INICIAL[0].semana; } window.SB_INICIAL = null; }
     const seq = ++_sbSeq, version = DATOS_VERSION, sem = SB_SEM;
     const ok = function(res) {
       if (res && res.semana && version === DATOS_VERSION) _sbCache[res.semana] = res;

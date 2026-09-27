@@ -102,6 +102,9 @@
     // Pestaña inicial pasada por el servidor (deep-link ?page=).
     // Escapamos '<' para que un ?page= malicioso no pueda cerrar el <script> (XSS reflejado).
     var PESTANA_INICIAL = <?!= JSON.stringify(String(pestanaInicial || '')).replace(/</g, '\\u003c') ?>;
+    // Datos ya incluidos en la página (ver _datosIniciales en 09_Web.gs): la
+    // sábana se pinta sin esperar al servidor. null → se piden como siempre.
+    var INICIAL = <?!= JSON.stringify(inicial || null).replace(/</g, '\\u003c') ?>;
 
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
@@ -142,10 +145,12 @@
     // El tema se aplica cuanto antes (evita el parpadeo claro→oscuro) y el
     // arranque no espera a 'load': el shell entero ya está en el DOM.
     aplicarTemaGuardado();
+    // Siempre tras cargar todos los <script> (sus `var` ya inicializados).
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
-    else arrancar();
+    else setTimeout(arrancar, 0);
 
     function arrancar() {
+      if (INICIAL && INICIAL.estado) { _arrancarConInicial(INICIAL); INICIAL = null; return; }
       // La sábana (vista inicial) se pide en paralelo con estadoApp.
       const destino = _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
       if (destino === 'sabana') _prefetch('sabanaSemana');
@@ -164,6 +169,16 @@
           mostrarOnboarding();
         })
         .estadoApp();
+    }
+
+    function _arrancarConInicial(ini) {
+      ESTADO = ini.estado;
+      if (!ESTADO.configurado) { mostrarOnboarding(); return; }
+      // Siembra las cachés: sábana (A y B) y lecturas de uso diario.
+      if (ini.sabanas) window.SB_INICIAL = ini.sabanas;
+      _RPC_V = DATOS_VERSION;
+      Object.keys(ini.lecturas || {}).forEach(function(n) { _RPC[n + '[]'] = { ok: true, res: ini.lecturas[n], cbs: [] }; });
+      entrarWorkspace();
     }
 
     // ---------- Llamadas al servidor con caché de lecturas ----------
