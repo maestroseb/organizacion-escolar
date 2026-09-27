@@ -533,7 +533,7 @@
       b.title = osc ? 'Pasar a modo claro' : 'Pasar a modo oscuro';
     }
 
-    // ---------- Tamaño de letra (zoom de toda la app, se recuerda) ----------
+    // ---------- Tamaño de letra (zoom del contenido, se recuerda) ----------
     var ZOOMS = [0.85, 0.9, 1, 1.1, 1.2, 1.35, 1.5], ZOOM = 1;
     function aplicarZoomGuardado() {
       try { var z = parseFloat(localStorage.getItem('zoom')); if (ZOOMS.indexOf(z) !== -1) ZOOM = z; } catch (e) {}
@@ -546,7 +546,8 @@
       _aplicarZoom();
     }
     function _aplicarZoom() {
-      document.documentElement.style.zoom = ZOOM === 1 ? '' : ZOOM;
+      // Solo el contenido: la barra superior y Bedel mantienen su tamaño.
+      var m = document.querySelector('main.shell'); if (m) m.style.zoom = ZOOM === 1 ? '' : ZOOM;
       var v = document.getElementById('zoom-val'); if (v) v.textContent = Math.round(ZOOM * 100) + '%';
       if (typeof _pedirAjuste === 'function') _pedirAjuste();
     }
