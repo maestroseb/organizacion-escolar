@@ -17,6 +17,10 @@
  *   - clase_recreo:     clases asignadas en un tramo marcado como recreo.
  *   - tramos_solapados: tramos que comparten franja horaria.
  *   - semanas_solapadas / sin_calendario: incidencias del calendario A/B.
+ *   - atedu_sin_religion: ATEDU con un grupo sin Religión a la vez.
+ *   - materias_a_la_vez:  dos materias distintas a la vez en un grupo (salvo
+ *                         Religión/ATEDU y Francés/ALCT; medias horas y
+ *                         semanas A/B no chocan).
  *   - duplicados:       nombres repetidos en el catálogo.
  *   - sin_color:        materias o cargos sin color propio.
  */
@@ -261,6 +265,82 @@ function revisarProblemas() {
       items: [_gen(conAlternancia + ' ocupación(es) con semana A/B y ningún calendario configurado', [{ t: 'tab', label: 'Configurar semanas', tab: 'tramos' }])]
     });
   }
+
+  // ---- I2) Coincidencias en un mismo grupo y momento ----
+  // Cada clase se reparte en «cuartos» (semana A/B × 1ª/2ª mitad): dos clases
+  // solo coinciden si comparten cuarto, así que las medias horas y las
+  // semanas alternas no cuentan como choque.
+  const copia = JSON.parse(JSON.stringify(ocup));
+  _emparejarRelAtedu(copia, matById, rolById);
+  const tipoMat = function(txt) {
+    const t = String(txt || '').toLowerCase();
+    if (/relig/.test(t)) return 'rel';
+    if (/atedu|atenci[oó]n educ/.test(t)) return 'atedu';
+    if (/alct|^alt\b|^alt\.|alternativ/.test(t)) return 'altfr';
+    if (/franc|^fra\b/.test(t)) return 'fr';
+    return '';
+  };
+  const cuartos = function(o) {
+    const s = String(o.semana || '').trim().toUpperCase(), m = String(o.mitad || '').trim();
+    const out = [];
+    (s === 'A' || s === 'B' ? [s] : ['A', 'B']).forEach(function(w) { (m === '1' || m === '2' ? [m] : ['1', '2']).forEach(function(h) { out.push(w + h); }); });
+    return out;
+  };
+  const enGrupo = {}; // dia|tramo|grupo|cuarto -> [{mat, tipo, doc}]
+  copia.forEach(function(o) {
+    const t = tramoById[o.tramo_id];
+    if (!t || t.es_recreo) return;
+    let nombre = '', gs = '';
+    if (o.tipo === 'grupo') { const m = matById[o.materia_id]; if (!m) return; nombre = m.abreviatura || m.nombre; gs = o.grupo_id; o._t = tipoMat(m.nombre + ' ' + (m.abreviatura || '')); }
+    else if (o.tipo === 'localizacion') { const r = rolById[o.rol_loc_id]; if (!r) return; o._t = tipoMat(r.nombre + ' ' + (r.nombre_largo || '')); if (o._t !== 'atedu') return; nombre = r.nombre; gs = o.grupo_destino_id; }
+    else return;
+    String(gs || '').split(',').map(function(x) { return x.trim(); }).filter(Boolean).forEach(function(g) {
+      cuartos(o).forEach(function(q) {
+        const k = _diaCanon(o.dia) + '|' + o.tramo_id + '|' + g + '|' + q;
+        (enGrupo[k] = enGrupo[k] || []).push({ mat: nombre, tipo: o._t, doc: o.docente_id });
+      });
+    });
+  });
+  const atedu = {}, choques = {};
+  Object.keys(enGrupo).forEach(function(k) {
+    const xs = enGrupo[k], p = k.split('|'), base = p.slice(0, 3).join('|');
+    const tipos = xs.map(function(x) { return x.tipo; });
+    // ATEDU sin Religión a la vez.
+    if (tipos.indexOf('atedu') !== -1 && tipos.indexOf('rel') === -1) (atedu[base] = atedu[base] || { xs: xs, q: {} }).q[p[3]] = 1;
+    // Dos materias distintas a la vez (salvo Religión/ATEDU y Francés/ALCT).
+    const mats = {}; xs.forEach(function(x) { mats[x.mat] = x.tipo; });
+    const ks = Object.keys(mats);
+    if (ks.length < 2) return;
+    const par = function(a, b) { return ks.every(function(m) { return mats[m] === a || mats[m] === b; }); };
+    if (par('rel', 'atedu') || par('fr', 'altfr')) return;
+    (choques[base] = choques[base] || { xs: xs, q: {} }).q[p[3]] = 1;
+  });
+  const etqCuartos = function(q) {
+    const ks = Object.keys(q);
+    if (ks.length === 4) return '';
+    const sem = ['A', 'B'].filter(function(w) { return ks.some(function(k) { return k[0] === w; }); });
+    const mit = ['1', '2'].filter(function(h) { return ks.some(function(k) { return k[1] === h; }); });
+    return ' (' + [sem.length === 1 ? 'semana ' + sem[0] : '', mit.length === 1 ? mit[0] + 'ª mitad' : ''].filter(Boolean).join(', ') + ')';
+  };
+  const itemsDe = function(mapa, texto) {
+    return Object.keys(mapa).map(function(base) {
+      const p = base.split('|'), x = mapa[base], vistos = {};
+      const acc = [];
+      x.xs.forEach(function(e) { if (e.doc && docSet[e.doc] && !vistos[e.doc]) { vistos[e.doc] = 1; acc.push({ t: 'horario', docente_id: e.doc }); } });
+      const quien = x.xs.map(function(e) { return e.mat + ' (' + nombreDoc(e.doc) + ')'; }).filter(function(v, i, a) { return a.indexOf(v) === i; }).join(' + ');
+      return _gen(((grupoById[p[2]] || {}).nombre_corto || p[2]) + ' · ' + _diaLargo(p[0]) + ' ' + etqTramo(p[1]) + etqCuartos(x.q) + ' — ' + texto(quien), acc);
+    });
+  };
+  const atItems = itemsDe(atedu, function(q) { return q + ': ATEDU sin Religión a la vez'; });
+  if (atItems.length) gruposProblemas.push({
+    tipo: 'atedu_sin_religion', gravedad: 'error', titulo: 'Atención Educativa sin Religión',
+    descripcion: 'La Atención Educativa (ATEDU) se da a la vez que Religión con el mismo grupo. Aquí hay ATEDU sin su Religión: revisa el horario del docente de Religión o el de ATEDU.', items: atItems
+  });
+  const chItems = itemsDe(choques, function(q) { return q + ' a la vez'; });
+  if (chItems.length) gruposProblemas.push({
+    tipo: 'materias_a_la_vez', gravedad: 'error', titulo: 'Dos materias a la vez en un grupo',
+    descripcion: 'Un grupo tiene dos materias distintas en el mismo momento (sin ser medias horas ni semanas alternas). Solo es normal Religión con ATEDU y Francés con su alternativa (ALCT).', items: chItems
+  });
 
   // ---- J) Nombres duplicados en el catálogo ----
   const dups = [];
