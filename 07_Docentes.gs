@@ -67,24 +67,3 @@ function marcarDocenteParcial(id, parcial) {
   return { ok: true };
 }
 
-/**
- * Cambia el nombre corto y/o el sustituto/a de un docente (desde Horarios
- * individuales). El nombre del sustituto sustituye al del titular en la
- * sábana, los horarios y Sustituciones.
- */
-function actualizarNombreDocente(id, datos) {
-  if (!id) throw new Error('Falta el docente.');
-  datos = datos || {};
-  const nombre = String(datos.nombre_corto || '').trim();
-  if (!nombre) throw new Error('El nombre corto es obligatorio.');
-  const repetido = getAll(SHEETS.DOCENTES).some(function(d) {
-    return d.id !== id && String(d.nombre_corto || '').trim().toLowerCase() === nombre.toLowerCase();
-  });
-  if (repetido) throw new Error('Ya hay otro docente con el nombre corto "' + nombre + '".');
-  update(SHEETS.DOCENTES, id, {
-    nombre_corto: nombre,
-    sustituto: String(datos.sustituto || '').trim(),
-    sustituto_email: String(datos.sustituto_email || '').trim()
-  });
-  return { ok: true };
-}
