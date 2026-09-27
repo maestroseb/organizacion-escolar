@@ -93,6 +93,10 @@
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
       '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
     cont.innerHTML = html + '</div>';
+    // La tarjeta mide lo que su contenido (cabecera o columnas, lo mayor); se
+    // fija ese ancho y entonces las tablas se estiran hasta los bordes.
+    var card = cont.querySelector('.ah-card');
+    if (card && card.querySelector('.ah-cols')) { card.style.width = card.offsetWidth + 'px'; card.classList.add('ah-fill'); }
   }
   // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
   function _ahDescanso(cont, tipo) {
@@ -102,11 +106,11 @@
     if (tipo === 'pronto') {
       var p0 = String(AH.tramos[0].tramo.horas).split('–')[0].trim();
       tit = modo === 'noche' ? 'El cole duerme… 🌙' : 'Aún es pronto ☕';
-      sub = 'Hoy la primera es a las ' + p0 + '; aparecerá una hora antes. › para verla ya.';
+      sub = 'Hoy la primera es a las ' + p0 + '.';
     } else if (tipo === 'fin') {
       tit = modo === 'noche' ? 'El cole duerme… 🌙' : '¡Clases terminadas por hoy!';
       var pri = AH.tramos[0] && String(AH.tramos[0].tramo.horas).split('–')[0];
-      sub = (dow === 5 ? 'El lunes' : 'Mañana') + (pri ? ', la primera a las ' + pri.trim() : ' volvemos') + '. ‹ para repasar los tramos de hoy.';
+      sub = (dow === 5 ? 'El lunes' : 'Mañana') + (pri ? ', la primera a las ' + pri.trim() : ' volvemos') + '.';
     } else if (dow === 0 || dow === 6) {
       tit = '¡Buen fin de semana! ' + (modo === 'noche' ? '🌙' : '☀️'); sub = 'Las clases vuelven el lunes. Toca descansar.';
     } else { tit = 'Hoy no hay clase'; sub = 'Día sin tramos lectivos. ¡A disfrutarlo!'; }
