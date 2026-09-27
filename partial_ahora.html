@@ -84,7 +84,7 @@
     if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
     else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t) + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
-      '<div class="sb-pane">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
+      '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
     cont.innerHTML = html + '</div>';
   }
   function _ahAnchos(t) { return _sbAnchosDe([t], 14); }
