@@ -9,6 +9,10 @@
  *
  * Estas funciones son los ladrillos que usarán los pasos del wizard,
  * las vistas y el módulo de sustituciones.
+ *
+ * Las que escriben terminan en «_»: Apps Script no deja llamarlas desde el
+ * navegador (google.script.run). Solo se usan desde las funciones de
+ * guardado, que antes comprueban el permiso de Edición.
  */
 
 /**
@@ -49,7 +53,7 @@ function findById(sheetName, id) {
 }
 
 /** Borra una fila por id. Devuelve true si existía. */
-function remove(sheetName, id) {
+function remove_(sheetName, id) {
   const sheet = _getSheet(sheetName);
   const idx = _findRowIndex(sheet, id);
   if (idx === -1) return false;
@@ -62,7 +66,7 @@ function remove(sheetName, id) {
  * Inserta una fila nueva. Si obj.id no viene, se autogenera.
  * Devuelve el objeto guardado (con id).
  */
-function insert(sheetName, obj) {
+function insert_(sheetName, obj) {
   const sheet = _getSheet(sheetName);
   const headers = SCHEMA[sheetName];
   const prefix = _idPrefix(sheetName);
@@ -79,7 +83,7 @@ function insert(sheetName, obj) {
  * Actualiza una fila existente por id. Solo modifica las columnas presentes
  * en `cambios`. Devuelve el objeto actualizado, o lanza si no existe.
  */
-function update(sheetName, id, cambios) {
+function update_(sheetName, id, cambios) {
   const sheet = _getSheet(sheetName);
   const headers = SCHEMA[sheetName];
   const idx = _findRowIndex(sheet, id);
@@ -98,11 +102,11 @@ function update(sheetName, id, cambios) {
  * Insert si no existe (por id), update si existe. Útil para entidades
  * singleton como _Centro.
  */
-function upsert(sheetName, obj) {
+function upsert_(sheetName, obj) {
   if (obj.id && findById(sheetName, obj.id)) {
-    return update(sheetName, obj.id, obj);
+    return update_(sheetName, obj.id, obj);
   }
-  return insert(sheetName, obj);
+  return insert_(sheetName, obj);
 }
 
 /**
@@ -117,7 +121,7 @@ function upsert(sheetName, obj) {
  *
  * Devuelve los objetos con su id asignado.
  */
-function bulkReplace(sheetName, objects) {
+function bulkReplace_(sheetName, objects) {
   const sheet = _getSheet(sheetName);
   const headers = SCHEMA[sheetName];
   const prefix = _idPrefix(sheetName);
@@ -173,13 +177,13 @@ function bulkReplace(sheetName, objects) {
  *
  * Devuelve un resumen { total, nuevos, actualizados, ignorados }.
  */
-function bulkMerge(sheetName, objects, keyFields, modo) {
+function bulkMerge_(sheetName, objects, keyFields, modo) {
   objects = objects || [];
   modo = modo || 'combinar';
   keyFields = (keyFields && keyFields.length) ? keyFields : ['id'];
 
   if (modo === 'reemplazar') {
-    bulkReplace(sheetName, objects);
+    bulkReplace_(sheetName, objects);
     return { total: objects.length, nuevos: objects.length, actualizados: 0, ignorados: 0 };
   }
 
@@ -220,7 +224,7 @@ function bulkMerge(sheetName, objects, keyFields, modo) {
     }
   });
 
-  bulkReplace(sheetName, resultado);
+  bulkReplace_(sheetName, resultado);
   return { total: resultado.length, nuevos: nuevos, actualizados: actualizados, ignorados: ignorados };
 }
 

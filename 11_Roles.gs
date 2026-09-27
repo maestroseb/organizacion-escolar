@@ -26,7 +26,8 @@ function categoriaRol(r) {
   if (CATEGORIAS_ROL.indexOf(c) !== -1) return c;
   const n = (String((r && r.nombre) || '') + ' ' + String((r && r.nombre_largo) || '')).toLowerCase();
   if (/^(pt|al)\b|audici|pedag|\btea\b|aula espec/.test(n)) return 'atencion';
-  if (/^ref|refuerzo|apoyo|atedu|atenci[oó]n educ|gua|guardia/.test(n)) return 'apoyo';
+  // Palabras completas: «Gua.» sí, pero no «Coord. Lengua».
+  if (/(^|\s)(ref|gua)\.?(\s|$)|refuerzo|apoyo|atedu|atenci[oó]n educ|guardia/.test(n)) return 'apoyo';
   return 'cargo';
 }
 
@@ -108,6 +109,6 @@ function guardarRoles(roles, modo) {
       categoria: categoriaRol(r)
     };
   });
-  const resumen = bulkMerge(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');
+  const resumen = bulkMerge_(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
 }

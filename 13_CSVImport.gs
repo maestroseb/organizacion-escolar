@@ -168,7 +168,7 @@ function aplicarImportacionCSV(filas, modo) {
 
   // Fusiona en _Ocupaciones según el modo elegido. La clave natural de una
   // ocupación es (docente, día, tramo, mitad, semana).
-  const resumen = bulkMerge(
+  const resumen = bulkMerge_(
     SHEETS.OCUPACIONES, nuevas,
     ['docente_id', 'dia', 'tramo_id', 'mitad', 'semana'],
     modo

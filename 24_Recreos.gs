@@ -27,13 +27,13 @@ function guardarZonasRecreo(zonas) {
     vistos[k] = true;
     return { id: z.id || undefined, nombre: nombre, plazas: Math.max(1, parseInt(z.plazas, 10) || 1), orden: i + 1, color: z.color || '' };
   });
-  const r = bulkMerge(SHEETS.ZONAS_RECREO, filas, ['nombre'], 'reemplazar');
+  const r = bulkMerge_(SHEETS.ZONAS_RECREO, filas, ['nombre'], 'reemplazar');
   // Turnos de zonas que ya no existen: fuera.
   const ids = {};
   listarZonasRecreo().forEach(function(z) { ids[z.id] = true; });
   const ocs = getAll(SHEETS.OCUPACIONES);
   const resto = ocs.filter(function(o) { return !(_esTurnoRecreo(o) && !ids[o.localizacion_id]); });
-  if (resto.length !== ocs.length) bulkReplace(SHEETS.OCUPACIONES, resto);
+  if (resto.length !== ocs.length) bulkReplace_(SHEETS.OCUPACIONES, resto);
   return { ok: true, total: r.total };
 }
 
@@ -94,7 +94,7 @@ function guardarRecreos(tramoId, turnos) {
   lock.waitLock(20000);
   try {
     const resto = getAll(SHEETS.OCUPACIONES).filter(function(o) { return !(_esTurnoRecreo(o) && o.tramo_id === tramoId); });
-    bulkReplace(SHEETS.OCUPACIONES, resto.concat(nuevas));
+    bulkReplace_(SHEETS.OCUPACIONES, resto.concat(nuevas));
   } finally {
     lock.releaseLock();
   }
@@ -112,7 +112,7 @@ function _rolGuardia() {
   const roles = getAll(SHEETS.ROLES);
   const r = roles.filter(function(x) { return /^gua|guardia|recreo/i.test(String(x.nombre) + ' ' + String(x.nombre_largo || '')); })[0];
   if (r) return r.id;
-  const nuevo = insert(SHEETS.ROLES, { nombre: 'Gua.', nombre_largo: 'Recreo de guardia', color: '#9b9ba3', categoria: 'cargo',
+  const nuevo = insert_(SHEETS.ROLES, { nombre: 'Gua.', nombre_largo: 'Recreo de guardia', color: '#9b9ba3', categoria: 'cargo',
     orden: roles.reduce(function(m, x) { return Math.max(m, x.orden || 0); }, 0) + 1 });
   return nuevo.id;
 }

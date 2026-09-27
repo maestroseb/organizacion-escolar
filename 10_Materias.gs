@@ -102,6 +102,6 @@ function guardarMaterias(materias, modo) {
       es_recreo: !!m.es_recreo
     };
   });
-  const resumen = bulkMerge(SHEETS.MATERIAS, filas, ['nombre'], modo || 'reemplazar');
+  const resumen = bulkMerge_(SHEETS.MATERIAS, filas, ['nombre'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
 }

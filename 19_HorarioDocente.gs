@@ -10,35 +10,6 @@
 const _DIAS_VALIDOS = ['L', 'M', 'X', 'J', 'V'];
 
 /**
- * Datos para el editor: catálogo (para los desplegables) y las ocupaciones
- * actuales del docente, normalizadas a una forma cómoda para el frontend.
- */
-function datosHorarioDocente(docenteId) {
-  if (!docenteId) throw new Error('Falta el docente.');
-  const cat = catalogoImportacion(); // { docentes, grupos, materias, roles, tramos }
-  const ocupaciones = getAll(SHEETS.OCUPACIONES)
-    .filter(function(o) { return o.docente_id === docenteId; })
-    .map(function(o) {
-      return {
-        dia: o.dia || '',
-        tramo_id: o.tramo_id || '',
-        tipo: o.tipo || 'grupo',
-        materia_id: o.materia_id || '',
-        grupo_id: o.grupo_id || '',
-        rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
-        grupo_destino_id: o.grupo_destino_id || '',
-        localizacion_id: o.localizacion_id || '', // zona de recreo (24_Recreos)
-        // Filas antiguas guardaron la mitad como número (1/2): el editor
-        // compara con '1'/'2'.
-        mitad: String(o.mitad || ''),
-        semana: String(o.semana || ''),
-        notas: o.notas || ''
-      };
-    });
-  return { catalogo: cat, ocupaciones: ocupaciones };
-}
-
-/**
  * Reemplaza TODAS las ocupaciones del docente por las recibidas.
  * Cada fila debe traer dia, tramo_id y tipo; el resto según el tipo.
  */
@@ -83,7 +54,7 @@ function guardarHorarioDocente(docenteId, ocupaciones) {
 
   const todas = getAll(SHEETS.OCUPACIONES);
   const otras = todas.filter(function(o) { return o.docente_id !== docenteId; });
-  bulkReplace(SHEETS.OCUPACIONES, otras.concat(nuevas));
+  bulkReplace_(SHEETS.OCUPACIONES, otras.concat(nuevas));
 
   return { ok: true, total: nuevas.length };
 }
@@ -92,32 +63,6 @@ function guardarHorarioDocente(docenteId, ocupaciones) {
 
 function _csvIds(csv) {
   return String(csv || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean);
-}
-
-/**
- * Horario de un grupo: las clases (tipo 'grupo') que lo incluyen, con su id de
- * fila para poder editarlas, y los apoyos que tienen al grupo como destino
- * (solo lectura: se editan desde el docente).
- */
-function datosHorarioGrupo(grupoId) {
-  if (!grupoId) throw new Error('Falta el grupo.');
-  const cat = catalogoImportacion();
-  const colores = {};
-  listarMaterias().forEach(function(m) { colores[m.id] = m.color || ''; });
-  cat.materias.forEach(function(m) { m.color = colores[m.id] || ''; });
-  const todas = getAll(SHEETS.OCUPACIONES);
-  const clases = [], apoyos = [];
-  todas.forEach(function(o) {
-    if (o.tipo === 'grupo' && _csvIds(o.grupo_id).indexOf(grupoId) !== -1) {
-      clases.push({ id: o.id, dia: _diaCanon(o.dia), tramo_id: o.tramo_id, docente_id: o.docente_id || '',
-        materia_id: o.materia_id || '', grupos: _csvIds(o.grupo_id),
-        mitad: String(o.mitad || ''), semana: String(o.semana || ''), notas: o.notas || '' });
-    } else if (o.tipo === 'localizacion' && _csvIds(o.grupo_destino_id).indexOf(grupoId) !== -1) {
-      apoyos.push({ dia: _diaCanon(o.dia), tramo_id: o.tramo_id, docente_id: o.docente_id || '', rol_id: o.rol_loc_id || '',
-        semana: String(o.semana || '') });
-    }
-  });
-  return { catalogo: cat, ocupaciones: clases, apoyos: apoyos };
 }
 
 /**
@@ -164,7 +109,7 @@ function guardarHorarioGrupo(grupoId, lista) {
     salida.push(aplicar({ tipo: 'grupo', localizacion_id: '', rol_loc_id: '', grupo_destino_id: '', rol_especial_id: '' }, f));
     nuevas++;
   });
-  bulkReplace(SHEETS.OCUPACIONES, salida);
+  bulkReplace_(SHEETS.OCUPACIONES, salida);
   return { ok: true, total: lista.length, nuevas: nuevas };
 }
 

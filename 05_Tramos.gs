@@ -51,7 +51,7 @@ function guardarTramos(tramos, modo) {
     };
   });
   modo = modo || 'reemplazar';
-  const resumen = bulkMerge(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo);
+  const resumen = bulkMerge_(SHEETS.TRAMOS, filas, ['hora_inicio', 'hora_fin'], modo);
   if (modo !== 'reemplazar') {
     // Al combinar/añadir se mezclan tramos viejos y nuevos: el `orden` (que
     // usan la importación CSV y la sábana) debe volver a ser 1..N por hora.
@@ -59,7 +59,7 @@ function guardarTramos(tramos, modo) {
       return _minutos(a.hora_inicio) - _minutos(b.hora_inicio);
     });
     todos.forEach(function(t, i) { t.orden = i + 1; });
-    bulkReplace(SHEETS.TRAMOS, todos);
+    bulkReplace_(SHEETS.TRAMOS, todos);
   }
   return { ok: true, total: resumen.total, resumen: resumen };
 }

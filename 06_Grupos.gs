@@ -116,6 +116,6 @@ function guardarGrupos(grupos, modo) {
       color: g.color || ''
     };
   });
-  const resumen = bulkMerge(SHEETS.GRUPOS, filas, ['nombre_corto'], modo || 'reemplazar');
+  const resumen = bulkMerge_(SHEETS.GRUPOS, filas, ['nombre_corto'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
 }

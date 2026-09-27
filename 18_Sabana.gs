@@ -201,11 +201,10 @@ function _sabanaTramoData(t, ocupDia, ctx) {
 
     // Sin clase = aula vacía («sin cubrir»): no se rellena con el tutor, es
     // un error que Revisión señala.
-    const ocupantes = clases, fallback = false;
+    const ocupantes = clases;
     return {
       grupo: { id: g.id, nombre: g.nombre_corto, nivel: g.nivel },
       ocupantes: ocupantes,
-      fallbackTutor: fallback,
       vacio: ocupantes.length === 0
     };
   });

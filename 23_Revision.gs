@@ -548,16 +548,25 @@ function revisarProblemas() {
   });
 
   // Descartados por el usuario (todo salvo referencias rotas se puede descartar).
-  const desc0 = _descartesRevision();
+  const desc0 = _descartesRevision(), vigentes = {};
   let descartados = 0;
   gruposProblemas.forEach(function(gp) {
     gp.descartable = gp.tipo !== 'ref';
-    gp.items.forEach(function(it) { it.clave = gp.tipo + '|' + (it.texto || it.docente_id || it.grupo_id || it.grupo || it.ocup_id || JSON.stringify(it)); });
+    // Clave del aviso concreto (texto o todos sus datos): si el aviso cambia
+    // —otro solape, otros huecos—, vuelve a aparecer.
+    gp.items.forEach(function(it) { it.clave = gp.tipo + '|' + (it.texto || JSON.stringify(it)); });
     if (!gp.descartable) return;
     const antes = gp.items.length;
-    gp.items = gp.items.filter(function(it) { return !desc0[it.clave]; });
+    gp.items = gp.items.filter(function(it) { const h = _hashAviso(it.clave); vigentes[h] = 1; return !desc0[h]; });
     descartados += antes - gp.items.length;
   });
+  // Limpieza: los descartes de avisos que ya no existen se olvidan.
+  const guardados = Object.keys(desc0);
+  if (guardados.some(function(h) { return !vigentes[h]; })) {
+    const quedan = {};
+    guardados.forEach(function(h) { if (vigentes[h]) quedan[h] = 1; });
+    try { PropertiesService.getScriptProperties().setProperty(PROP_REV_DESCARTES, JSON.stringify(quedan)); } catch (e) {}
+  }
   for (let i = gruposProblemas.length - 1; i >= 0; i--) if (!gruposProblemas[i].items.length) gruposProblemas.splice(i, 1);
 
   let errores = 0, avisos = 0;
@@ -639,7 +648,7 @@ function reasignarOcupacion(ocupId, campo, valor) {
   _exigirEdicion();
   if (!ocupId) throw new Error('Falta la ocupación.');
   if (!_CAMPOS_REASIGNABLES[campo]) throw new Error('Campo no reasignable: ' + campo);
-  update(SHEETS.OCUPACIONES, ocupId, _campoValor(campo, valor || ''));
+  update_(SHEETS.OCUPACIONES, ocupId, _campoValor(campo, valor || ''));
   return { ok: true };
 }
 
@@ -649,7 +658,7 @@ function _campoValor(campo, valor) { const o = {}; o[campo] = valor; return o; }
 function eliminarOcupacion(ocupId) {
   _exigirEdicion();
   if (!ocupId) throw new Error('Falta la ocupación.');
-  remove(SHEETS.OCUPACIONES, ocupId);
+  remove_(SHEETS.OCUPACIONES, ocupId);
   return { ok: true };
 }
 
@@ -658,11 +667,15 @@ const PROP_REV_DESCARTES = 'REV_DESCARTES';
 function _descartesRevision() {
   try { return JSON.parse(PropertiesService.getScriptProperties().getProperty(PROP_REV_DESCARTES) || '{}') || {}; } catch (e) { return {}; }
 }
+// Se guarda un resumen corto de cada clave (una propiedad admite ~9 KB).
+function _hashAviso(clave) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, String(clave))).slice(0, 12);
+}
 function descartarAvisoRevision(clave) {
   _exigirEdicion();
   if (!clave) throw new Error('Falta el aviso.');
   const d = _descartesRevision();
-  d[String(clave).slice(0, 300)] = 1;
+  d[_hashAviso(clave)] = 1;
   PropertiesService.getScriptProperties().setProperty(PROP_REV_DESCARTES, JSON.stringify(d));
   return { ok: true };
 }

@@ -81,6 +81,6 @@ function guardarLocalizaciones(locs, modo) {
       orden: i + 1
     };
   });
-  const resumen = bulkMerge(SHEETS.LOCALIZACIONES, filas, ['codigo'], modo || 'reemplazar');
+  const resumen = bulkMerge_(SHEETS.LOCALIZACIONES, filas, ['codigo'], modo || 'reemplazar');
   return { ok: true, total: resumen.total, resumen: resumen };
 }
