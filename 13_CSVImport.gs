@@ -22,7 +22,8 @@ const UMBRAL_DUDOSO = 0.60;  // por debajo → sin match
 function catalogoImportacion() {
   return {
     docentes: listarDocentes().map(function(d) {
-      return { id: d.id, nombre: d.nombre_corto, extra: d.nombre_completo || '' };
+      // `sust`: nombre del sustituto/a si lo hay (es el que se muestra).
+      return { id: d.id, nombre: d.nombre_corto, extra: d.nombre_completo || '', sust: String(d.sustituto || '').trim() };
     }),
     grupos: listarGrupos().map(function(g) {
       return { id: g.id, nombre: g.nombre_corto, extra: g.nombre_largo || '' };

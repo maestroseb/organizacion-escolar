@@ -9,6 +9,7 @@
       <label class="hd-sel">Docente
         <select id="hd-select" onchange="cambiarDocenteHorario(this)"></select>
       </label>
+      <button class="secondary" id="hd-nombre" onclick="hdNombreAbrir()" title="Cambiar el nombre corto o poner/quitar sustituto/a">✎ Nombre / sustituto</button>
       <button class="secondary" id="hd-pintar" onclick="abrirPintado()" title="Editor visual: elige una brocha y pinta celdas (admite semanas A/B y medias clases)">🖌 Editar pintando</button>
       <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
       <span id="hd-estado" class="hint"></span>
@@ -24,6 +25,22 @@
     </div>
     <div id="hg-body"></div>
     <div id="hg-res"></div>
+  </div>
+</div>
+
+<!-- Modal nombre / sustituto del docente -->
+<div class="modal-overlay" id="hn-modal">
+  <div class="modal-box">
+    <h3>Nombre y sustituto/a</h3>
+    <div class="hd-f"><label>Nombre corto (titular)</label><input type="text" id="hn-nombre"></div>
+    <p class="hint">Si hay baja, el nombre del sustituto/a aparece en lugar del titular en el horario individual, la sábana y Sustituciones. Déjalo vacío cuando vuelva el titular.</p>
+    <div class="hd-f"><label>Sustituto/a</label><input type="text" id="hn-sust" placeholder="(sin sustituto)"></div>
+    <div class="hd-f"><label>Email del sustituto/a</label><input type="email" id="hn-email" placeholder="(opcional)"></div>
+    <div class="modal-actions" style="margin-top:14px">
+      <button type="button" class="ghost" onclick="document.getElementById('hn-sust').value='';document.getElementById('hn-email').value='';" title="Vuelve el titular">Quitar sustituto</button>
+      <button type="button" class="secondary" onclick="hdNombreCerrar()">Cancelar</button>
+      <button type="button" class="primary" id="hn-ok" onclick="hdNombreGuardar()">Guardar</button>
+    </div>
   </div>
 </div>
 
@@ -78,10 +95,39 @@
       const activos = (docs || []).filter(function(d){ return d.activo !== false; })
         .sort(function(a, b){ return String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es', { sensitivity: 'base' }); });
       sel.innerHTML = '<option value="">— elige docente —</option>' +
-        activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
+        activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(_hdNomDoc(d)) + '</option>'; }).join('');
       if (HD_DOC) cargarHorario(HD_DOC);
       else document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente para ver y editar su horario.</div>';
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
+  }
+
+  // Nombre que se muestra: el sustituto/a si lo hay («Ana (por Inma B.)»).
+  function _hdNomDoc(d) { var s = String(d.sustituto || '').trim(); return s ? s + ' (por ' + d.nombre_corto + ')' : d.nombre_corto; }
+
+  // ---------- Nombre / sustituto del docente elegido ----------
+  var _HN_DOC = null;
+  function hdNombreAbrir() {
+    if (!HD_DOC) { aviso('Elige primero un docente', 'err'); return; }
+    _run().withSuccessHandler(function(docs) {
+      var d = (docs || []).filter(function(x) { return x.id === HD_DOC; })[0]; if (!d) return;
+      _HN_DOC = d.id;
+      document.getElementById('hn-nombre').value = d.nombre_corto || '';
+      document.getElementById('hn-sust').value = d.sustituto || '';
+      document.getElementById('hn-email').value = d.sustituto_email || '';
+      document.getElementById('hn-modal').classList.add('show');
+      document.getElementById('hn-sust').focus();
+    }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
+  }
+  function hdNombreCerrar() { document.getElementById('hn-modal').classList.remove('show'); }
+  function hdNombreGuardar() {
+    var btn = document.getElementById('hn-ok'); btn.disabled = true;
+    var datos = { nombre_corto: document.getElementById('hn-nombre').value, sustituto: document.getElementById('hn-sust').value, sustituto_email: document.getElementById('hn-email').value };
+    _run().withSuccessHandler(function() {
+      btn.disabled = false; hdNombreCerrar(); aviso('✓ Guardado', 'ok');
+      // Recarga el selector y los horarios con el nombre nuevo (no toca cambios sin guardar).
+      refrescarEstado(function() { HD_DOCS_VERSION = -1; if (!hayCambios('horario')) renderHorario(); });
+    }).withFailureHandler(function(err) { btn.disabled = false; aviso((err && err.message) || String(err), 'err'); })
+      .actualizarNombreDocente(_HN_DOC, datos);
   }
 
   // Desde Revisión u otras vistas: abre Horarios individuales con ese docente.
@@ -338,6 +384,7 @@
     });
   }
   function _hgNom(arr, id) { var x = (arr || []).filter(function(y) { return y.id === id; })[0]; return x ? x.nombre : ''; }
+  function _hgDoc(id) { var x = (HG_CAT.docentes || []).filter(function(y) { return y.id === id; })[0]; return x ? (x.sust || x.nombre) : ''; }
   function _hgMat(id) { return (HG_CAT.materias || []).filter(function(m) { return m.id === id; })[0] || {}; }
   function _hgPintar() {
     if (!HG_CAT.tramos || !HG_CAT.tramos.length) { document.getElementById('hg-body').innerHTML = '<div class="empty">No hay tramos configurados.</div>'; return; }
@@ -350,11 +397,11 @@
           var m = _hgMat(o.materia_id), otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; }).map(function(g) { return _hgNom(HG_CAT.grupos, g); });
           var st = _ocEstilo('grupo', m.color);
           return '<div class="hd-oc t-grupo' + (st ? ' hd-col' : '') + '"' + (st ? ' style="' + st + '"' : '') + ' title="' + _esc(m.nombre || '') + '">' +
-            '<b>' + _esc(_hgNom(HG_CAT.docentes, o.docente_id) || '¿?') + '</b> ' + _esc(m.extra || m.nombre || '') +
+            '<b>' + _esc(_hgDoc(o.docente_id) || '¿?') + '</b> ' + _esc(m.extra || m.nombre || '') +
             (otros.length ? ' <span class="hd-suf">+' + _esc(otros.join('/')) + '</span>' : '') + _hdSufijo(o) + '</div>';
         }).join('') + aps.map(function(a) {
           var r = (HG_CAT.roles || []).filter(function(x) { return x.id === a.rol_id; })[0] || {}, st = _ocEstilo(r.categoria, r.color);
-          return '<div class="hd-oc t-localizacion' + (st ? ' hd-col' : '') + '"' + (st ? ' style="' + st + '"' : '') + ' title="Apoyo (se edita desde el docente)">' + _esc(_hgNom(HG_CAT.docentes, a.docente_id)) + ' · ' + _esc(_hgNom(HG_CAT.roles, a.rol_id)) + (a.semana ? ' <span class="hd-suf">sem ' + _esc(a.semana) + '</span>' : '') + '</div>';
+          return '<div class="hd-oc t-localizacion' + (st ? ' hd-col' : '') + '"' + (st ? ' style="' + st + '"' : '') + ' title="Apoyo (se edita desde el docente)">' + _esc(_hgDoc(a.docente_id)) + ' · ' + _esc(_hgNom(HG_CAT.roles, a.rol_id)) + (a.semana ? ' <span class="hd-suf">sem ' + _esc(a.semana) + '</span>' : '') + '</div>';
         }).join('');
         return '<td class="hd-cell" onclick="hgAbrir(\'' + d.k + '\',' + _jsAttr(t.id) + ')">' + (h || '<span class="hd-add">+</span>') + '</td>';
       }).join('');
