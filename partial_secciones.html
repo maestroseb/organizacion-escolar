@@ -181,7 +181,7 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><span class="hint" id="doc-sesion"></span></div>
+  <div class="toolbar"><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><span class="hint" id="doc-sesion"></span></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
@@ -533,6 +533,19 @@
         '<td class="col-center"><input type="checkbox"' + (d.parcial?' checked':'') + ' title="Jornada parcial" onchange="actualizarDocente(' + i + ',\'parcial\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
       tb.appendChild(tr);
+    });
+    filtrarDocentes();
+  }
+  // Búsqueda: oculta las filas que no coinciden (sin tildes ni mayúsculas).
+  // Solo afecta a la vista; al guardar se envían todos.
+  function _docNorm(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function filtrarDocentes() {
+    var q = _docNorm((document.getElementById('doc-buscar') || {}).value).trim();
+    var filas = document.querySelectorAll('#docentes-body tr');
+    docentesLocal.forEach(function(d, i) {
+      if (!filas[i]) return;
+      var txt = _docNorm([d.nombre_corto, d.nombre_completo, d.puesto, d.email, d.sustituto, d.sustituto_email].join(' '));
+      filas[i].style.display = !q || q.split(/\s+/).every(function(p) { return txt.indexOf(p) !== -1; }) ? '' : 'none';
     });
   }
   function enviarDocentes() {
