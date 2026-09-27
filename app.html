@@ -576,6 +576,9 @@
     // (p. ej. el botón Guardar). Se recalcula al cambiar de vista o de tamaño.
     var _CAJAS = '.view.active .rc-body, .view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
     function ajustarAltos() {
+      // Con cajas de scroll, el pie de página no reserva el hueco del botón
+      // flotante (la caja llega abajo y la página no se desplaza).
+      document.body.classList.toggle('con-cajas', !!document.querySelector(_CAJAS));
       document.querySelectorAll(_CAJAS).forEach(function(c) {
         if (!c.offsetParent) return;
         var r = c.getBoundingClientRect(), top = r.top + window.scrollY;
@@ -605,7 +608,7 @@
     // largos (con listas, tablas…) se quedan en la página.
     function _aToast(n) {
       if (n.nodeType !== 1) return;
-      var rs = n.matches('.result.ok') ? [n] : Array.prototype.slice.call(n.querySelectorAll('.result.ok'));
+      var rs = n.matches('.result.ok:not(.fijo)') ? [n] : Array.prototype.slice.call(n.querySelectorAll('.result.ok:not(.fijo)'));
       rs.forEach(function(r) {
         var txt = r.textContent.trim();
         if (!txt || txt.length > 200 || r.querySelector('ul, ol, table, div, button, a, input')) return;

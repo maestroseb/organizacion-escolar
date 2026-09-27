@@ -5,8 +5,7 @@
  * resuelve, a partir de _Ocupaciones:
  *
  *   - cursos: una entrada por grupo con quién da clase y de qué (tipo
- *     'grupo'). Si no hay clase concreta, cae al TUTOR del grupo (queda en
- *     su aula), replicando la sábana en papel; si no hay tutor, vacío.
+ *     'grupo'). Sin clase, el curso sale «sin cubrir» (Revisión lo avisa).
  *   - apoyos: las de tipo 'localizacion' (Ref., AL, PT, ATEDU…) y 'especial'
  *     (DIR, coordinaciones, RH…), ordenadas por la prioridad de sustitución
  *     (el `orden` de la pestaña Cargos) y numeradas #01, #02… Cada una lleva
@@ -200,11 +199,9 @@ function _sabanaTramoData(t, ocupDia, ctx) {
         };
       });
 
-    let ocupantes = clases, fallback = false;
-    if (!ocupantes.length && g.tutor_id) {
-      ocupantes = [{ docente: nombreDoc(g.tutor_id), materia: '', color: '', tutor: true }];
-      fallback = true;
-    }
+    // Sin clase = aula vacía («sin cubrir»): no se rellena con el tutor, es
+    // un error que Revisión señala.
+    const ocupantes = clases, fallback = false;
     return {
       grupo: { id: g.id, nombre: g.nombre_corto, nivel: g.nivel },
       ocupantes: ocupantes,
