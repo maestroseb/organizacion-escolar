@@ -51,7 +51,7 @@
   function _pintarSemana(res) {
     const cont = document.getElementById('sb-body');
     if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
-    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Centro y horario</b>.</div>'; return; }
+    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos y semanas</b>.</div>'; return; }
     cont.innerHTML = _sbGridHtml(res);
     _sbPrecargar();
     if (document.fonts && document.fonts.status !== 'loaded' && !_sbFuenteEspera) {

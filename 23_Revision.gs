@@ -257,7 +257,7 @@ function revisarProblemas() {
   if (conAlternancia > 0 && semanas.length === 0) {
     gruposProblemas.push({
       tipo: 'sin_calendario', gravedad: 'info', titulo: 'Alternancia sin calendario',
-      descripcion: 'Hay ocupaciones con semana A/B pero no hay calendario de semanas alternas: la semana se calcula alternando desde la fecha de inicio del curso, sin tener en cuenta vacaciones. Configura el calendario en Centro y horario.',
+      descripcion: 'Hay ocupaciones con semana A/B pero no hay calendario de semanas alternas: la semana se calcula alternando desde la fecha de inicio del curso, sin tener en cuenta vacaciones. Configura el calendario en Tramos y semanas.',
       items: [_gen(conAlternancia + ' ocupación(es) con semana A/B y ningún calendario configurado', [{ t: 'tab', label: 'Configurar semanas', tab: 'tramos' }])]
     });
   }

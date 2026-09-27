@@ -60,7 +60,7 @@ function sabanaSemana(semana) {
  * domingo cuentan ya como la semana siguiente.
  */
 function semanaActual(fecha) {
-  // 1.º el calendario de semanas alternas (Centro y horario), si cubre la fecha.
+  // 1.º el calendario de semanas alternas (Tramos y semanas), si cubre la fecha.
   try {
     const cal = semanaDeFecha(fecha || _hoyISO());
     if (cal && (cal.tipo === 'A' || cal.tipo === 'B')) return cal.tipo;

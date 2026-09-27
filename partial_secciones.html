@@ -1,10 +1,10 @@
 <!-- ================= Vistas de las secciones de datos ================= -->
 
-<!-- Centro y horario (datos del centro + tramos horarios) -->
+<!-- Centro y ajustes (datos del centro + ajustes generales) -->
 <section class="view" id="view-centro">
   <div class="page-head">
-    <h2>Centro y horario</h2>
-    <p>Datos generales del centro, los tramos en que se divide la jornada (el orden se calcula por la hora de inicio) y el calendario de semanas alternas A/B.</p>
+    <h2>Centro y ajustes</h2>
+    <p>Datos generales del centro, la base de datos y las opciones de reinicio.</p>
   </div>
   <div class="two-col centro-cols">
     <div class="col-sec">
@@ -73,6 +73,17 @@
         <div id="res-centro"></div>
       </div>
     </div>
+    <div class="col-sec" id="centro-ajustes"><!-- Ajustes generales (partial_config) --></div>
+  </div>
+</section>
+
+<!-- Tramos y semanas alternas -->
+<section class="view" id="view-tramos">
+  <div class="page-head">
+    <h2>Tramos y semanas</h2>
+    <p>Los tramos en que se divide la jornada (el orden se calcula por la hora de inicio) y, si las hay, el calendario de semanas alternas A/B.</p>
+  </div>
+  <div class="two-col">
     <div class="col-sec">
       <div class="col-head">
         <h3>Tramos horarios</h3>
@@ -92,8 +103,9 @@
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar tramos</button></div>
       <div id="res-tramos"></div>
-
-      <div class="col-head" style="margin-top:var(--s5)">
+    </div>
+    <div class="col-sec">
+      <div class="col-head">
         <h3 class="info-wrap">Semanas alternas (A/B)
           <button type="button" class="info-btn" aria-label="Información" onclick="toggleInfo(this, event)">i</button>
           <span class="info-pop" hidden>Calendario de semanas lectivas con su tipo A o B. Si una fecha no está en el calendario (o no hay calendario), la semana se calcula alternando desde la fecha de inicio del curso. Úsalo para ajustar vacaciones o semanas sueltas.</span>
@@ -181,6 +193,7 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
+  <div class="doc-tabla">
   <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
   <div class="tablewrap">
     <table class="data fit">
@@ -192,6 +205,7 @@
       </tr></thead>
       <tbody id="docentes-body" data-anadir="anadirDocente"></tbody>
     </table>
+  </div>
   </div>
   <div class="actions"><button class="primary" id="btn-guardar-docentes" onclick="enviarDocentes()">Guardar cambios</button></div>
   <div id="res-docentes"></div>

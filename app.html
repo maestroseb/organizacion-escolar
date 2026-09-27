@@ -77,10 +77,10 @@
         <?!= include('partial_revision') ?>
       </section>
 
-      <!-- Configuración → Ajustes generales -->
-      <section class="view" id="view-ajustes">
+      <!-- Ajustes generales: se colocan en Configuración → Centro y ajustes (ver arrancar). -->
+      <div id="ajustes-src" hidden>
         <?!= include('partial_config') ?>
-      </section>
+      </div>
     </main>
   </div>
 
@@ -119,17 +119,17 @@
 
     // Submenú dentro de Configuración: datos del centro e importación.
     var CONFIG_SUBTABS = [
-      { key: 'centro',         label: 'Centro y horario', cont: 'tramos' },
+      { key: 'centro',         label: 'Centro y ajustes' },
+      { key: 'tramos',         label: 'Tramos y semanas', cont: 'tramos' },
       { key: 'grupos',         label: 'Grupos y aulas',  cont: 'grupos' },
       { key: 'docentes',       label: 'Docentes',        cont: 'docentes' },
       { key: 'areas',          label: 'Áreas y cargos',  cont: 'materias' },
       { key: 'importar',       label: 'Importar' },
-      { key: 'revision',       label: 'Revisión' },
-      { key: 'ajustes',        label: 'Ajustes' }
+      { key: 'revision',       label: 'Revisión' }
     ];
     var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
     // Claves antiguas o de secciones fusionadas (modo guiado, enlaces, hash).
-    var ALIAS = { tramos: 'centro', semanas: 'centro' };
+    var ALIAS = { semanas: 'tramos', ajustes: 'centro' };
     function _alias(k) { return ALIAS[k] || k; }
 
     var ESTADO = null;         // último estadoApp()
@@ -150,6 +150,9 @@
     else setTimeout(arrancar, 0);
 
     function arrancar() {
+      // Ajustes generales dentro de «Centro y ajustes».
+      var src = document.getElementById('ajustes-src'), dst = document.getElementById('centro-ajustes');
+      if (src && dst) { while (src.firstChild) dst.appendChild(src.firstChild); src.remove(); }
       if (INICIAL && INICIAL.estado) { _arrancarConInicial(INICIAL); INICIAL = null; return; }
       // La sábana (vista inicial) se pide en paralelo con estadoApp.
       const destino = _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
@@ -304,8 +307,8 @@
       sustituciones: function() { renderSustituciones(); },
       horario: function() { renderHorario(); },
       importar: function() { prepararImportar(); },
-      ajustes: function() { renderConfig(); },
-      centro: function() { cargarCentro(); cargarTramos(); cargarSemanas(); },
+      centro: function() { cargarCentro(); renderConfig(); },
+      tramos: function() { cargarTramos(); cargarSemanas(); },
       revision: function() { renderProblemas(); },
       grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
@@ -421,7 +424,7 @@
       google.script.run.withSuccessHandler(function(res) {
         PENDIENTES = (res && res.pendientes) || [];
         // Quitar la sección actual (ya guardada) y saltar a la siguiente pendiente.
-        // Secciones fusionadas (Centro + Tramos) cuentan como la misma vista:
+        // Secciones fusionadas (Tramos + Semanas) cuentan como la misma vista:
         // no se "avanza" a la vista actual (recargaría y perdería ediciones).
         const actual = _alias(VISTA_ACTUAL);
         const siguiente = PENDIENTES.map(_alias).filter(function(k) { return k !== actual; })[0];
@@ -558,6 +561,31 @@
     window.addEventListener('beforeunload', function(e) {
       var sucio = Object.keys(GUARDABLES).some(function(v) { return _pendientes(v).length; });
       if (sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // ---------- Cajas con scroll: que quepan en la pantalla ----------
+    // Cada caja (tabla, rejilla…) mide como mucho lo que queda de pantalla
+    // desde su borde superior, dejando sitio a lo que va debajo en su columna
+    // (p. ej. el botón Guardar). Se recalcula al cambiar de vista o de tamaño.
+    var _CAJAS = '.view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
+    function ajustarAltos() {
+      document.querySelectorAll(_CAJAS).forEach(function(c) {
+        if (!c.offsetParent) return;
+        var r = c.getBoundingClientRect(), top = r.top + window.scrollY;
+        var col = c.closest('.col-sec, .hi-col, .view') || c.parentElement;
+        // Lo que va debajo de la caja en su columna (hermanos siguientes).
+        var debajo = 0;
+        for (var el = c; el && el !== col; el = el.parentElement)
+          for (var sb = el.nextElementSibling; sb; sb = sb.nextElementSibling) if (sb.offsetParent) debajo += sb.offsetHeight + 10;
+        c.style.maxHeight = Math.max(220, window.innerHeight - top - debajo - 16) + 'px';
+      });
+    }
+    var _altoPend = false;
+    function _pedirAjuste() { if (_altoPend) return; _altoPend = true; requestAnimationFrame(function() { _altoPend = false; ajustarAltos(); }); }
+    window.addEventListener('resize', _pedirAjuste);
+    document.addEventListener('DOMContentLoaded', function() {
+      var m = document.querySelector('main') || document.body;
+      new MutationObserver(_pedirAjuste).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     });
 
     // ---------- Modales: clic fuera o Esc = Cancelar ----------
