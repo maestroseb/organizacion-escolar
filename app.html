@@ -595,6 +595,24 @@
       new MutationObserver(_pedirAjuste).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
     });
 
+    // ---------- Avisos de «guardado» como toast ----------
+    // Los mensajes breves de éxito (.result.ok) que pintan las vistas se
+    // convierten en un toast que desaparece solo. Los errores y los resúmenes
+    // largos (con listas, tablas…) se quedan en la página.
+    function _aToast(n) {
+      if (n.nodeType !== 1) return;
+      var rs = n.matches('.result.ok') ? [n] : Array.prototype.slice.call(n.querySelectorAll('.result.ok'));
+      rs.forEach(function(r) {
+        var txt = r.textContent.trim();
+        if (!txt || txt.length > 200 || r.querySelector('ul, ol, table, div, button, a, input')) return;
+        aviso(txt, 'ok'); r.remove();
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      new MutationObserver(function(ms) { ms.forEach(function(m) { m.addedNodes.forEach(_aToast); }); })
+        .observe(document.body, { childList: true, subtree: true });
+    });
+
     // ---------- Modales: clic fuera o Esc = Cancelar ----------
     // Se pulsa el propio botón Cancelar del modal (así se respetan sus
     // confirmaciones, p. ej. el pintado con cambios). Solo cuenta si el clic
