@@ -77,13 +77,14 @@
   }
   // Rejilla completa de una semana; cada rail lleva un badge con la semana (A/B).
   function _sbGridHtml(res) {
+    var anchos = _sbAnchosDia(res);
     var badge = res.semana ? '<span class="sb-semb" title="Semana ' + _esc(res.semana) + '">' + _esc(res.semana) + '</span>' : '';
     var html = res.tramos.map(function(t){
-      if (t.tramo.es_recreo) return _sbRecreoSemana(t, res.dias);
+      if (t.tramo.es_recreo) return _sbRecreoSemana(t, res.dias, anchos);
       var col = _sbColor(t.tramo.color) || '#4f9d84', st = _sbHeadStyle(col);
       var cols = res.dias.map(function(d){
         var cell = t.porDia[d.k] || { cursos: [], apoyos: [], libres: [] };
-        return '<div class="sb-daycol">' +
+        return '<div class="sb-daycol" style="' + anchos[d.k] + '">' +
           '<div class="sb-dayhead" style="' + st + '">' + _esc(_sbTitulo(d.n, t.tramo)) + '</div>' +
           _sbCols(cell.cursos, cell.apoyos, cell.libres) +
         '</div>';
@@ -105,6 +106,17 @@
     });
     return _sbAnchosDe(celdas, 13);
   }
+  // Anchos por día: cada día mide lo justo para su texto más largo en todos
+  // sus tramos (el lunes puede ser más ancho que el martes).
+  function _sbAnchosDia(res) {
+    var out = {};
+    res.dias.forEach(function(d) {
+      var celdas = [];
+      res.tramos.forEach(function(t) { if (!t.tramo.es_recreo && t.porDia[d.k]) celdas.push(t.porDia[d.k]); });
+      out[d.k] = celdas.length ? _sbAnchosDe(celdas, 13) : '';
+    });
+    return out;
+  }
   var _sbCanvas = null;
   function _sbMedir(textos, peso, px) {
     var ctx = (_sbCanvas || (_sbCanvas = document.createElement('canvas'))).getContext('2d');
@@ -116,7 +128,8 @@
   }
   // celdas: [{cursos, apoyos}]; px: tamaño de letra de la tabla.
   function _sbAnchosDe(celdas, px) {
-    var cursos = [], docs = [], ocs = [], segs = [];
+    // Las cabeceras también cuentan: la columna nunca es más estrecha que su título.
+    var cursos = ['CURSO'], docs = ['DOCENTE'], ocs = ['OCUP.'], segs = [];
     celdas.forEach(function(c) {
       c.cursos.forEach(function(g) {
         cursos.push(g.grupo.nombre);
@@ -223,11 +236,11 @@
   }
   // Recreo con turnos: una franja por día con «Zona: nombres». Sin turnos,
   // la banda de siempre.
-  function _sbRecreoSemana(t, dias) {
+  function _sbRecreoSemana(t, dias, anchos) {
     var hay = dias.some(function(d) { return ((t.porDia[d.k] || {}).zonas || []).length; });
     if (!hay) return _sbRecreo(t.tramo);
     return '<div class="sb-weekrow sb-recreo-w"><div class="sb-rail sb-rail-recreo">RECREO</div>' + dias.map(function(d) {
-      return '<div class="sb-daycol sb-recreo-col">' + _sbZonas(((t.porDia[d.k] || {}).zonas) || []) + '</div>';
+      return '<div class="sb-daycol sb-recreo-col" style="' + (anchos ? anchos[d.k] : '') + '">' + _sbZonas(((t.porDia[d.k] || {}).zonas) || []) + '</div>';
     }).join('') + '</div>';
   }
   function _sbZonas(zonas) {
