@@ -43,10 +43,12 @@ function guardarDocentes(docentes, modo) {
       nombre_completo: d.nombre_completo || '',
       puesto: d.puesto || '',
       email: d.email || '',
+      telefono: d.telefono || '',
       activo: d.activo === false ? false : true,
       orden: i + 1,
       color: d.color || '',
       sustituto: d.sustituto || '',
+      sustituto_email: d.sustituto_email || '',
       acceso_sust: d.acceso_sust === true,
       parcial: d.parcial === true
     };

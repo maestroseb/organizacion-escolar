@@ -128,7 +128,8 @@ function estadoApp() {
 /**
  * Qué puede ver el usuario que abre la app. Admin = propietario del script
  * (quien despliega). Equipo directivo = docente cuyo email coincide con el
- * del usuario y tiene marcado «Sustituciones» en Configuración → Docentes.
+ * del usuario (o el de su sustituto/a) y tiene marcado «Sustituciones» en
+ * Configuración → Docentes.
  * Session.getActiveUser() solo da el email dentro del mismo dominio.
  */
 function permisosUsuario() {
@@ -141,7 +142,9 @@ function permisosUsuario() {
   if (email && !admin) {
     try {
       directivo = getAll(SHEETS.DOCENTES).some(function(d) {
-        return String(d.email || '').trim().toLowerCase() === email &&
+        // El sustituto/a que cubre a un titular hereda su acceso.
+        return (String(d.email || '').trim().toLowerCase() === email ||
+                (String(d.sustituto || '').trim() && String(d.sustituto_email || '').trim().toLowerCase() === email)) &&
                (d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE') && d.activo !== false;
       });
     } catch (e) {}

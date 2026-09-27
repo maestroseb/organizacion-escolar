@@ -123,6 +123,8 @@
     background: linear-gradient(135deg, var(--accent), #0ea5a4);
     display: grid; place-items: center; box-shadow: var(--shadow-sm);
   }
+  /* Icono de la app (el mismo favicon de la pestaña del navegador). */
+  .logo-img { width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0; object-fit: contain; }
   .brand .logo svg { width: 16px; height: 16px; stroke: #fff; fill: none; stroke-width: 2; }
   .brand .titles { min-width: 0; }
   .brand h1 { font-size: 14px; font-weight: 650; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -437,7 +439,9 @@
   .sb-weekscroll {
     --sb-cw: 3.4em; --sb-docw: 12ch; --sb-ocw: 12ch;
     overflow: auto; overscroll-behavior-x: contain; max-height: calc(100vh - 150px);
+    width: max-content; max-width: 100%; border-radius: var(--radius); /* solo las 4 esquinas, sin marco */
   }
+  .sb-sem-lbl { font-weight: 700; font-size: var(--fs-sm); color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .sb-weekscroll > .sb-recreo { position: sticky; left: 0; }
   .sb-weekrow { display: flex; align-items: stretch; min-width: min-content; }
   .sb-tramo-w + .sb-tramo-w, .sb-recreo + .sb-tramo-w { border-top: 6px solid var(--bg); }
@@ -464,8 +468,11 @@
   .sb-oc .sb-pill { display: block; text-align: center; }
   /* Varias personas en un curso: una sola fila (misma altura todos los días). */
   .sb-seg { display: flex; border-radius: var(--radius-xs); overflow: hidden; }
-  .sb-seg .sb-pill { flex: 1 1 0; min-width: 0; border-radius: 0; padding: 0 3px; text-align: center; }
+  .sb-seg .sb-pill { flex: 1 1 auto; min-width: 0; border-radius: 0; padding: 0 4px; text-align: center; text-overflow: clip; }
   .sb-sep { color: var(--faint); font-weight: 400; margin: 0 3px; }
+  /* PT/AL: clase a 1-2 alumnos (no es cargo): filete de «clase» a la izquierda. */
+  table.sb tr.sb-aten td.sb-loc { box-shadow: inset 3px 0 0 var(--accent); color: var(--accent-text); }
+  .sb-pill.sb-pill-aten { outline: 1.5px solid var(--accent); outline-offset: -1.5px; }
   .sb-tutor { font-size: var(--fs-sm); color: var(--faint); font-style: italic; }
   .sb-sin { color: var(--warn); font-weight: 700; font-size: var(--fs-sm); }
   .sb-libres { margin-top: auto; text-align: right; padding: 4px 6px 3px; font-size: var(--fs-sm); color: var(--muted); line-height: 1.35; white-space: normal; max-width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); }
@@ -550,7 +557,7 @@
   .pt-left { overflow: auto; padding-right: 4px; font-family: var(--font-cond); }
   .pt-lbl { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin: 10px 0 4px; }
   .pt-seg { display: flex; width: 100%; }
-  .pt-seg button { flex: 1; }
+  .pt-seg button { flex: 1; padding: 0 6px; }
   .pt-brush { position: sticky; top: 0; z-index: 1; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); padding: 8px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
   .pt-brush small { color: var(--muted); font-size: var(--fs-xs); }
   .pt-prev { display: inline-block; border-radius: var(--radius-xs); padding: 2px 10px; font-weight: 700; background: var(--surface-3); }
@@ -627,6 +634,17 @@
   table.su { border-collapse: collapse; font-family: var(--font-cond); font-size: var(--fs-data); }
   table.su th { position: sticky; top: 0; background: var(--surface-3); font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: .03em; padding: 4px 8px; text-align: left; white-space: nowrap; z-index: 1; }
   table.su th.su-aus { text-align: center; border-left: 2px solid var(--border-strong); }
+  /* Asignaturas, nombres y cabeceras centrados; la opción elegida también. */
+  table.su td.su-oc, table.su td.su-sel { text-align: center; }
+  table.su td.su-sel select { text-align: center; text-align-last: center; }
+  table.su th.su-gcol { background: var(--accent-weak); }
+  .su-gtag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-text); }
+  .su-chk { display: inline-flex; vertical-align: middle; margin-right: 4px; }
+  .su-cob { border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); padding: 10px 12px; margin-bottom: var(--s3); display: flex; flex-direction: column; gap: 8px; font-family: var(--font-cond); }
+  .su-cob-row { display: flex; gap: 10px; align-items: baseline; }
+  .su-cob-row > b { flex: 0 0 70px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+  .su-cob-sep { width: 1px; align-self: stretch; background: var(--border-strong); margin: 0 4px; }
+  .su-cob-acc { justify-content: flex-end; }
   table.su td { padding: 2px 6px; border-top: 1px solid var(--border); white-space: nowrap; vertical-align: middle; }
   table.su td.su-oc { border-left: 2px solid var(--border-strong); min-width: 120px; }
   table.su td.su-vacio { color: var(--faint); text-align: center; }
@@ -638,7 +656,7 @@
   table.su select { min-height: 24px; padding: 0 4px; font-family: inherit; font-size: var(--fs-data); width: 150px; }
   table.su select.pend { border-color: var(--warn); }
   @media print {
-    body:not(.print-sabana) .topbar, body:not(.print-sabana) .su-toolbar, body:not(.print-sabana) #view-sustituciones .page-head { display: none !important; }
+    body:not(.print-sabana) .topbar, body:not(.print-sabana) .su-toolbar, body:not(.print-sabana) .su-cob, body:not(.print-sabana) #view-sustituciones .page-head { display: none !important; }
     body:not(.print-sabana) table.su select { border: none; appearance: none; background: none; font-weight: 700; }
   }
 
@@ -670,6 +688,8 @@
   .hd-oc.t-grupo { background: var(--surface-3); }
   .hd-oc.t-localizacion { background: var(--warn-weak); color: var(--warn); }
   .hd-oc.t-especial { background: var(--purple-weak); color: var(--purple); }
+  .hd-oc.hd-col { font-weight: 600; }
+  .hd-oc.hd-col .hd-suf { color: inherit; opacity: .8; }
   .hd-suf { color: var(--faint); font-size: var(--fs-xs); }
 
   .hd-oceditor { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 8px; background: var(--surface-2); }
@@ -687,4 +707,16 @@
     .modal-box { padding: var(--s4); }
     .toolbar select, .toolbar input[type=text] { min-width: 0 !important; flex: 1 1 160px; }
   }
+
+  /* ---------- Pegar lista del claustro ---------- */
+  .cl-box { max-width: 920px; }
+  #cl-texto { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; resize: vertical; }
+  .cl-resumen { margin: var(--s3) 0 6px; font-size: var(--fs); color: var(--muted); }
+  .cl-tabla td { font-size: 12px; white-space: nowrap; }
+  .cl-casar select { max-width: 260px; }
+  .cl-conf { display: inline-block; padding: 1px 6px; border-radius: 8px; font-size: 11px; border: 1px solid var(--border); color: var(--muted); }
+  .cl-seguro { color: var(--ok); border-color: var(--ok); }
+  .cl-probable { color: var(--warn); border-color: var(--warn); }
+  .cl-nuevo { color: var(--accent); border-color: var(--accent); }
+  .cl-alias { margin-right: auto; display: flex; align-items: center; gap: 6px; font-size: var(--fs); }
 </style>
