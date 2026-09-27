@@ -265,10 +265,11 @@
     return _esc(o.docente || '—') + (o.cubre ? ' <span class="sb-cubre" title="Está cubriendo una sustitución">sust.</span>' : '');
   }
 
-  // Orden dentro de un curso compartido: Religión, luego ATEDU, luego el resto.
+  // Orden dentro de un curso compartido: Religión, luego ATEDU, luego el
+  // resto y, al final, las alternativas («Alt. Fra.» va tras Francés).
   function _sbPrio(o) {
     var m = String(o.materia || '').toLowerCase();
-    return /relig/.test(m) ? 0 : /atedu|atenci[oó]n educ/.test(m) ? 1 : 2;
+    return /relig/.test(m) ? 0 : /atedu|atenci[oó]n educ/.test(m) ? 1 : /^alt\b|^alt\.|alternativ/.test(m) ? 3 : 2;
   }
   // Una fila por curso: nombres en línea («Inma B. · Puri») y pill partida
   // en un tramo de color por área, para que todas las filas midan lo mismo.
