@@ -574,7 +574,7 @@
     // Cada caja (tabla, rejilla…) mide como mucho lo que queda de pantalla
     // desde su borde superior, dejando sitio a lo que va debajo en su columna
     // (p. ej. el botón Guardar). Se recalcula al cambiar de vista o de tamaño.
-    var _CAJAS = '.view.active .rc-body, .view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
+    var _CAJAS = '.view.active #rc-pool-list, .view.active .rc-body, .view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
     function ajustarAltos() {
       // Con cajas de scroll, el pie de página no reserva el hueco del botón
       // flotante (la caja llega abajo y la página no se desplaza).
@@ -597,10 +597,20 @@
     var _altoPend = false;
     function _pedirAjuste() { if (_altoPend) return; _altoPend = true; requestAnimationFrame(function() { _altoPend = false; ajustarAltos(); }); }
     window.addEventListener('resize', _pedirAjuste);
-    document.addEventListener('DOMContentLoaded', function() {
-      var m = document.querySelector('main') || document.body;
-      new MutationObserver(_pedirAjuste).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
-    });
+    // Se recalcula ante cualquier cambio: DOM, tamaño (fuentes que cargan
+    // tarde, textos que se recolocan…) y al terminar de cargar. Se engancha
+    // ya (no en DOMContentLoaded): la sábana puede pintarse antes.
+    (function() {
+      var enganchar = function() {
+        var m = document.querySelector('main') || document.body;
+        new MutationObserver(_pedirAjuste).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        if (window.ResizeObserver) new ResizeObserver(_pedirAjuste).observe(document.body);
+        _pedirAjuste();
+      };
+      if (document.body) enganchar(); else document.addEventListener('DOMContentLoaded', enganchar);
+      window.addEventListener('load', _pedirAjuste);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(_pedirAjuste);
+    })();
 
     // ---------- Avisos de «guardado» como toast ----------
     // Los mensajes breves de éxito (.result.ok) que pintan las vistas se
