@@ -19,17 +19,25 @@
       <div class="topbar-inner">
         <div class="brandrow">
           <div class="brand">
-            <div class="logo" aria-hidden="true">
-              <svg viewBox="0 0 24 24"><path d="M3 5h18v16H3zM3 9h18M8 3v4M16 3v4"/></svg>
-            </div>
+            <img class="logo-img" src="<?= FAVICON_URL ?>" alt="" aria-hidden="true">
             <div class="titles">
               <h1 id="brand-nombre">Gestor de Horarios</h1>
               <div class="sub" id="brand-sub">Horarios y sustituciones</div>
             </div>
           </div>
-          <button class="ghost" id="btn-tema" title="Cambiar tema" onclick="alternarTema()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>
-          </button>
+          <div class="top-acc">
+            <!-- Configuración: solo con permiso de Edición (se muestra en pintarCabecera). -->
+            <button class="ghost tab-config" id="tab-config" type="button" title="Configuración" onclick="irPestana('config')" hidden>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+              <span>Configuración</span>
+            </button>
+            <div class="zoom-grp" role="group" aria-label="Tamaño de letra">
+              <button class="ghost" type="button" onclick="cambiarZoom(-1)" title="Letra más pequeña">A−</button>
+              <button class="ghost zoom-val" type="button" id="zoom-val" onclick="cambiarZoom(0)" title="Tamaño normal">100%</button>
+              <button class="ghost" type="button" onclick="cambiarZoom(1)" title="Letra más grande">A+</button>
+            </div>
+            <button class="ghost" id="btn-tema" title="Cambiar tema" onclick="alternarTema()"></button>
+          </div>
         </div>
         <nav class="tabs" id="tabs"></nav>
       </div>
@@ -66,6 +74,11 @@
         <?!= include('partial_pintado') ?>
       </section>
 
+      <!-- Turnos de recreo -->
+      <section class="view" id="view-recreos">
+        <?!= include('partial_recreos') ?>
+      </section>
+
       <!-- Secciones de datos (centro, tramos, grupos, docentes, tutorías, localizaciones, materias, roles) -->
       <?!= include('partial_secciones') ?>
 
@@ -79,14 +92,16 @@
         <?!= include('partial_revision') ?>
       </section>
 
-      <!-- Configuración → Ajustes generales -->
-      <section class="view" id="view-ajustes">
+      <!-- Ajustes generales: se colocan en Configuración → Centro y ajustes (ver arrancar). -->
+      <div id="ajustes-src" hidden>
         <?!= include('partial_config') ?>
-      </section>
+      </div>
     </main>
   </div>
 
   <button type="button" class="primary fab" id="fab-guardar" onclick="guardarPendientes()">Guardar cambios</button>
+
+  <?!= include('partial_bot') ?>
 
   <!-- ============ Modal de confirmación reutilizable ============ -->
   <div class="modal-overlay" id="modal-confirm">
@@ -104,31 +119,37 @@
     // Pestaña inicial pasada por el servidor (deep-link ?page=).
     // Escapamos '<' para que un ?page= malicioso no pueda cerrar el <script> (XSS reflejado).
     var PESTANA_INICIAL = <?!= JSON.stringify(String(pestanaInicial || '')).replace(/</g, '\\u003c') ?>;
+    // Datos ya incluidos en la página (ver _datosIniciales en 09_Web.gs): la
+    // sábana se pinta sin esperar al servidor. null → se piden como siempre.
+    var INICIAL = <?!= JSON.stringify(inicial || null).replace(/</g, '\\u003c') ?>;
 
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
       { key: 'sabana',         label: 'Sábana' },
+      { key: 'ahora',          label: 'Ahora' },
+      { key: 'sustituciones',  label: 'Sustituciones' },
       { key: 'horario',        label: 'Horarios individuales' },
       { key: 'apoyos',         label: 'Refuerzo, PT y AL' },
-      { key: 'ahora',          label: 'Ahora' },
-      { key: 'sustituciones',  label: 'Sustituciones', permiso: 'sustituciones' },
-      { key: 'config',         label: 'Configuración' }
+      { key: 'recreos',        label: 'Recreos' },
+      // Configuración va como engranaje junto al tema (no en la barra) y
+      // solo con permiso de Edición.
+      { key: 'config',         label: 'Configuración', permiso: 'edicion', oculta: true }
     ];
     var INICIO = 'sabana';
 
     // Submenú dentro de Configuración: datos del centro e importación.
     var CONFIG_SUBTABS = [
-      { key: 'centro',         label: 'Centro y horario', cont: 'tramos' },
+      { key: 'centro',         label: 'Centro y ajustes' },
+      { key: 'tramos',         label: 'Tramos y semanas', cont: 'tramos' },
       { key: 'grupos',         label: 'Grupos y aulas',  cont: 'grupos' },
       { key: 'docentes',       label: 'Docentes',        cont: 'docentes' },
       { key: 'areas',          label: 'Áreas y cargos',  cont: 'materias' },
       { key: 'importar',       label: 'Importar' },
-      { key: 'revision',       label: 'Revisión' },
-      { key: 'ajustes',        label: 'Ajustes' }
+      { key: 'revision',       label: 'Revisión' }
     ];
     var CONFIG_KEYS = CONFIG_SUBTABS.map(function(t) { return t.key; });
     // Claves antiguas o de secciones fusionadas (modo guiado, enlaces, hash).
-    var ALIAS = { tramos: 'centro', semanas: 'centro' };
+    var ALIAS = { semanas: 'tramos', ajustes: 'centro' };
     function _alias(k) { return ALIAS[k] || k; }
 
     var ESTADO = null;         // último estadoApp()
@@ -144,10 +165,15 @@
     // El tema se aplica cuanto antes (evita el parpadeo claro→oscuro) y el
     // arranque no espera a 'load': el shell entero ya está en el DOM.
     aplicarTemaGuardado();
+    // Siempre tras cargar todos los <script> (sus `var` ya inicializados).
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', arrancar);
-    else arrancar();
+    else setTimeout(arrancar, 0);
 
     function arrancar() {
+      // Ajustes generales dentro de «Centro y ajustes».
+      var src = document.getElementById('ajustes-src'), dst = document.getElementById('centro-ajustes');
+      if (src && dst) { while (src.firstChild) dst.appendChild(src.firstChild); src.remove(); }
+      if (INICIAL && INICIAL.estado) { _arrancarConInicial(INICIAL); INICIAL = null; return; }
       // La sábana (vista inicial) se pide en paralelo con estadoApp.
       const destino = _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
       if (destino === 'sabana') _prefetch('sabanaSemana');
@@ -168,13 +194,23 @@
         .estadoApp();
     }
 
+    function _arrancarConInicial(ini) {
+      ESTADO = ini.estado;
+      if (!ESTADO.configurado) { mostrarOnboarding(); return; }
+      // Siembra las cachés: sábana (A y B) y lecturas de uso diario.
+      if (ini.sabanas) window.SB_INICIAL = ini.sabanas;
+      _RPC_V = DATOS_VERSION;
+      Object.keys(ini.lecturas || {}).forEach(function(n) { _RPC[n + '[]'] = { ok: true, res: ini.lecturas[n], cbs: [] }; });
+      entrarWorkspace();
+    }
+
     // ---------- Llamadas al servidor con caché de lecturas ----------
     // _run() se usa igual que google.script.run. Las funciones de solo lectura
     // (LECTURAS) se sirven de memoria mientras DATOS_VERSION no cambie (se
     // incrementa tras cada guardado) y dos peticiones iguales a la vez se
     // fusionan en una. Cada llamante recibe su propia copia (pueden mutarla).
     var LECTURAS = { listarSemanas: 1, listarDocentes: 1, listarGrupos: 1, listarTramos: 1, listarMaterias: 1, listarRoles: 1,
-                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1 };
+                     listarLocalizaciones: 1, obtenerCentro: 1, datosHorarioDocente: 1, datosHorarios: 1 };
     var _RPC = {}, _RPC_V = -1;
     function _copia(x) { return x == null ? x : JSON.parse(JSON.stringify(x)); }
     function _srv(nombre, args) {
@@ -239,6 +275,8 @@
     function entrarWorkspace(pestana) {
       document.getElementById('onboarding').style.display = 'none';
       document.getElementById('workspace').style.display = 'block';
+      if (typeof botMostrar === 'function') botMostrar(true);
+      _aplicarPermisos();
       pintarCabecera();
       construirTabs();
       const destino = pestana || _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
@@ -258,7 +296,7 @@
       const nav = document.getElementById('tabs');
       nav.innerHTML = '';
       TABS.forEach(function(t) {
-        if (!_tabPermitida(t)) return;
+        if (!_tabPermitida(t) || t.oculta) return;
         const b = document.createElement('button');
         b.className = 'tab';
         b.id = 'tab-' + t.key;
@@ -274,6 +312,14 @@
       });
     }
 
+    // Permiso de Edición (Equipo Directivo / administrador). El resto del
+    // profesorado solo ve: sin Configuración ni botones de guardar o editar.
+    function puedeEditar() { return !!(ESTADO && ESTADO.permisos && (ESTADO.permisos.edicion || ESTADO.permisos.sustituciones)); }
+    function soloLectura(msg) { if (puedeEditar()) return false; aviso(msg || 'Solo lectura: necesitas permiso de Edición.', 'err'); return true; }
+    function _aplicarPermisos() {
+      document.body.classList.toggle('solo-lectura', !puedeEditar());
+      var c = document.getElementById('tab-config'); if (c) c.hidden = !puedeEditar();
+    }
     function _tabPermitida(t) {
       return !t.permiso || !!(ESTADO && ESTADO.permisos && ESTADO.permisos[t.permiso]);
     }
@@ -290,9 +336,10 @@
       ahora: function() { renderAhora(); },
       sustituciones: function() { renderSustituciones(); },
       horario: function() { renderHorario(); },
+      recreos: function() { renderRecreos(); },
       importar: function() { prepararImportar(); },
-      ajustes: function() { renderConfig(); },
-      centro: function() { cargarCentro(); cargarTramos(); cargarSemanas(); },
+      centro: function() { cargarCentro(); renderConfig(); },
+      tramos: function() { cargarTramos(); cargarSemanas(); },
       revision: function() { renderProblemas(); },
       grupos: function() { cargarGrupos(); cargarLocalizaciones(); },
       docentes: function() { cargarDocentes(); },
@@ -302,6 +349,8 @@
     function irPestana(key) {
       key = _alias(key);
       // La pestaña "Configuración" abre el hub (submenú + última subsección).
+      // Sin permiso de Edición no se entra en Configuración (ni por enlace).
+      if ((key === 'config' || CONFIG_KEYS.indexOf(key) !== -1) && !puedeEditar()) key = INICIO;
       if (key === 'config') { irConfig(CONFIG_SUB_ACTUAL); return; }
       if (!_keyValida(key)) key = INICIO;
       // Las secciones de datos viven dentro de Configuración.
@@ -311,6 +360,7 @@
       document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
       document.querySelectorAll('#tabs .tab').forEach(function(t) { t.classList.remove('active'); });
       document.getElementById('config-subnav').style.display = 'none';
+      var tc = document.getElementById('tab-config'); if (tc) tc.classList.remove('active');
 
       const view = document.getElementById('view-' + key);
       const tab = document.getElementById('tab-' + key);
@@ -388,6 +438,7 @@
     }
     function _aplicarEstado(estado) {
       ESTADO = estado;
+      _aplicarPermisos();
       DATOS_VERSION++;
       pintarCabecera();
       actualizarPills();
@@ -408,7 +459,7 @@
       google.script.run.withSuccessHandler(function(res) {
         PENDIENTES = (res && res.pendientes) || [];
         // Quitar la sección actual (ya guardada) y saltar a la siguiente pendiente.
-        // Secciones fusionadas (Centro + Tramos) cuentan como la misma vista:
+        // Secciones fusionadas (Tramos + Semanas) cuentan como la misma vista:
         // no se "avanza" a la vista actual (recargaría y perdería ediciones).
         const actual = _alias(VISTA_ACTUAL);
         const siguiente = PENDIENTES.map(_alias).filter(function(k) { return k !== actual; })[0];
@@ -425,6 +476,7 @@
     function mostrarOnboarding() {
       document.getElementById('workspace').style.display = 'none';
       document.getElementById('onboarding').style.display = 'block';
+      if (typeof botMostrar === 'function') botMostrar(false);
       if (typeof iniciarOnboarding === 'function') iniciarOnboarding();
     }
 
@@ -462,14 +514,48 @@
       let t = null;
       try { t = localStorage.getItem('tema'); } catch (e) {}
       if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+      // (ZOOMS aún no está definido aquí: se aplica al cargar el DOM.)
+      var pinta = function() { aplicarZoomGuardado(); _iconoTema(); };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', pinta); else pinta();
+      if (window.matchMedia) { var mq = window.matchMedia('(prefers-color-scheme: dark)'); if (mq.addEventListener) mq.addEventListener('change', _iconoTema); }
+    }
+    function _oscuroActivo() {
+      const actual = document.documentElement.getAttribute('data-theme');
+      return actual === 'dark' || (!actual && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+    // Icono del botón: la luna pasa a modo oscuro; en modo oscuro, el sol vuelve al claro.
+    var _SVG_LUNA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z"/></svg>';
+    var _SVG_SOL = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2 12h2.2M19.8 12H22M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>';
+    function _iconoTema() {
+      var b = document.getElementById('btn-tema'); if (!b) return;
+      var osc = _oscuroActivo();
+      b.innerHTML = osc ? _SVG_SOL : _SVG_LUNA;
+      b.title = osc ? 'Pasar a modo claro' : 'Pasar a modo oscuro';
+    }
+
+    // ---------- Tamaño de letra (zoom del contenido, se recuerda) ----------
+    var ZOOMS = [0.85, 0.9, 1, 1.1, 1.2, 1.35, 1.5], ZOOM = 1;
+    function aplicarZoomGuardado() {
+      try { var z = parseFloat(localStorage.getItem('zoom')); if (ZOOMS.indexOf(z) !== -1) ZOOM = z; } catch (e) {}
+      _aplicarZoom();
+    }
+    function cambiarZoom(d) {
+      var i = ZOOMS.indexOf(ZOOM);
+      ZOOM = d === 0 ? 1 : ZOOMS[Math.max(0, Math.min(ZOOMS.length - 1, i + d))];
+      try { localStorage.setItem('zoom', ZOOM); } catch (e) {}
+      _aplicarZoom();
+    }
+    function _aplicarZoom() {
+      // Solo el contenido: la barra superior y Bedel mantienen su tamaño.
+      var m = document.querySelector('main.shell'); if (m) m.style.zoom = ZOOM === 1 ? '' : ZOOM;
+      var v = document.getElementById('zoom-val'); if (v) v.textContent = Math.round(ZOOM * 100) + '%';
+      if (typeof _pedirAjuste === 'function') _pedirAjuste();
     }
     function alternarTema() {
-      const actual = document.documentElement.getAttribute('data-theme');
-      const oscuroActivo = actual === 'dark' ||
-        (!actual && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
-      const nuevo = oscuroActivo ? 'light' : 'dark';
+      const nuevo = _oscuroActivo() ? 'light' : 'dark';
       document.documentElement.setAttribute('data-theme', nuevo);
       try { localStorage.setItem('tema', nuevo); } catch (e) {}
+      _iconoTema();
     }
 
     // ---------- Helpers compartidos ----------
@@ -545,6 +631,98 @@
     window.addEventListener('beforeunload', function(e) {
       var sucio = Object.keys(GUARDABLES).some(function(v) { return _pendientes(v).length; });
       if (sucio) { e.preventDefault(); e.returnValue = ''; }
+    });
+
+    // ---------- Cajas con scroll: que quepan en la pantalla ----------
+    // Cada caja (tabla, rejilla…) mide como mucho lo que queda de pantalla
+    // desde su borde superior, dejando sitio a lo que va debajo en su columna
+    // (p. ej. el botón Guardar). Se recalcula al cambiar de vista o de tamaño.
+    var _CAJAS = '.view.active #rc-pool-list, .view.active .rc-body, .view.active .tablewrap, .view.active .hd-wrap, .view.active .rev-scroll, .view.active .su-wrap, .view.active .sb-weekscroll';
+    function ajustarAltos() {
+      // Con cajas de scroll, el pie de página no reserva el hueco del botón
+      // flotante (la caja llega abajo y la página no se desplaza).
+      document.body.classList.toggle('con-cajas', !!document.querySelector(_CAJAS));
+      document.querySelectorAll(_CAJAS).forEach(function(c) {
+        if (!c.offsetParent) return;
+        var r = c.getBoundingClientRect(), top = r.top + window.scrollY;
+        var col = c.closest('.col-sec, .hi-col, .view') || c.parentElement;
+        // Lo que va debajo de la caja en su columna (hermanos siguientes).
+        var debajo = 0;
+        for (var el = c; el && el !== col; el = el.parentElement)
+          for (var sb = el.nextElementSibling; sb; sb = sb.nextElementSibling)
+            // Solo lo que queda debajo (no lo que va al lado, p. ej. en una rejilla).
+            if (sb.offsetParent && sb.getBoundingClientRect().top >= r.bottom - 1) debajo += sb.getBoundingClientRect().height + 10;
+        // Alto visible que queda (en px de pantalla). Con zoom, los px de CSS
+        // no son px de pantalla: se mide la proporción real y se convierte.
+        var alto = Math.max(220, window.innerHeight - top - debajo - 16);
+        c.style.maxHeight = alto + 'px';
+        var k = c.getBoundingClientRect().height / (c.offsetHeight || 1) || 1;
+        if (Math.abs(k - 1) > 0.01) c.style.maxHeight = Math.max(220 / k, alto / k) + 'px';
+        // Si aun así la página se desplaza (márgenes, rellenos…), se recorta lo
+        // que sobra: la caja no debe meterse bajo la cabecera fija.
+        var sobra = document.documentElement.scrollHeight - window.innerHeight;
+        if (sobra > 0 && sobra < 150 && c.scrollHeight > c.clientHeight) c.style.maxHeight = Math.max(220 / k, parseFloat(c.style.maxHeight) - sobra / k) + 'px';
+      });
+    }
+    var _altoPend = false;
+    function _pedirAjuste() { if (_altoPend) return; _altoPend = true; requestAnimationFrame(function() { _altoPend = false; ajustarAltos(); }); }
+    window.addEventListener('resize', _pedirAjuste);
+    // Se recalcula ante cualquier cambio: DOM, tamaño (fuentes que cargan
+    // tarde, textos que se recolocan…) y al terminar de cargar. Se engancha
+    // ya (no en DOMContentLoaded): la sábana puede pintarse antes.
+    (function() {
+      var enganchar = function() {
+        var m = document.querySelector('main') || document.body;
+        new MutationObserver(_pedirAjuste).observe(m, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+        if (window.ResizeObserver) new ResizeObserver(_pedirAjuste).observe(document.body);
+        _pedirAjuste();
+      };
+      if (document.body) enganchar(); else document.addEventListener('DOMContentLoaded', enganchar);
+      window.addEventListener('load', _pedirAjuste);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(_pedirAjuste);
+    })();
+
+    // ---------- Avisos de «guardado» como toast ----------
+    // Los mensajes breves de éxito (.result.ok) que pintan las vistas se
+    // convierten en un toast que desaparece solo. Los errores y los resúmenes
+    // largos (con listas, tablas…) se quedan en la página.
+    function _aToast(n) {
+      if (n.nodeType !== 1) return;
+      var rs = n.matches('.result.ok:not(.fijo)') ? [n] : Array.prototype.slice.call(n.querySelectorAll('.result.ok:not(.fijo)'));
+      rs.forEach(function(r) {
+        var txt = r.textContent.trim();
+        if (!txt || txt.length > 200 || r.querySelector('ul, ol, table, div, button, a, input')) return;
+        aviso(txt, 'ok'); r.remove();
+      });
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      new MutationObserver(function(ms) { ms.forEach(function(m) { m.addedNodes.forEach(_aToast); }); })
+        .observe(document.body, { childList: true, subtree: true });
+    });
+
+    // ---------- Modales: clic fuera o Esc = Cancelar ----------
+    // Se pulsa el propio botón Cancelar del modal (así se respetan sus
+    // confirmaciones, p. ej. el pintado con cambios). Solo cuenta si el clic
+    // empieza y acaba en el fondo (arrastrar desde dentro no cierra).
+    function _cancelarModal(ov) {
+      var b = Array.prototype.filter.call(ov.querySelectorAll('button'), function(x) {
+        return /^cancelar$/i.test(x.textContent.trim()) || /^cerrar/i.test(x.title || '');
+      })[0];
+      if (b) b.click(); else ov.classList.remove('show');
+    }
+    var _ovDown = null;
+    document.addEventListener('mousedown', function(e) { _ovDown = e.target.classList && e.target.classList.contains('modal-overlay') ? e.target : null; });
+    document.addEventListener('click', function(e) {
+      if (_ovDown && e.target === _ovDown && _ovDown.classList.contains('show')) _cancelarModal(_ovDown);
+      _ovDown = null;
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key !== 'Escape') return;
+      var abiertos = document.querySelectorAll('.modal-overlay.show');
+      if (!abiertos.length) return;
+      // La confirmación va siempre por encima del resto.
+      var conf = document.querySelector('#modal-confirm.show');
+      e.preventDefault(); _cancelarModal(conf || abiertos[abiertos.length - 1]);
     });
 
     // ---------- Pegar desde una hoja de cálculo en las tablas editables ----------

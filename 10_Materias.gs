@@ -74,6 +74,7 @@ function plantillaMaterias() {
 }
 
 function guardarMaterias(materias, modo) {
+  _exigirEdicion();
   if (!Array.isArray(materias)) throw new Error('Formato inválido.');
 
   materias.forEach(function(m, i) {

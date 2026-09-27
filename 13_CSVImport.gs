@@ -22,7 +22,8 @@ const UMBRAL_DUDOSO = 0.60;  // por debajo → sin match
 function catalogoImportacion() {
   return {
     docentes: listarDocentes().map(function(d) {
-      return { id: d.id, nombre: d.nombre_corto, extra: d.nombre_completo || '' };
+      // `sust`: nombre del sustituto/a si lo hay (es el que se muestra).
+      return { id: d.id, nombre: d.nombre_corto, extra: d.nombre_completo || '', sust: String(d.sustituto || '').trim() };
     }),
     grupos: listarGrupos().map(function(g) {
       return { id: g.id, nombre: g.nombre_corto, extra: g.nombre_largo || '' };
@@ -31,7 +32,7 @@ function catalogoImportacion() {
       return { id: m.id, nombre: m.nombre, extra: m.abreviatura || '', color: m.color || '' };
     }),
     roles: listarRoles().map(function(r) {
-      return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '', color: r.color || '' };
+      return { id: r.id, nombre: r.nombre, extra: r.nombre_largo || '', color: r.color || '', categoria: r.categoria };
     }),
     tramos: listarTramos().map(function(t) {
       return { id: t.id, orden: t.orden, etiqueta: t.etiqueta || '', es_recreo: !!t.es_recreo,
@@ -120,6 +121,7 @@ function _analizarFilasCrudas(crudas) {
  * ids definitivos elegidos en la pantalla de revisión.
  */
 function aplicarImportacionCSV(filas, modo) {
+  _exigirEdicion();
   if (!Array.isArray(filas)) throw new Error('Formato inválido.');
   modo = modo || 'anadir';
 

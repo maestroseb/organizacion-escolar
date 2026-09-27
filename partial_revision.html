@@ -5,6 +5,7 @@
 
 <div class="toolbar">
   <button class="secondary" onclick="renderProblemas()">Volver a analizar</button>
+  <button class="ghost" id="rev-restaurar" style="display:none" onclick="revRestaurar()" title="Vuelve a mostrar los avisos que diste por buenos"></button>
   <span id="rev-resumen" class="hint"></span>
 </div>
 
@@ -45,11 +46,11 @@
     const cont = document.getElementById('revp-body');
     const res = REV_DATA || { grupos: [] };
     const grupos = res.grupos || [];
-
+    _revPintarDescartes((res.resumen || {}).descartados || 0);
     if (!grupos.length) {
       document.getElementById('revp-filtros').innerHTML = '';
       document.getElementById('rev-resumen').textContent = '';
-      cont.innerHTML = '<div class="result ok" style="margin-top:0;">✓ Todo correcto. No se han detectado problemas en el horario.</div>';
+      cont.innerHTML = '<div class="result ok fijo" style="margin-top:0;">✓ Todo correcto. No se han detectado problemas en el horario.</div>';
       return;
     }
 
@@ -61,6 +62,7 @@
     visibles.forEach(function(gp){ if (gp.gravedad === 'error') errVis += gp.items.length; else avVis += gp.items.length; });
     const r = res.resumen || {};
     var resumen = (r.errores || 0) + ' error(es), ' + (r.avisos || 0) + ' aviso(s)';
+    _revPintarDescartes(r.descartados || 0);
     const ocultosN = grupos.length - visibles.length;
     if (ocultosN > 0) resumen += ' · mostrando ' + errVis + '+' + avVis + ' (' + ocultosN + ' tipo(s) oculto(s))';
     document.getElementById('rev-resumen').textContent = resumen;
@@ -83,6 +85,21 @@
       ' <button type="button" class="rev-chip-f todos" onclick="revMostrarTodos()">Todos</button>';
   }
 
+  function _revPintarDescartes(n) {
+    var b = document.getElementById('rev-restaurar');
+    if (!b) return;
+    b.style.display = n ? '' : 'none';
+    b.textContent = 'Restaurar descartados (' + n + ')';
+  }
+  function revDescartar(clave) {
+    google.script.run.withSuccessHandler(function() { aviso('Aviso descartado', 'ok'); renderProblemas(); })
+      .withFailureHandler(mostrarErrorGenerico).descartarAvisoRevision(clave);
+  }
+  function revRestaurar() {
+    confirmar('¿Volver a mostrar todos los avisos descartados?', function() {
+      google.script.run.withSuccessHandler(function() { renderProblemas(); }).withFailureHandler(mostrarErrorGenerico).restaurarDescartesRevision();
+    });
+  }
   function revToggleTipo(tipo) {
     if (REV_OCULTOS[tipo]) delete REV_OCULTOS[tipo]; else REV_OCULTOS[tipo] = true;
     _revGuardarOcultos();
@@ -96,7 +113,12 @@
 
   function _pintarGrupo(gp) {
     var badge = '<span class="badge ' + (gp.gravedad === 'error' ? 'vacio' : 'incompleto') + '">' + (gp.gravedad === 'error' ? 'error' : 'aviso') + '</span>';
-    var items = gp.items.map(function(it){ return _pintarItem(gp.tipo, it); }).join('');
+    var items = gp.items.map(function(it){
+      var h = _pintarItem(gp.tipo, it);
+      // «Descartar»: da el aviso por bueno y deja de mostrarse.
+      if (gp.descartable && it.clave) h = h.replace(/<\/div><\/div>$/, _btn('Descartar', 'revDescartar(' + _esc(JSON.stringify(it.clave)) + ')', 'ghost') + '</div></div>');
+      return h;
+    }).join('');
     return '<div class="rev-group">' +
       '<div class="rev-group-head"><h3>' + _esc(gp.titulo) + ' <span class="rev-count">' + gp.items.length + '</span></h3>' + badge + '</div>' +
       '<p class="hint" style="margin-top:0;">' + _esc(gp.descripcion) + '</p>' +
@@ -117,7 +139,7 @@
     var acc = (it.acc || []).map(function(a){
       if (a.t === 'borrar') return _btn(a.label || 'Borrar ocupación', "revBorrar('" + a.ocup_id + "')", 'danger');
       if (a.t === 'horario') return _btn(a.label || 'Editar horario', "abrirHorarioDocente('" + a.docente_id + "', true)", 'secondary');
-      if (a.t === 'tab') return _btn(a.label, "irConfig('" + a.tab + "')", 'secondary');
+      if (a.t === 'tab') return _btn(a.label, "irPestana('" + a.tab + "')", 'secondary');
       return '';
     }).join('');
     return _revRow(_esc(it.texto), acc);

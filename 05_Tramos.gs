@@ -17,6 +17,7 @@ function listarTramos() {
 }
 
 function guardarTramos(tramos, modo) {
+  _exigirEdicion();
   if (!Array.isArray(tramos)) throw new Error('Formato inválido.');
 
   tramos.forEach(function(t, i) {

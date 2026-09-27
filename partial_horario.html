@@ -9,8 +9,8 @@
       <label class="hd-sel">Docente
         <select id="hd-select" onchange="cambiarDocenteHorario(this)"></select>
       </label>
-      <button class="secondary" id="hd-pintar" onclick="abrirPintado()" title="Editor visual: elige una brocha y pinta celdas (admite semanas A/B y medias clases)">🖌 Editar pintando</button>
-      <button class="primary" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
+      <button class="secondary solo-edicion" id="hd-pintar" onclick="abrirPintado()" title="Editor visual: elige una brocha y pinta celdas (admite semanas A/B y medias clases)">🖌 Editar pintando</button>
+      <button class="primary solo-edicion" id="hd-guardar" onclick="guardarHorario()" disabled>Guardar horario</button>
       <span id="hd-estado" class="hint"></span>
     </div>
     <div id="hd-body"></div>
@@ -76,13 +76,16 @@
     _run().withSuccessHandler(function(docs) {
       HD_DOCS_VERSION = DATOS_VERSION;
       const activos = (docs || []).filter(function(d){ return d.activo !== false; })
-        .sort(function(a, b){ return String(a.nombre_corto || '').localeCompare(String(b.nombre_corto || ''), 'es', { sensitivity: 'base' }); });
+        .sort(function(a, b){ return _hdNomDoc(a).localeCompare(_hdNomDoc(b), 'es', { sensitivity: 'base' }); }); // por el nombre que se ve (el del sustituto)
       sel.innerHTML = '<option value="">— elige docente —</option>' +
-        activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(d.nombre_corto) + '</option>'; }).join('');
+        activos.map(function(d){ return '<option value="' + _esc(d.id) + '"' + (d.id===HD_DOC?' selected':'') + '>' + _esc(_hdNomDoc(d)) + '</option>'; }).join('');
       if (HD_DOC) cargarHorario(HD_DOC);
       else document.getElementById('hd-body').innerHTML = '<div class="empty">Elige un docente para ver y editar su horario.</div>';
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
+
+  // Nombre que se muestra: el sustituto/a si lo hay («Ana (por Inma B.)»).
+  function _hdNomDoc(d) { var s = String(d.sustituto || '').trim(); return s ? s + ' (por ' + d.nombre_corto + ')' : d.nombre_corto; }
 
   // Desde Revisión u otras vistas: abre Horarios individuales con ese docente.
   function abrirHorarioDocente(id) {
@@ -108,24 +111,40 @@
     document.getElementById('hd-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
     document.getElementById('hd-res').innerHTML = '';
     const seq = ++_hdSeq; // ignora respuestas de un docente anterior
-    _run()
-      .withSuccessHandler(function(res) {
-        if (seq !== _hdSeq) return;
-        HD_CAT = (res && res.catalogo) || {};
-        HD_OCUPS = res.ocupaciones || [];
-        HD_DIRTY = false; _hdActualizarGuardar();
-        _hdMapas();
-        renderGrid();
-      })
-      .withFailureHandler(function(err){ if (seq === _hdSeq) document.getElementById('hd-body').innerHTML = _errHtml(err); })
-      .datosHorarioDocente(id);
+    _hoTodos(function(err, res) {
+      if (seq !== _hdSeq) return;
+      if (err) { document.getElementById('hd-body').innerHTML = _errHtml(err); return; }
+      HD_CAT = res.catalogo || {};
+      HD_OCUPS = res.ocupaciones.filter(function(o) { return o.docente_id === id; })
+        .map(function(o) { var c = _copia(o); delete c.id; delete c.docente_id; return c; });
+      HD_DIRTY = false; _hdActualizarGuardar();
+      _hdMapas();
+      renderGrid();
+    });
   }
 
-  var _hdMat = {}, _hdGru = {}, _hdRol = {};
+  // Catálogo + todas las ocupaciones en UNA llamada (caché de _run mientras
+  // DATOS_VERSION no cambie): cambiar de docente o de grupo no va al servidor.
+  var _HO = null, _HO_V = -1;
+  function _hoTodos(cb) {
+    if (_HO && _HO_V === DATOS_VERSION) { cb(null, _HO); return; }
+    var v = DATOS_VERSION;
+    _run().withSuccessHandler(function(res) { _HO = res || { catalogo: {}, ocupaciones: [] }; _HO_V = v; cb(null, _HO); })
+      .withFailureHandler(function(err) { cb(err); }).datosHorarios();
+  }
+
+  var _hdMat = {}, _hdGru = {}, _hdRol = {}, _hdMatO = {}, _hdRolO = {};
   function _hdMapas() {
-    _hdMat = {}; (HD_CAT.materias||[]).forEach(function(m){ _hdMat[m.id]=m.nombre; });
+    // Nomenclatura corta (abreviatura) con el nombre largo de respaldo.
+    _hdMat = {}; _hdMatO = {}; (HD_CAT.materias||[]).forEach(function(m){ _hdMat[m.id]=m.extra||m.nombre; _hdMatO[m.id]=m; });
     _hdGru = {}; (HD_CAT.grupos||[]).forEach(function(g){ _hdGru[g.id]=g.nombre; });
-    _hdRol = {}; (HD_CAT.roles||[]).forEach(function(r){ _hdRol[r.id]=r.nombre; });
+    _hdRol = {}; _hdRolO = {}; (HD_CAT.roles||[]).forEach(function(r){ _hdRol[r.id]=r.nombre; _hdRolO[r.id]=r; });
+  }
+  // Color de la ocupación: clases con el color pleno del área; PT/AL, algo
+  // más suave; apoyos y cargos, un tinte claro (ver _ocEstilo en la sábana).
+  function _hdEstilo(o) {
+    if (o.tipo === 'grupo') { var m = _hdMatO[o.materia_id]; return _ocEstilo('grupo', m && m.color); }
+    var r = _hdRolO[o.rol_id]; return _ocEstilo(r && r.categoria, r && r.color);
   }
   function _hdGruposNombres(csv) {
     if (!csv) return '';
@@ -134,10 +153,17 @@
   function _hdResumen(o) {
     if (o.tipo === 'grupo') return _esc(((_hdMat[o.materia_id]||'') + ' ' + _hdGruposNombres(o.grupo_id)).trim() || '—');
     if (o.tipo === 'localizacion') return _esc(((_hdRol[o.rol_id]||'') + (o.grupo_destino_id?(' → '+_hdGruposNombres(o.grupo_destino_id)):'')).trim() || '—');
-    if (o.tipo === 'especial') return _esc(_hdRol[o.rol_id] || '—');
+    if (o.tipo === 'especial') {
+      var z = (HD_CAT.zonas || []).filter(function(x) { return x.id === o.localizacion_id; })[0];
+      return _esc((_hdRol[o.rol_id] || '—') + (z ? ' · ' + z.nombre : ''));
+    }
     return '—';
   }
 
+  function _hdTitulo(o) {
+    if (o.tipo === 'grupo') { var m = _hdMatO[o.materia_id]; return (m ? m.nombre : '') + ' ' + _hdGruposNombres(o.grupo_id); }
+    var r = _hdRolO[o.rol_id]; return r ? (r.extra || r.nombre) : '';
+  }
   function renderGrid() {
     if (!HD_CAT.tramos || !HD_CAT.tramos.length) {
       document.getElementById('hd-body').innerHTML = '<div class="empty">No hay tramos configurados. Ve a Configuración → Tramos.</div>';
@@ -146,15 +172,20 @@
     var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d){ return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
     var rows = HD_CAT.tramos.map(function(t){
       var celdas = HD_DIAS.map(function(d){
-        var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; });
+        var ocs = HD_OCUPS.filter(function(o){ return o.dia === d.k && o.tramo_id === t.id; }).sort(_hdOrdenOc);
         var cont = ocs.length
-          ? ocs.map(function(o){ return '<div class="hd-oc t-'+_esc(o.tipo)+'">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
+          ? ocs.map(function(o){ var st = _hdEstilo(o); return '<div class="hd-oc t-'+_esc(o.tipo)+(st?' hd-col':'')+'"' + (st ? ' style="' + st + '"' : '') + ' title="' + _esc(_hdTitulo(o)) + '">' + _hdResumen(o) + _hdSufijo(o) + '</div>'; }).join('')
           : '<span class="hd-add">+</span>';
         return '<td class="hd-cell" onclick="abrirSlot(\'' + d.k + '\',' + _jsAttr(t.id) + ')">' + cont + '</td>';
       }).join('');
       return '<tr><th class="hd-th-tramo">' + (t.es_recreo ? 'Recreo' : ('T' + _esc(t.orden))) + '<span class="hd-horas">' + _esc(t.horas||'') + '</span></th>' + celdas + '</tr>';
     }).join('');
     document.getElementById('hd-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
+  }
+  // Dentro de una celda: 1ª mitad antes que 2ª, y semana A antes que B.
+  function _hdOrdenOc(a, b) {
+    var k = function(o) { return (o.mitad === '2' ? 2 : o.mitad === '1' ? 1 : 0) * 3 + (o.semana === 'B' ? 2 : o.semana === 'A' ? 1 : 0); };
+    return k(a) - k(b);
   }
   function _hdSufijo(o) {
     var s = [];
@@ -165,6 +196,7 @@
 
   // ---------- Modal de edición de un hueco ----------
   function abrirSlot(dia, tramoId) {
+    if (soloLectura()) return;
     if (hayCambios('horario_grupo')) { aviso('Guarda antes los cambios del horario del grupo', 'err'); return; }
     var t = HD_CAT.tramos.filter(function(x){ return x.id === tramoId; })[0];
     if (!t) return;
@@ -179,7 +211,7 @@
   function _hdClon(o) {
     return { tipo:o.tipo||'grupo', materia_id:o.materia_id||'', rol_id:o.rol_id||'',
       _grupos: _hdCsvArr(o.tipo==='localizacion'?o.grupo_destino_id:o.grupo_id),
-      mitad:o.mitad||'', semana:o.semana||'', notas:o.notas||'' };
+      mitad:o.mitad||'', semana:o.semana||'', notas:o.notas||'', localizacion_id:o.localizacion_id||'' };
   }
   function _hdCsvArr(csv){ return csv ? String(csv).split(',').map(function(s){return s.trim();}).filter(Boolean) : []; }
 
@@ -193,7 +225,7 @@
   }
   function _hdOcEditor(o, i) {
     var tipoSel = '<select onchange="hdSet(' + i + ',\'tipo\',this.value)">' +
-      ['grupo','localizacion','especial'].map(function(tp){ return '<option value="'+tp+'"'+(o.tipo===tp?' selected':'')+'>'+({grupo:'Clase a grupo',localizacion:'Apoyo / localización',especial:'Cargo / especial'})[tp]+'</option>'; }).join('') + '</select>';
+      ['grupo','localizacion','especial'].map(function(tp){ return '<option value="'+tp+'"'+(o.tipo===tp?' selected':'')+'>'+({grupo:'Clase a grupo',localizacion:'Apoyo / PT·AL / localización',especial:'Cargo / especial'})[tp]+'</option>'; }).join('') + '</select>';
 
     var campos = '';
     if (o.tipo === 'grupo') {
@@ -244,7 +276,7 @@
       var grupos = (w._grupos||[]).join(',');
       if (w.tipo==='grupo') { oc.materia_id=w.materia_id||''; oc.grupo_id=grupos; }
       else if (w.tipo==='localizacion') { oc.rol_id=w.rol_id||''; oc.grupo_destino_id=grupos; }
-      else if (w.tipo==='especial') { oc.rol_id=w.rol_id||''; }
+      else if (w.tipo==='especial') { oc.rol_id=w.rol_id||''; oc.localizacion_id=w.localizacion_id||''; }
       HD_OCUPS.push(oc);
     });
     HD_DIRTY = true; _hdActualizarGuardar();
@@ -302,28 +334,46 @@
     body.innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
     document.getElementById('hg-res').innerHTML = '';
     var seq = ++_hgSeq;
-    google.script.run.withSuccessHandler(function(res) {
+    _hoTodos(function(err, res) {
       if (seq !== _hgSeq) return;
-      HG_CAT = res.catalogo || {}; HG_OCUPS = res.ocupaciones || []; HG_APOYOS = res.apoyos || [];
+      if (err) { body.innerHTML = _errHtml(err); return; }
+      HG_CAT = res.catalogo || {}; HG_OCUPS = []; HG_APOYOS = [];
+      res.ocupaciones.forEach(function(o) {
+        if (o.tipo === 'grupo' && _hdCsvArr(o.grupo_id).indexOf(id) !== -1) {
+          HG_OCUPS.push({ id: o.id, dia: o.dia, tramo_id: o.tramo_id, docente_id: o.docente_id, materia_id: o.materia_id,
+            grupos: _hdCsvArr(o.grupo_id), mitad: o.mitad, semana: o.semana, notas: o.notas });
+        } else if (o.tipo === 'localizacion' && _hdCsvArr(o.grupo_destino_id).indexOf(id) !== -1) {
+          HG_APOYOS.push({ dia: o.dia, tramo_id: o.tramo_id, docente_id: o.docente_id, rol_id: o.rol_id, semana: o.semana });
+        }
+      });
       _snap('horario_grupo'); _hgPintar();
-    }).withFailureHandler(function(err) { if (seq === _hgSeq) body.innerHTML = _errHtml(err); }).datosHorarioGrupo(id);
+    });
   }
   function _hgNom(arr, id) { var x = (arr || []).filter(function(y) { return y.id === id; })[0]; return x ? x.nombre : ''; }
+  // Docentes para el desplegable: con el nombre que se ve (el del sustituto
+  // si lo hay) y en orden alfabético por ese nombre.
+  function _hgDocsLista() {
+    return (HG_CAT.docentes || []).map(function(d) { return { id: d.id, nombre: d.sust ? d.sust + ' (por ' + d.nombre + ')' : d.nombre }; })
+      .sort(function(a, b) { return a.nombre.localeCompare(b.nombre, 'es', { sensitivity: 'base' }); });
+  }
+  function _hgDoc(id) { var x = (HG_CAT.docentes || []).filter(function(y) { return y.id === id; })[0]; return x ? (x.sust || x.nombre) : ''; }
   function _hgMat(id) { return (HG_CAT.materias || []).filter(function(m) { return m.id === id; })[0] || {}; }
   function _hgPintar() {
     if (!HG_CAT.tramos || !HG_CAT.tramos.length) { document.getElementById('hg-body').innerHTML = '<div class="empty">No hay tramos configurados.</div>'; return; }
     var head = '<thead><tr><th class="hd-th-tramo">Tramo</th>' + HD_DIAS.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead>';
     var rows = HG_CAT.tramos.map(function(t) {
       var celdas = HD_DIAS.map(function(d) {
-        var ocs = HG_OCUPS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; });
+        var ocs = HG_OCUPS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; }).sort(_hdOrdenOc);
         var aps = HG_APOYOS.filter(function(o) { return o.dia === d.k && o.tramo_id === t.id; });
         var h = ocs.map(function(o) {
           var m = _hgMat(o.materia_id), otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; }).map(function(g) { return _hgNom(HG_CAT.grupos, g); });
-          return '<div class="hd-oc t-grupo"' + (m.color ? ' style="box-shadow: inset 3px 0 0 ' + _esc(_sbColor(m.color) || 'transparent') + '"' : '') + '>' +
-            '<b>' + _esc(_hgNom(HG_CAT.docentes, o.docente_id) || '¿?') + '</b> ' + _esc(m.extra || m.nombre || '') +
+          var st = _ocEstilo('grupo', m.color);
+          return '<div class="hd-oc t-grupo' + (st ? ' hd-col' : '') + '"' + (st ? ' style="' + st + '"' : '') + ' title="' + _esc(m.nombre || '') + '">' +
+            '<b>' + _esc(_hgDoc(o.docente_id) || '¿?') + '</b> ' + _esc(m.extra || m.nombre || '') +
             (otros.length ? ' <span class="hd-suf">+' + _esc(otros.join('/')) + '</span>' : '') + _hdSufijo(o) + '</div>';
         }).join('') + aps.map(function(a) {
-          return '<div class="hd-oc t-localizacion" title="Apoyo (se edita desde el docente)">' + _esc(_hgNom(HG_CAT.docentes, a.docente_id)) + ' · ' + _esc(_hgNom(HG_CAT.roles, a.rol_id)) + (a.semana ? ' <span class="hd-suf">sem ' + _esc(a.semana) + '</span>' : '') + '</div>';
+          var r = (HG_CAT.roles || []).filter(function(x) { return x.id === a.rol_id; })[0] || {}, st = _ocEstilo(r.categoria, r.color);
+          return '<div class="hd-oc t-localizacion' + (st ? ' hd-col' : '') + '"' + (st ? ' style="' + st + '"' : '') + ' title="Apoyo (se edita desde el docente)">' + _esc(_hgDoc(a.docente_id)) + ' · ' + _esc(_hgNom(HG_CAT.roles, a.rol_id)) + (a.semana ? ' <span class="hd-suf">sem ' + _esc(a.semana) + '</span>' : '') + '</div>';
         }).join('');
         return '<td class="hd-cell" onclick="hgAbrir(\'' + d.k + '\',' + _jsAttr(t.id) + ')">' + (h || '<span class="hd-add">+</span>') + '</td>';
       }).join('');
@@ -333,6 +383,7 @@
     document.getElementById('hg-body').innerHTML = '<div class="hd-wrap"><table class="hd">' + head + '<tbody>' + rows + '</tbody></table></div>';
   }
   function hgAbrir(dia, tramoId) {
+    if (soloLectura()) return;
     if (hayCambios('horario')) { aviso('Guarda antes los cambios del horario del docente', 'err'); return; }
     var t = HG_CAT.tramos.filter(function(x) { return x.id === tramoId; })[0]; if (!t) return;
     HG_SLOT = { dia: dia, tramo: tramoId, working: HG_OCUPS.filter(function(o) { return o.dia === dia && o.tramo_id === tramoId; }).map(function(o) { return JSON.parse(JSON.stringify(o)); }) };
@@ -346,7 +397,7 @@
       var sel = function(campo, arr, val) { return '<select onchange="hgSet(' + i + ',\'' + campo + '\',this.value)">' + _optList(arr, val) + '</select>'; };
       var mini = function(campo, ops, val) { return '<select onchange="hgSet(' + i + ',\'' + campo + '\',this.value)">' + ops.map(function(p) { return '<option value="' + p[0] + '"' + (val === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select>'; };
       var otros = o.grupos.filter(function(g) { return g !== HG_GRUPO; });
-      return '<div class="hd-oceditor"><div class="hd-oceditor-head"><div class="hd-f"><label>Docente</label>' + sel('docente_id', HG_CAT.docentes, o.docente_id) + '</div>' +
+      return '<div class="hd-oceditor"><div class="hd-oceditor-head"><div class="hd-f"><label>Docente</label>' + sel('docente_id', _hgDocsLista(), o.docente_id) + '</div>' +
         '<button class="btn-icon" title="Quitar del grupo" onclick="hgDel(' + i + ')">×</button></div>' +
         '<div class="hd-frow"><div class="hd-f"><label>Materia</label>' + sel('materia_id', HG_CAT.materias, o.materia_id) + '</div>' +
         '<div class="hd-f hd-mini"><label>Mitad</label>' + mini('mitad', [['', '—'], ['1', '½ a'], ['2', '½ b']], o.mitad) + '</div>' +

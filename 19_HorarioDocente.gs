@@ -27,6 +27,7 @@ function datosHorarioDocente(docenteId) {
         grupo_id: o.grupo_id || '',
         rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
         grupo_destino_id: o.grupo_destino_id || '',
+        localizacion_id: o.localizacion_id || '', // zona de recreo (24_Recreos)
         // Filas antiguas guardaron la mitad como número (1/2): el editor
         // compara con '1'/'2'.
         mitad: String(o.mitad || ''),
@@ -42,6 +43,7 @@ function datosHorarioDocente(docenteId) {
  * Cada fila debe traer dia, tramo_id y tipo; el resto según el tipo.
  */
 function guardarHorarioDocente(docenteId, ocupaciones) {
+  _exigirEdicion();
   if (!docenteId) throw new Error('Falta el docente.');
   if (!Array.isArray(ocupaciones)) throw new Error('Formato inválido.');
 
@@ -61,7 +63,7 @@ function guardarHorarioDocente(docenteId, ocupaciones) {
       tramo_id: f.tramo_id,
       tipo: f.tipo,
       grupo_id: '', materia_id: '',
-      localizacion_id: '', rol_loc_id: '', grupo_destino_id: '',
+      localizacion_id: f.localizacion_id || '', rol_loc_id: '', grupo_destino_id: '',
       rol_especial_id: '',
       notas: f.notas || '',
       mitad: f.mitad || '',
@@ -128,6 +130,7 @@ function datosHorarioGrupo(grupoId) {
  * - Sin id: clase nueva.
  */
 function guardarHorarioGrupo(grupoId, lista) {
+  _exigirEdicion();
   if (!grupoId) throw new Error('Falta el grupo.');
   if (!Array.isArray(lista)) throw new Error('Formato inválido.');
   const errores = [];
@@ -163,4 +166,27 @@ function guardarHorarioGrupo(grupoId, lista) {
   });
   bulkReplace(SHEETS.OCUPACIONES, salida);
   return { ok: true, total: lista.length, nuevas: nuevas };
+}
+
+// ---------- Todo de una vez (Horarios individuales) ----------
+
+/**
+ * Catálogo + TODAS las ocupaciones normalizadas, en una sola llamada. El
+ * cliente lo guarda en caché y filtra por docente o por grupo: cambiar de
+ * docente o de grupo en Horarios individuales es instantáneo.
+ */
+function datosHorarios() {
+  const cat = catalogoImportacion();
+  const ocupaciones = getAll(SHEETS.OCUPACIONES).map(function(o) {
+    return {
+      id: o.id, docente_id: o.docente_id || '',
+      dia: _diaCanon(o.dia), tramo_id: o.tramo_id || '', tipo: o.tipo || 'grupo',
+      materia_id: o.materia_id || '', grupo_id: o.grupo_id || '',
+      rol_id: (o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id) || '',
+      grupo_destino_id: o.grupo_destino_id || '', localizacion_id: o.localizacion_id || '',
+      mitad: String(o.mitad || ''), semana: String(o.semana || ''), notas: o.notas || ''
+    };
+  });
+  cat.zonas = listarZonasRecreo().map(function(z) { return { id: z.id, nombre: z.nombre }; });
+  return { catalogo: cat, ocupaciones: ocupaciones };
 }

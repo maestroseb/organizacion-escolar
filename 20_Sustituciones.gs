@@ -7,7 +7,7 @@
  * - datosSustituciones(fecha): el parte de un día: horario de cada docente
  *   ese día, candidatos por tramo (apoyos por prioridad; `libres` = sin nada
  *   ese tramo, es decir, fuera del centro) y las
- *   sustituciones ya guardadas. Solo Equipo Directivo y Admin.
+ *   sustituciones ya guardadas. Lo ve todo el profesorado.
  * - guardarSustituciones(fecha, lista): reemplaza las de esa fecha.
  */
 
@@ -28,8 +28,10 @@ function datosAhora() {
   const tramos = ctx.tramos.map(function(t) {
     const data = _sabanaTramoData(t, ctx.ocupDia, ctx);
     // Sustituciones de este tramo: ausente → sustituto.
-    const map = {};
+    const map = {}, cubreGrupo = {};
     sus.filter(function(s) { return s.tramo_id === t.id; }).forEach(function(s) {
+      // Cobertura de un grupo (no de una persona): quien entra se añade al curso.
+      if (s.grupo_id && !s.docente_ausente_id) { if (s.docente_sustituto_id) cubreGrupo[s.grupo_id] = nombre(s.docente_sustituto_id); return; }
       map[nombre(s.docente_ausente_id)] = nombre(s.docente_sustituto_id);
     });
     const aplicar = function(o) {
@@ -43,6 +45,14 @@ function datosAhora() {
     data.apoyos.forEach(aplicar);
     const cubren = {};
     Object.keys(map).forEach(function(k) { if (map[k]) cubren[map[k]] = true; });
+    data.cursos.forEach(function(c) {
+      const n = cubreGrupo[c.grupo.id];
+      if (!n) return;
+      if (c.fallbackTutor) c.ocupantes = [];
+      c.ocupantes.push({ docente: n, materia: '', color: '', cubre: true });
+      c.vacio = false;
+      cubren[n] = true;
+    });
     data.libres = data.libres.filter(function(n) { return !cubren[n]; });
     data.apoyos.forEach(function(a) { if (cubren[a.docente] && !a.ausente) a.cubre = true; });
     return data;
@@ -56,7 +66,7 @@ function datosAhora() {
 }
 
 function datosSustituciones(fecha) {
-  _exigirPermisoSust();
+  // Todo el profesorado puede ver el parte; guardar exige permiso de Edición.
   fecha = _fechaIso(fecha);
   const dLocal = _fechaLocal(fecha);
   const dia = ['', 'L', 'M', 'X', 'J', 'V', ''][dLocal.getDay()];
@@ -74,6 +84,20 @@ function datosSustituciones(fecha) {
     (h[o.tramo_id] || (h[o.tramo_id] = [])).push(_etiquetaOcupacion(o, ctx));
   });
 
+  // Qué tiene cada grupo en cada tramo (para las coberturas por grupo).
+  const grupoHorario = {};
+  ctx.ocupDia.forEach(function(o) {
+    if (o.tipo !== 'grupo') return;
+    const m = ctx.materiaById[o.materia_id], d = ctx.docById[o.docente_id];
+    _csvIds(o.grupo_id).forEach(function(g) {
+      const h = grupoHorario[g] || (grupoHorario[g] = {});
+      (h[o.tramo_id] || (h[o.tramo_id] = [])).push({
+        texto: d ? (String(d.sustituto || '').trim() || d.nombre_corto) : '¿?',
+        area: m ? (m.abreviatura || m.nombre) : '', color: m ? (m.color || '') : ''
+      });
+    });
+  });
+
   // Candidatos por tramo: apoyos (por prioridad de sustitución) y libres.
   const candidatos = {};
   ctx.tramos.forEach(function(t) {
@@ -84,11 +108,11 @@ function datosSustituciones(fecha) {
     ctx.ocupDia.filter(function(o) { return o.tramo_id === t.id && (o.tipo === 'localizacion' || o.tipo === 'especial'); })
       .forEach(function(o) {
         const rol = ctx.rolById[o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id];
-        apoyos.push({ id: o.docente_id, prio: rol ? (rol.orden || 999) : 999, rol: rol ? rol.nombre : '' });
+        apoyos.push({ id: o.docente_id, prio: rol ? (rol.orden || 999) : 999, rol: rol ? rol.nombre : '', cat: categoriaRol(rol || { nombre: o.notas }) });
       });
     apoyos.sort(function(a, b) { return a.prio - b.prio; });
     candidatos[t.id] = {
-      apoyos: apoyos.map(function(a) { return { id: a.id, rol: a.rol }; }),
+      apoyos: apoyos.map(function(a) { return { id: a.id, rol: a.rol, cat: a.cat }; }),
       libres: ctx.docentes.filter(function(d) { return !ocupados[d.id]; }).map(function(d) { return d.id; })
     };
   });
@@ -111,15 +135,21 @@ function datosSustituciones(fecha) {
     }),
     horario: horario,
     candidatos: candidatos,
+    grupos: ctx.grupos.map(function(g) { return { id: g.id, nombre: g.nombre_corto, nivel: g.nivel || '', tutor: g.tutor_id || '' }; }),
+    grupoHorario: grupoHorario,
     sustituciones: todas.filter(function(s) { return String(s.fecha) === fecha; }).map(function(s) {
-      return { ausente: s.docente_ausente_id, sustituto: s.docente_sustituto_id || '', tramo: s.tramo_id, notas: s.notas || '' };
+      return { ausente: s.docente_ausente_id || '', grupo: s.grupo_id || '', sustituto: s.docente_sustituto_id || '', tramo: s.tramo_id, notas: s.notas || '' };
     })
   });
 }
 
-/** lista: [{ ausente, sustituto, tramo, notas }]. Reemplaza las de `fecha`. */
+/**
+ * lista: [{ ausente, grupo, sustituto, tramo, notas }]. Reemplaza las de
+ * `fecha`. Con `grupo` y sin `ausente` es una cobertura de grupo: alguien
+ * entra en ese curso ese tramo (apoyo puntual, entrada, etc.).
+ */
 function guardarSustituciones(fecha, lista) {
-  _exigirPermisoSust();
+  _exigirEdicion();
   fecha = _fechaIso(fecha);
   if (!Array.isArray(lista)) throw new Error('Formato inválido.');
   const lock = LockService.getScriptLock();
@@ -137,8 +167,9 @@ function guardarSustituciones(fecha, lista) {
       if (vistos[k]) throw new Error('Una misma persona está asignada a dos sustituciones en el mismo tramo.');
       vistos[k] = true;
     });
-    const nuevas = lista.filter(function(x) { return x && x.ausente && x.tramo; }).map(function(x) {
-      return { fecha: fecha, docente_ausente_id: x.ausente, docente_sustituto_id: x.sustituto || '', tramo_id: x.tramo, notas: x.notas || '' };
+    const nuevas = lista.filter(function(x) { return x && (x.ausente || x.grupo) && x.tramo; }).map(function(x) {
+      return { fecha: fecha, docente_ausente_id: x.ausente || '', docente_sustituto_id: x.sustituto || '', tramo_id: x.tramo, notas: x.notas || '',
+        grupo_id: x.ausente ? '' : (x.grupo || '') };
     });
     bulkReplace(SHEETS.SUSTITUCIONES, resto.concat(nuevas));
     return { ok: true, total: nuevas.length };
@@ -148,10 +179,6 @@ function guardarSustituciones(fecha, lista) {
 }
 
 // ---------- Internos ----------
-
-function _exigirPermisoSust() {
-  if (!permisosUsuario().sustituciones) throw new Error('No tienes acceso a Sustituciones.');
-}
 
 function _fechaIso(f) {
   const s = String(f || '').slice(0, 10);
@@ -176,10 +203,10 @@ function _ctxDia(dia, semana) {
 function _etiquetaOcupacion(o, ctx) {
   if (o.tipo === 'grupo') {
     const m = ctx.materiaById[o.materia_id];
-    return { tipo: 'grupo', texto: _nombresGrupos(o.grupo_id, ctx).join('/'), area: m ? (m.abreviatura || m.nombre) : '', color: m ? (m.color || '') : '' };
+    return { tipo: 'grupo', grupos: _csvIds(o.grupo_id), texto: _nombresGrupos(o.grupo_id, ctx).join('/'), area: m ? (m.abreviatura || m.nombre) : '', color: m ? (m.color || '') : '' };
   }
   const rol = ctx.rolById[o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id];
   const nombre = rol ? rol.nombre : (String(o.notas || '').trim() || '¿?');
   const dest = _nombresGrupos(o.grupo_destino_id, ctx).join('/');
-  return { tipo: o.tipo, texto: nombre + (dest ? ' ' + dest : ''), area: '', color: (rol && rol.color) || _colorPorNombreRol(nombre) };
+  return { tipo: o.tipo, cat: categoriaRol(rol || { nombre: nombre }), texto: nombre + (dest ? ' ' + dest : ''), area: '', color: (rol && rol.color) || _colorPorNombreRol(nombre) };
 }

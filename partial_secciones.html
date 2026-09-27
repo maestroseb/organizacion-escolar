@@ -1,10 +1,10 @@
 <!-- ================= Vistas de las secciones de datos ================= -->
 
-<!-- Centro y horario (datos del centro + tramos horarios) -->
+<!-- Centro y ajustes (datos del centro + ajustes generales) -->
 <section class="view" id="view-centro">
   <div class="page-head">
-    <h2>Centro y horario</h2>
-    <p>Datos generales del centro, los tramos en que se divide la jornada (el orden se calcula por la hora de inicio) y el calendario de semanas alternas A/B.</p>
+    <h2>Centro y ajustes</h2>
+    <p>Datos generales del centro, la base de datos y las opciones de reinicio.</p>
   </div>
   <div class="two-col centro-cols">
     <div class="col-sec">
@@ -73,6 +73,17 @@
         <div id="res-centro"></div>
       </div>
     </div>
+    <div class="col-sec" id="centro-ajustes"><!-- Ajustes generales (partial_config) --></div>
+  </div>
+</section>
+
+<!-- Tramos y semanas alternas -->
+<section class="view" id="view-tramos">
+  <div class="page-head">
+    <h2>Tramos y semanas</h2>
+    <p>Los tramos en que se divide la jornada (el orden se calcula por la hora de inicio) y, si las hay, el calendario de semanas alternas A/B.</p>
+  </div>
+  <div class="two-col">
     <div class="col-sec">
       <div class="col-head">
         <h3>Tramos horarios</h3>
@@ -92,8 +103,9 @@
       </div>
       <div class="actions"><button class="primary" id="btn-guardar-tramos" onclick="enviarTramos()">Guardar tramos</button></div>
       <div id="res-tramos"></div>
-
-      <div class="col-head" style="margin-top:var(--s5)">
+    </div>
+    <div class="col-sec">
+      <div class="col-head">
         <h3 class="info-wrap">Semanas alternas (A/B)
           <button type="button" class="info-btn" aria-label="Información" onclick="toggleInfo(this, event)">i</button>
           <span class="info-pop" hidden>Calendario de semanas lectivas con su tipo A o B. Si una fecha no está en el calendario (o no hay calendario), la semana se calcula alternando desde la fecha de inicio del curso. Úsalo para ajustar vacaciones o semanas sueltas.</span>
@@ -181,21 +193,38 @@
     <h2>Docentes</h2>
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
   </div>
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><span class="hint" id="doc-sesion"></span></div>
+  <div class="doc-tabla">
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
-        <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:110px">Sustituto/a</th><th style="width:210px">Nombre completo</th>
-        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th class="col-center" style="width:52px">Activo</th>
-        <th class="col-center" style="width:88px" title="Puede ver la pestaña Sustituciones (Equipo Directivo). Requiere email.">Sustituciones</th>
+        <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:210px">Nombre completo</th>
+        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th style="width:230px" title="Pulsa + si hay una baja: su nombre sustituye al del titular en la sábana y las vistas, y su email hereda el acceso a Sustituciones. Pulsa − cuando vuelva el titular.">Sustituto/a</th><th class="col-center" style="width:52px">Activo</th>
+        <th class="col-center" style="width:70px" title="Permiso de Edición (Equipo Directivo): ve Configuración y puede guardar cambios (sustituciones, horarios, recreos…). Sin él, solo puede ver. Requiere email.">Edición</th>
         <th class="col-center" style="width:60px" title="Jornada parcial (no viene todos los días): Revisión no avisa de horario incompleto">Parcial</th><th class="col-acc"></th>
       </tr></thead>
       <tbody id="docentes-body" data-anadir="anadirDocente"></tbody>
     </table>
   </div>
+  </div>
   <div class="actions"><button class="primary" id="btn-guardar-docentes" onclick="enviarDocentes()">Guardar cambios</button></div>
   <div id="res-docentes"></div>
 </section>
+
+<!-- Modal: pegar lista del claustro -->
+<div class="modal-overlay" id="cl-modal">
+  <div class="modal-box modal-wide cl-box">
+    <h3>Pegar lista del claustro</h3>
+    <p>Copia la tabla de la hoja de cálculo (con o sin cabecera: nombre, apellidos, alias, e-mail, teléfono, puesto…) y pégala aquí. Luego revisa con quién se casa cada fila.</p>
+    <textarea id="cl-texto" rows="6" placeholder="Nombre&#9;Apellidos&#9;Alias&#9;E-mail&#9;Teléfono&#9;Puesto" oninput="clAnalizar()"></textarea>
+    <div id="cl-prev"></div>
+    <div class="modal-actions" style="margin-top:18px">
+      <label class="cl-alias"><input type="checkbox" id="cl-usar-alias" checked> Usar el alias como nombre corto</label>
+      <button type="button" class="secondary" onclick="cerrarClaustro()">Cancelar</button>
+      <button type="button" class="primary" onclick="aplicarClaustro()">Aplicar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Áreas y cargos (Materias + Roles) -->
 <section class="view" id="view-areas">
@@ -227,7 +256,7 @@
       <div class="col-head">
         <h3 class="info-wrap">Cargos y roles
           <button type="button" class="info-btn" aria-label="Información" onclick="toggleInfo(this, event)">i</button>
-          <span class="info-pop" hidden>El <strong>orden</strong> (arrastra <b>⠿</b>) marca la prioridad de sustitución y numera las localizaciones de la sábana (#01, #02…).</span>
+          <span class="info-pop" hidden>El <strong>orden</strong> (arrastra <b>⠿</b>) marca la prioridad de sustitución (también de PT/AL: ponlos al final si solo deben entrar por fuerza mayor) y numera las localizaciones de la sábana (#01, #02…).</span>
         </h3>
         <div class="toolbar">
           <button class="secondary" onclick="cargarPlantillaRoles()">Plantilla</button>
@@ -237,7 +266,7 @@
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:120px">Nombre *</th><th>Nombre largo</th><th class="col-acc"></th>
+            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:150px">Nombre * <span class="hint">(horas)</span></th><th>Nombre largo</th><th style="width:110px" title="Apoyo: entra a sustituir antes. PT/AL: clase a 1-2 alumnos (solo sustituye por fuerza mayor). Cargo: dirección, coordinaciones…">Tipo</th><th class="col-acc"></th>
           </tr></thead>
           <tbody id="roles-body" data-anadir="anadirRol"></tbody>
         </table>
@@ -460,13 +489,13 @@
 
   // ================= Docentes =================
   let docentesLocal = [];
-  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', activo: d.activo === false ? false : true, color: d.color || '', acceso_sust: d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE', parcial: d.parcial === true || String(d.parcial).toUpperCase() === 'TRUE' }; }
+  function _mapearDocente(d) { return { id: d.id || null, nombre_corto: d.nombre_corto || '', sustituto: d.sustituto || '', nombre_completo: d.nombre_completo || '', puesto: d.puesto || '', email: d.email || '', telefono: d.telefono == null ? '' : String(d.telefono), sustituto_email: d.sustituto_email || '', activo: d.activo === false ? false : true, color: d.color || '', acceso_sust: d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE', parcial: d.parcial === true || String(d.parcial).toUpperCase() === 'TRUE' }; }
   // Quién ha entrado y si ve Sustituciones (ayuda a diagnosticar permisos).
   function _pintarSesion() {
     const el = document.getElementById('doc-sesion'), p = (ESTADO && ESTADO.permisos) || {};
     if (!el) return;
-    el.textContent = !p.email ? 'Google no identifica tu cuenta en esta sesión: la casilla «Sustituciones» no puede aplicarse.'
-      : 'Sesión: ' + p.email + (p.admin ? ' (administrador)' : '') + ' · Sustituciones: ' + (p.sustituciones ? 'sí' : 'no');
+    el.textContent = !p.email ? 'Google no identifica tu cuenta en esta sesión: la casilla «Edición» no puede aplicarse.'
+      : 'Sesión: ' + p.email + (p.admin ? ' (administrador)' : '') + ' · Edición: ' + (p.edicion || p.sustituciones ? 'sí' : 'no');
   }
   function cargarDocentes() {
     _pintarSesion();
@@ -482,6 +511,23 @@
       if (docentesLocal.length === 0) { anadirDocente(); } else { renderDocentes(); }
     }).withFailureHandler(mostrarErrorGenerico).listarDocentes();
   }
+  // Sustituto/a: «+» abre nombre y email (solo en esa fila); «−» lo quita
+  // de golpe cuando vuelve el titular. Filas abiertas sin datos aún: _docSustAbre.
+  var _docSustAbre = [];
+  function _docSustCelda(d, i) {
+    var abierta = String(d.sustituto || '').trim() || String(d.sustituto_email || '').trim() || _docSustAbre.indexOf(d) !== -1;
+    if (!abierta) return '<button type="button" class="btn-icon doc-sust-btn" title="Añadir sustituto/a (baja)" onclick="docSustituto(' + i + ', true)">+</button>';
+    return '<div class="doc-sust"><button type="button" class="btn-icon doc-sust-btn" title="Quitar sustituto/a (vuelve el titular)" onclick="docSustituto(' + i + ', false)">−</button>' +
+      '<input type="text" value="' + _esc(d.sustituto) + '" placeholder="Nombre" title="Aparece en la sábana y las vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)">' +
+      '<input type="email" value="' + _esc(d.sustituto_email) + '" placeholder="Email" title="Hereda el permiso de Edición del titular" oninput="actualizarDocente(' + i + ',\'sustituto_email\',this.value)"></div>';
+  }
+  function docSustituto(i, abrir) {
+    var d = docentesLocal[i];
+    if (abrir) _docSustAbre.push(d);
+    else { d.sustituto = ''; d.sustituto_email = ''; _docSustAbre = _docSustAbre.filter(function(x) { return x !== d; }); }
+    renderDocentes();
+    if (abrir) { var inp = document.querySelectorAll('#docentes-body tr')[i].querySelector('.doc-sust input'); if (inp) inp.focus(); }
+  }
   function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
   function eliminarDocente(i) { docentesLocal.splice(i,1); renderDocentes(); }
   function actualizarDocente(i, c, v) { docentesLocal[i][c] = v; }
@@ -492,15 +538,28 @@
       tr.innerHTML =
         '<td class="col-num">' + (i+1) + '</td>' +
         '<td><input type="text" value="' + _esc(d.nombre_corto) + '" placeholder="Sebastián" oninput="actualizarDocente(' + i + ',\'nombre_corto\',this.value)"></td>' +
-        '<td><input type="text" value="' + _esc(d.sustituto) + '" placeholder="(si hay baja)" title="Si hay un sustituto, su nombre aparece en la sábana y vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(d.nombre_completo) + '" placeholder="Sebastián García Rodríguez" oninput="actualizarDocente(' + i + ',\'nombre_completo\',this.value)"></td>' +
         '<td><input type="text" value="' + _esc(d.puesto) + '" placeholder="Primaria – Bilingüe" oninput="actualizarDocente(' + i + ',\'puesto\',this.value)"></td>' +
         '<td><input type="email" value="' + _esc(d.email) + '" placeholder="usuario@g.educaand.es" oninput="actualizarDocente(' + i + ',\'email\',this.value)"></td>' +
+        '<td>' + _docSustCelda(d, i) + '</td>' +
         '<td class="col-center"><input type="checkbox"' + (d.activo?' checked':'') + ' onchange="actualizarDocente(' + i + ',\'activo\',this.checked)"></td>' +
-        '<td class="col-center"><input type="checkbox"' + (d.acceso_sust?' checked':'') + ' title="Acceso a Sustituciones" onchange="actualizarDocente(' + i + ',\'acceso_sust\',this.checked)"></td>' +
+        '<td class="col-center"><input type="checkbox"' + (d.acceso_sust?' checked':'') + ' title="Permiso de Edición" onchange="actualizarDocente(' + i + ',\'acceso_sust\',this.checked)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (d.parcial?' checked':'') + ' title="Jornada parcial" onchange="actualizarDocente(' + i + ',\'parcial\',this.checked)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarDocente(' + i + ')">×</button></td>';
       tb.appendChild(tr);
+    });
+    filtrarDocentes();
+  }
+  // Búsqueda: oculta las filas que no coinciden (sin tildes ni mayúsculas).
+  // Solo afecta a la vista; al guardar se envían todos.
+  function _docNorm(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+  function filtrarDocentes() {
+    var q = _docNorm((document.getElementById('doc-buscar') || {}).value).trim();
+    var filas = document.querySelectorAll('#docentes-body tr');
+    docentesLocal.forEach(function(d, i) {
+      if (!filas[i]) return;
+      var txt = _docNorm([d.nombre_corto, d.nombre_completo, d.puesto, d.email, d.sustituto, d.sustituto_email].join(' '));
+      filas[i].style.display = !q || q.split(/\s+/).every(function(p) { return txt.indexOf(p) !== -1; }) ? '' : 'none';
     });
   }
   function enviarDocentes() {
@@ -510,6 +569,214 @@
       .withSuccessHandler(function(res) { _restaurar(btn,'Guardar cambios'); _res('docentes','ok','✓ Guardados ' + res.total + ' docentes.'); cargarDocentes(); _trasGuardar(); })
       .withFailureHandler(function(err) { _restaurar(btn,'Guardar cambios'); _res('docentes','err','✗ ' + _errMsg(err)); })
       .guardarDocentes(docentesLocal);
+  }
+
+  // ---------- Pegar lista del claustro ----------
+  // Se pega una tabla (hoja de cálculo o CSV), se detectan las columnas y cada
+  // fila se casa con un docente existente (o con su sustituto/a) o se da de alta.
+  var CL_FILAS = [];
+  var _CL_STOP = { de: 1, la: 1, los: 1, del: 1, las: 1, y: 1 };
+  var _CL_COMP = { maria: 1, jose: 1, juan: 1, ana: 1 };
+  function _clNorm(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim(); }
+  function _clTok(s) { return _clNorm(s).replace(/[.,;()'"]/g, ' ').split(/[\s-]+/).filter(function(t) { return t && !_CL_STOP[t]; }); }
+  function _clClave(s) { return _clTok(s).join(' '); }
+  // Parte una línea respetando comillas (CSV).
+  function _clCeldas(linea, sep) {
+    if (sep === '\t') return linea.split('\t').map(function(c) { return c.trim(); });
+    var out = [], cur = '', q = false;
+    for (var i = 0; i < linea.length; i++) {
+      var ch = linea[i];
+      if (ch === '"') { if (q && linea[i + 1] === '"') { cur += '"'; i++; } else q = !q; }
+      else if (ch === sep && !q) { out.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+  function _clTipoCab(c) {
+    c = _clNorm(c);
+    if (/e-?mail|correo/.test(c)) return 'email';
+    if (/telefono|movil|tlf|telf/.test(c)) return 'telefono';
+    if (/puesto|especialidad/.test(c)) return 'puesto';
+    if (/alias|nombre corto/.test(c)) return 'alias';
+    if (/nombre completo|apellidos?\s*,\s*nombre|docente|profesor/.test(c)) return 'completo';
+    if (/apellido/.test(c)) return 'apellidos';
+    if (/nombre/.test(c)) return 'nombre';
+    return '';
+  }
+  // Separa «Nombre Apellidos» sin saber dónde acaba el nombre: 1 palabra (2 si es María, José…).
+  function _clPartir(completo) {
+    completo = String(completo || '').trim();
+    if (completo.indexOf(',') >= 0) {
+      var p = completo.split(',');
+      return { nombre: p.slice(1).join(' ').trim(), apellidos: p[0].trim() };
+    }
+    var w = completo.split(/\s+/), n = 1;
+    if (w.length > 2 && _CL_COMP[_clNorm(w[0])]) n = 2;
+    return { nombre: w.slice(0, n).join(' '), apellidos: w.slice(n).join(' ') };
+  }
+  function clParsear(texto) {
+    var lineas = String(texto || '').replace(/\r/g, '').split('\n').filter(function(l) { return l.trim(); });
+    if (!lineas.length) return [];
+    var sep = texto.indexOf('\t') >= 0 ? '\t' : (texto.indexOf(';') >= 0 ? ';' : ',');
+    var filas = lineas.map(function(l) { return _clCeldas(l, sep); });
+    var ncol = Math.max.apply(null, filas.map(function(f) { return f.length; }));
+    var cols = [], cab = filas[0], i, j;
+    // ¿Cabecera? Ninguna celda con @ y alguna palabra clave de nombre o email.
+    var tipos = cab.map(_clTipoCab);
+    var hayCab = cab.join('').indexOf('@') < 0 && tipos.some(function(t) { return t === 'nombre' || t === 'apellidos' || t === 'completo' || t === 'email'; });
+    if (hayCab) {
+      var usados = {};
+      tipos.forEach(function(t, k) { cols[k] = t && !usados[t] ? t : ''; if (t) usados[t] = 1; });
+      filas = filas.slice(1);
+    } else {
+      // Sin cabecera: se deduce por el contenido de cada columna.
+      var texto_ = [];
+      for (j = 0; j < ncol; j++) {
+        var vals = filas.map(function(f) { return f[j] || ''; }).filter(Boolean);
+        var mitad = vals.length / 2;
+        if (!vals.length) cols[j] = '';
+        else if (vals.filter(function(v) { return v.indexOf('@') >= 0; }).length > mitad) cols[j] = 'email';
+        else if (vals.filter(function(v) { return /^\+?[\d\s.\-]{9,}$/.test(v) && v.replace(/\D/g, '').length >= 9; }).length > mitad) cols[j] = 'telefono';
+        else { cols[j] = ''; texto_.push(j); }
+      }
+      if (texto_.length === 1) cols[texto_[0]] = 'completo';
+      else if (texto_.length >= 2) {
+        cols[texto_[0]] = 'nombre'; cols[texto_[1]] = 'apellidos';
+        if (texto_.length >= 3) cols[texto_[texto_.length - 1]] = 'puesto';
+      }
+    }
+    var out = [];
+    filas.forEach(function(f) {
+      var r = { nombre: '', apellidos: '', completo: '', alias: '', email: '', telefono: '', puesto: '' };
+      for (i = 0; i < cols.length; i++) if (cols[i] && f[i]) r[cols[i]] = f[i];
+      if (r.completo && !r.nombre && !r.apellidos) { var p = _clPartir(r.completo); r.nombre = p.nombre; r.apellidos = p.apellidos; }
+      r.completo = (r.nombre || r.apellidos) ? (r.nombre + ' ' + r.apellidos).trim() : r.completo;
+      r.email = r.email.toLowerCase();
+      if (r.completo || r.email) out.push(r);
+    });
+    return out;
+  }
+  // Parecido entre una fila pegada y un nombre corto (+ nombre completo). 0 = no casa.
+  function _clPuntos(r, corto, completo) {
+    if (completo && _clClave(r.completo) && _clClave(r.completo) === _clClave(completo)) return 90;
+    if (r.alias && _clClave(r.alias) === _clClave(corto)) return 85;
+    var ct = _clTok(corto), rt = _clTok(r.nombre + ' ' + r.apellidos + ' ' + r.alias);
+    if (!ct.length || !rt.length) return 0;
+    var pts = 40;
+    for (var i = 0; i < ct.length; i++) {
+      var t = ct[i], mejor = 0;
+      rt.forEach(function(x) {
+        if (x === t) mejor = Math.max(mejor, 10);
+        else if (t.length <= 2 ? x.indexOf(t) === 0 : (x.indexOf(t) === 0 || (x.length >= 3 && t.indexOf(x) === 0))) mejor = Math.max(mejor, t.length <= 2 ? 3 : 5);
+      });
+      if (!mejor) return 0;
+      pts += mejor;
+    }
+    var pn = _clTok(r.nombre)[0], pa = _clTok(r.alias)[0], t0 = ct[0];
+    var casa0 = function(x) { return x && (x === t0 || x.indexOf(t0) === 0 || (x.length >= 3 && t0.indexOf(x) === 0)); };
+    if (casa0(pn) || casa0(pa)) pts += 15;
+    return Math.min(pts, 80);
+  }
+  // Casa cada fila con un destino: 't:i' (titular), 's:i' (sustituto de i), 'nuevo'.
+  function clCasar(filas, docentes) {
+    var pares = [];
+    filas.forEach(function(r, fi) {
+      docentes.forEach(function(d, di) {
+        var p = r.email && _clNorm(d.email) === r.email ? 100 : (d.nombre_corto ? _clPuntos(r, d.nombre_corto, d.nombre_completo) : 0);
+        if (p >= 45) pares.push({ f: fi, dest: 't:' + di, p: p });
+        if (String(d.sustituto || '').trim()) {
+          p = r.email && _clNorm(d.sustituto_email) === r.email ? 100 : _clPuntos(r, d.sustituto, d.sustituto);
+          if (p >= 45) pares.push({ f: fi, dest: 's:' + di, p: p });
+        }
+      });
+    });
+    pares.sort(function(a, b) { return b.p - a.p; });
+    var fUsada = {}, dUsado = {};
+    filas.forEach(function(r) { r.destino = 'nuevo'; r.conf = 'nuevo'; });
+    pares.forEach(function(x) {
+      if (fUsada[x.f] || dUsado[x.dest]) return;
+      fUsada[x.f] = dUsado[x.dest] = 1;
+      filas[x.f].destino = x.dest; filas[x.f].conf = x.p >= 85 ? 'seguro' : 'probable';
+    });
+    return filas;
+  }
+  function abrirClaustro() {
+    document.getElementById('cl-texto').value = ''; CL_FILAS = [];
+    document.getElementById('cl-prev').innerHTML = '';
+    document.getElementById('cl-modal').classList.add('show');
+    document.getElementById('cl-texto').focus();
+  }
+  function cerrarClaustro() { document.getElementById('cl-modal').classList.remove('show'); }
+  function clAnalizar() {
+    CL_FILAS = clCasar(clParsear(document.getElementById('cl-texto').value), docentesLocal);
+    var ops = '';
+    docentesLocal.forEach(function(d, i) { if (d.nombre_corto) ops += '<option value="t:' + i + '">' + _esc(d.nombre_corto + (d.nombre_completo ? ' — ' + d.nombre_completo : '')) + '</option>'; });
+    docentesLocal.forEach(function(d, i) { if (String(d.sustituto || '').trim()) ops += '<option value="s:' + i + '">' + _esc('Sustituto/a de ' + d.nombre_corto + ': ' + d.sustituto) + '</option>'; });
+    ops += '<option value="nuevo">➕ Nuevo docente</option><option value="ignorar">Ignorar</option>';
+    var h = CL_FILAS.length ? '<div class="cl-resumen" id="cl-resumen"></div><div class="tablewrap"><table class="data cl-tabla"><thead><tr><th>Nombre</th><th>Alias</th><th>Email</th><th>Teléfono</th><th>Puesto</th><th>Casar con</th></tr></thead><tbody>' : '';
+    CL_FILAS.forEach(function(r, k) {
+      h += '<tr><td>' + _esc(r.completo) + '</td><td>' + _esc(r.alias) + '</td><td>' + _esc(r.email) + '</td><td>' + _esc(r.telefono) + '</td><td>' + _esc(r.puesto) + '</td>' +
+        '<td class="cl-casar"><select onchange="clCambiar(' + k + ',this.value)">' + ops.replace('value="' + r.destino + '"', 'value="' + r.destino + '" selected') + '</select>' +
+        ' <span class="cl-conf cl-' + r.conf + '" id="cl-conf-' + k + '">' + r.conf + '</span></td></tr>';
+    });
+    document.getElementById('cl-prev').innerHTML = h + (CL_FILAS.length ? '</tbody></table></div>' : '');
+    _clResumen();
+  }
+  function clCambiar(k, v) {
+    CL_FILAS[k].destino = v; CL_FILAS[k].conf = v === 'nuevo' ? 'nuevo' : (v === 'ignorar' ? 'ignorar' : 'manual');
+    var b = document.getElementById('cl-conf-' + k); b.className = 'cl-conf cl-' + CL_FILAS[k].conf; b.textContent = CL_FILAS[k].conf;
+    _clResumen();
+  }
+  function _clContar() {
+    var n = { casados: 0, nuevos: 0, ignorados: 0 };
+    CL_FILAS.forEach(function(r) { if (r.destino === 'nuevo') n.nuevos++; else if (r.destino === 'ignorar') n.ignorados++; else n.casados++; });
+    return n;
+  }
+  function _clResumen() {
+    var el = document.getElementById('cl-resumen'); if (!el) return;
+    var n = _clContar();
+    el.textContent = n.casados + ' casados, ' + n.nuevos + ' nuevos, ' + n.ignorados + ' ignorados';
+  }
+  // Nombre corto para un alta: alias o nombre de pila (María/José… + 2.ª palabra); si choca, + inicial del apellido.
+  function _clNombreCorto(r, usados) {
+    var nc = r.alias;
+    if (!nc) {
+      var w = String(r.nombre || r.completo).split(/\s+/).filter(function(x) { return x && !_CL_STOP[_clNorm(x)]; });
+      nc = w.slice(0, w.length > 1 && _CL_COMP[_clNorm(w[0])] ? 2 : 1).join(' ');
+    }
+    if (usados[_clNorm(nc)]) {
+      var ap = String(r.apellidos).split(/\s+/).filter(function(x) { return x && !_CL_STOP[_clNorm(x)]; })[0];
+      if (ap) nc += ' ' + ap.charAt(0).toUpperCase() + '.';
+    }
+    var base = nc, n = 2;
+    while (usados[_clNorm(nc)]) nc = base + ' ' + (n++);
+    usados[_clNorm(nc)] = 1;
+    return nc;
+  }
+  function aplicarClaustro() {
+    if (!CL_FILAS.length) { aviso('Pega primero la lista del claustro.', 'err'); return; }
+    var usarAlias = document.getElementById('cl-usar-alias').checked, usados = {};
+    docentesLocal.forEach(function(d) { if (d.nombre_corto) usados[_clNorm(d.nombre_corto)] = 1; });
+    CL_FILAS.forEach(function(r) {
+      var m = /^([ts]):(\d+)$/.exec(r.destino); if (!m) return;
+      var d = docentesLocal[+m[2]];
+      if (m[1] === 's') { if (r.email) d.sustituto_email = r.email; return; }
+      if (r.completo) d.nombre_completo = r.completo;
+      if (r.email) d.email = r.email;
+      if (r.telefono) d.telefono = r.telefono;
+      if (r.puesto) d.puesto = r.puesto;
+      if (usarAlias && r.alias && _clNorm(r.alias) !== _clNorm(d.nombre_corto) && !usados[_clNorm(r.alias)]) {
+        delete usados[_clNorm(d.nombre_corto)]; d.nombre_corto = r.alias; usados[_clNorm(r.alias)] = 1;
+      }
+    });
+    CL_FILAS.forEach(function(r) {
+      if (r.destino !== 'nuevo') return;
+      docentesLocal.push(_mapearDocente({ nombre_corto: _clNombreCorto(r, usados), nombre_completo: r.completo, email: r.email, telefono: r.telefono, puesto: r.puesto }));
+    });
+    var n = _clContar();
+    renderDocentes(); cerrarClaustro();
+    aviso(n.casados + ' casados, ' + n.nuevos + ' nuevos, ' + n.ignorados + ' ignorados. Pulsa «Guardar cambios» para guardarlos.');
   }
 
   // ================= Semanas alternas (A/B) =================
@@ -671,7 +938,14 @@
 
   // ================= Roles =================
   let rolesLocal = [];
-  function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '' }; }
+  function _mapearRol(r) { return { id: r.id || null, nombre: r.nombre || '', nombre_largo: r.nombre_largo || '', color: r.color || '', categoria: r.categoria || '', usos: r.usos || 0 }; }
+  // «(n)» horas semanales en los horarios; a 0 se puede borrar sin perder nada.
+  function _rolUsos(r) {
+    if (!r.id) return '';
+    var n = Math.round((r.usos || 0) * 4) / 4, e = Math.floor(n), f = n - e;
+    var t = (e || (f ? '' : '0')) + (f === 0.5 ? '½' : f === 0.25 ? '¼' : f === 0.75 ? '¾' : '');
+    return '<span class="rol-usos' + (n ? '' : ' cero') + '" title="' + (n ? 'Horas semanales en los horarios' : 'Sin uso en los horarios: se puede eliminar') + '">(' + t + ')</span>';
+  }
   function cargarRoles() {
     _run().withSuccessHandler(function(rs) {
       if (rs && rs.length > 0) { rolesLocal = rs.map(_mapearRol); renderRoles(); _snap('roles'); return; }
@@ -698,8 +972,10 @@
       tr.innerHTML =
         '<td class="col-num"><span class="drag" title="Arrastrar para reordenar">⠿</span> ' + (i+1) + '</td>' +
         '<td class="col-center">' + _colorCell(r.color, 'setColorRol', i) + '</td>' +
-        '<td><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)"></td>' +
+        '<td><div class="rol-nom"><input type="text" value="' + _esc(r.nombre) + '" placeholder="DIR, TDE, PT…" oninput="actualizarRol(' + i + ',\'nombre\',this.value)">' + _rolUsos(r) + '</div></td>' +
         '<td><input type="text" value="' + _esc(r.nombre_largo) + '" placeholder="Dirección" oninput="actualizarRol(' + i + ',\'nombre_largo\',this.value)"></td>' +
+        '<td><select onchange="actualizarRol(' + i + ',\'categoria\',this.value)">' + [['', '(auto)'], ['apoyo', 'Apoyo'], ['atencion', 'PT / AL'], ['cargo', 'Cargo']].map(function(p) {
+          return '<option value="' + p[0] + '"' + (r.categoria === p[0] ? ' selected' : '') + '>' + p[1] + '</option>'; }).join('') + '</select></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarRol(' + i + ')">×</button></td>';
       tb.appendChild(tr);
     });

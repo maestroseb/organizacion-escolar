@@ -57,6 +57,7 @@ function parsearSeneca(xmlText) {
  * Las preferencias del wizard (etapas, líneas, bilingüe) se deducen del XML.
  */
 function aplicarSeneca(seleccion, modo) {
+  _exigirEdicion();
   if (!seleccion || typeof seleccion !== 'object') {
     throw new Error('Sin datos a aplicar.');
   }

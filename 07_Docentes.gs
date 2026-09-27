@@ -18,6 +18,7 @@ function listarDocentes() {
 }
 
 function guardarDocentes(docentes, modo) {
+  _exigirEdicion();
   if (!Array.isArray(docentes)) throw new Error('Formato inválido.');
 
   docentes.forEach(function(d, i) {
@@ -43,10 +44,12 @@ function guardarDocentes(docentes, modo) {
       nombre_completo: d.nombre_completo || '',
       puesto: d.puesto || '',
       email: d.email || '',
+      telefono: d.telefono || '',
       activo: d.activo === false ? false : true,
       orden: i + 1,
       color: d.color || '',
       sustituto: d.sustituto || '',
+      sustituto_email: d.sustituto_email || '',
       acceso_sust: d.acceso_sust === true,
       parcial: d.parcial === true
     };
@@ -60,7 +63,9 @@ function guardarDocentes(docentes, modo) {
  * días, así que Revisión no avisa de «horario incompleto».
  */
 function marcarDocenteParcial(id, parcial) {
+  _exigirEdicion();
   if (!id) throw new Error('Falta el docente.');
   update(SHEETS.DOCENTES, id, { parcial: !!parcial });
   return { ok: true };
 }
+

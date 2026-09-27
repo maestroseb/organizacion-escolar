@@ -9,7 +9,26 @@
  * cubrir): la sábana numera las localizaciones (#01, #02…) siguiendo ese
  * orden, que el usuario reordena arrastrando en la pestaña Cargos.
  * El `color` es configurable por el usuario y lo usan las vistas.
+ *
+ * `categoria` distingue qué es cada rol (lo usan el pintado, la sábana y
+ * Sustituciones):
+ *   - 'apoyo':    refuerzos, guardias… (primeros en sustituir).
+ *   - 'atencion': PT, AL, aula TEA… Son clases (a 1-2 alumnos), van en la
+ *                 columna derecha y solo sustituyen por fuerza mayor.
+ *   - 'cargo':    dirección, coordinaciones, reducciones…
  */
+
+const CATEGORIAS_ROL = ['apoyo', 'atencion', 'cargo'];
+
+/** Categoría del rol: la guardada o, si no hay, deducida del nombre. */
+function categoriaRol(r) {
+  const c = String((r && r.categoria) || '').trim().toLowerCase();
+  if (CATEGORIAS_ROL.indexOf(c) !== -1) return c;
+  const n = (String((r && r.nombre) || '') + ' ' + String((r && r.nombre_largo) || '')).toLowerCase();
+  if (/^(pt|al)\b|audici|pedag|\btea\b|aula espec/.test(n)) return 'atencion';
+  if (/^ref|refuerzo|apoyo|atedu|atenci[oó]n educ|gua|guardia/.test(n)) return 'apoyo';
+  return 'cargo';
+}
 
 const ROLES_PLANTILLA = [
   // Apoyos y refuerzos (primeros: son los que antes entran a sustituir)
@@ -38,16 +57,28 @@ const ROLES_PLANTILLA = [
 function listarRoles() {
   const roles = getAll(SHEETS.ROLES);
   roles.sort(function(a, b) { return (a.orden || 0) - (b.orden || 0); });
+  // `usos`: horas semanales en los horarios con ese rol.
+  // Ayuda a detectar duplicados: un rol a 0 se puede borrar sin perder nada.
+  // Horas reales: duración de cada tramo, ½ si es media clase o de semana A/B.
+  const dur = {};
+  getAll(SHEETS.TRAMOS).forEach(function(t) { dur[t.id] = _durTramoH(t); });
+  const usos = {};
+  getAll(SHEETS.OCUPACIONES).forEach(function(o) {
+    const id = o.tipo === 'localizacion' ? o.rol_loc_id : (o.tipo === 'especial' ? o.rol_especial_id : '');
+    if (id) usos[id] = (usos[id] || 0) + (dur[o.tramo_id] || 1) * (String(o.semana || '').trim() ? 0.5 : 1) * (String(o.mitad || '').trim() ? 0.5 : 1);
+  });
+  roles.forEach(function(r) { r.categoria = categoriaRol(r); r.usos = usos[r.id] || 0; });
   return roles;
 }
 
 function plantillaRoles() {
   return ROLES_PLANTILLA.map(function(r, i) {
-    return { nombre: r.nombre, nombre_largo: r.nombre_largo, color: r.color || '', orden: i + 1 };
+    return { nombre: r.nombre, nombre_largo: r.nombre_largo, color: r.color || '', orden: i + 1, categoria: categoriaRol(r) };
   });
 }
 
 function guardarRoles(roles, modo) {
+  _exigirEdicion();
   if (!Array.isArray(roles)) throw new Error('Formato inválido.');
 
   roles.forEach(function(r, i) {
@@ -73,7 +104,8 @@ function guardarRoles(roles, modo) {
       nombre: String(r.nombre).trim(),
       nombre_largo: r.nombre_largo || '',
       color: r.color || '',
-      orden: i + 1
+      orden: i + 1,
+      categoria: categoriaRol(r)
     };
   });
   const resumen = bulkMerge(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');

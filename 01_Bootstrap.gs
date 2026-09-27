@@ -126,9 +126,10 @@ function estadoApp() {
 }
 
 /**
- * Qué puede ver el usuario que abre la app. Admin = propietario del script
+ * Qué puede hacer el usuario que abre la app. Admin = propietario del script
  * (quien despliega). Equipo directivo = docente cuyo email coincide con el
- * del usuario y tiene marcado «Sustituciones» en Configuración → Docentes.
+ * del usuario (o el de su sustituto/a) y tiene marcado «Edición» en
+ * Configuración → Docentes. El resto del profesorado solo puede ver.
  * Session.getActiveUser() solo da el email dentro del mismo dominio.
  */
 function permisosUsuario() {
@@ -141,12 +142,25 @@ function permisosUsuario() {
   if (email && !admin) {
     try {
       directivo = getAll(SHEETS.DOCENTES).some(function(d) {
-        return String(d.email || '').trim().toLowerCase() === email &&
+        // El sustituto/a que cubre a un titular hereda su acceso.
+        return (String(d.email || '').trim().toLowerCase() === email ||
+                (String(d.sustituto || '').trim() && String(d.sustituto_email || '').trim().toLowerCase() === email)) &&
                (d.acceso_sust === true || String(d.acceso_sust).toUpperCase() === 'TRUE') && d.activo !== false;
       });
     } catch (e) {}
   }
-  return { admin: admin, directivo: directivo, sustituciones: admin || directivo, email: email, propietario: owner };
+  // `edicion`: ve Configuración y puede guardar. Sin él, solo lectura.
+  // (`sustituciones` se mantiene como alias por compatibilidad.)
+  return { admin: admin, directivo: directivo, edicion: admin || directivo, sustituciones: admin || directivo, email: email, propietario: owner };
+}
+
+/**
+ * Toda función que modifica datos empieza por aquí: solo el administrador y
+ * quien tiene permiso de Edición (casilla «Edición» en Docentes). Durante el
+ * alta inicial (centro sin configurar) solo puede el administrador.
+ */
+function _exigirEdicion() {
+  if (!permisosUsuario().edicion) throw new Error('Solo lectura: necesitas permiso de Edición para guardar cambios.');
 }
 
 function _contar(sheetName) {
@@ -171,10 +185,12 @@ const SECCIONES_VACIABLES = {
   localizaciones: 'LOCALIZACIONES',
   materias:       'MATERIAS',
   roles:          'ROLES',
-  ocupaciones:    'OCUPACIONES'
+  ocupaciones:    'OCUPACIONES',
+  zonas_recreo:   'ZONAS_RECREO'
 };
 
 function vaciarSeccion(clave) {
+  _exigirEdicion();
   const nombreConst = SECCIONES_VACIABLES[clave];
   if (!nombreConst) throw new Error('Sección desconocida: ' + clave);
   bulkReplace(SHEETS[nombreConst], []);
@@ -187,6 +203,7 @@ function vaciarSeccion(clave) {
  * para un alta guiada desde cero (la estructura de pestañas se conserva).
  */
 function reiniciarCentro() {
+  _exigirEdicion();
   Object.keys(SECCIONES_VACIABLES).forEach(function(clave) {
     bulkReplace(SHEETS[SECCIONES_VACIABLES[clave]], []);
   });

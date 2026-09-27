@@ -30,6 +30,7 @@ function _ordenSemanas(a, b) {
  * Conserva IDs existentes cuando vienen y reordena por fecha de inicio.
  */
 function guardarSemanas(semanas) {
+  _exigirEdicion();
   if (!Array.isArray(semanas)) throw new Error('Formato inválido.');
 
   semanas.forEach(function(s, i) {
@@ -97,6 +98,7 @@ function semanaDeFecha(fecha) {
  * que el usuario las revise y edite antes de guardar. No toca el libro.
  */
 function importarSemanas(texto, opciones) {
+  _exigirEdicion();
   opciones = opciones || {};
   if (!texto || !String(texto).trim()) throw new Error('Pega primero el cuadro de semanas.');
 

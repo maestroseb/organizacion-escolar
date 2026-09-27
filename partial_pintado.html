@@ -18,7 +18,7 @@
         <div class="pt-lbl">Parte del tramo</div>
         <div class="segmented pt-seg" id="pt-mitad"></div>
         <div id="pt-listas"></div>
-        <p class="hint pt-ayuda">Pulsa o arrastra sobre las celdas para pintar. <b>Mayús+clic</b> copia la brocha de una celda. Cada celda se divide en cuatro: columnas <b>A | B</b> (semana) y filas <b>1ª | 2ª</b> (mitad del tramo).</p>
+        <p class="hint pt-ayuda">Pulsa o arrastra sobre las celdas para pintar. <b>Mayús+clic</b> copia la brocha de una celda. Con <b>⠿</b> arrastras una clase a otra celda, o a la otra semana o mitad de la misma (si hay otra, se intercambian) y con <b>×</b> la borras. Cada celda se divide en cuatro: columnas <b>A | B</b> (semana) y filas <b>1ª | 2ª</b> (mitad del tramo).</p>
       </aside>
       <div class="pt-gridwrap"><div id="pt-grid"></div></div>
     </div>
@@ -38,6 +38,7 @@
   var PT = { ocs: [], hist: [], tipo: 'grupo', materia: '', grupos: [], rol: '', sem: '', mitad: '', pintando: false };
 
   function abrirPintado() {
+    if (soloLectura()) return;
     if (!HD_DOC || !HD_CAT) { aviso('Elige primero un docente', 'err'); return; }
     if (typeof hayCambios === 'function' && hayCambios('horario_grupo')) { aviso('Guarda antes los cambios del horario del grupo', 'err'); return; }
     PT.ocs = JSON.parse(JSON.stringify(HD_OCUPS)); PT.hist = [];
@@ -79,6 +80,16 @@
   }
 
   // ---------- Pintar ----------
+  // 'atencion' (PT/AL) es un tipo de la brocha, no de la hoja: se guarda
+  // como 'localizacion' (columna derecha de la sábana) con un rol PT/AL.
+  function _ptTipoReal() { return PT.tipo === 'atencion' ? 'localizacion' : PT.tipo; }
+  function _ptCat(id) { var r = (HD_CAT.roles || []).filter(function(x) { return x.id === id; })[0]; return r ? r.categoria : ''; }
+  // Roles de la brocha según su tipo (si ninguno encaja, todos).
+  function _ptRoles() {
+    var cat = { atencion: 'atencion', localizacion: 'apoyo', especial: 'cargo' }[PT.tipo];
+    var rs = (HD_CAT.roles || []).filter(function(r) { return r.categoria === cat; });
+    return rs.length ? rs : (HD_CAT.roles || []);
+  }
   function _ptBrochaValida() {
     if (PT.tipo === 'borrar') return true;
     if (PT.tipo === 'grupo') return PT.materia && PT.grupos.length;
@@ -95,10 +106,10 @@
       _ptRect(resto).forEach(function(r) { var c = JSON.parse(JSON.stringify(o)); c.semana = r[0]; c.mitad = r[1]; nuevas.push(c); });
     });
     if (PT.tipo !== 'borrar') {
-      var g = PT.grupos.join(',');
-      nuevas.push({ dia: dia, tramo_id: tramo, tipo: PT.tipo, materia_id: PT.tipo === 'grupo' ? PT.materia : '',
-        grupo_id: PT.tipo === 'grupo' ? g : '', rol_id: PT.tipo !== 'grupo' ? PT.rol : '',
-        grupo_destino_id: PT.tipo === 'localizacion' ? g : '', mitad: PT.mitad, semana: PT.sem, notas: '' });
+      var g = PT.grupos.join(','), tp = _ptTipoReal();
+      nuevas.push({ dia: dia, tramo_id: tramo, tipo: tp, materia_id: tp === 'grupo' ? PT.materia : '',
+        grupo_id: tp === 'grupo' ? g : '', rol_id: tp !== 'grupo' ? PT.rol : '',
+        grupo_destino_id: tp === 'localizacion' ? g : '', mitad: PT.mitad, semana: PT.sem, notas: '' });
     }
     PT.ocs = nuevas;
     _ptCelda(dia, tramo);
@@ -107,7 +118,7 @@
   function _ptCopiar(dia, tramo) {
     var o = PT.ocs.filter(function(x) { return x.dia === dia && x.tramo_id === tramo; })[0];
     if (!o) return;
-    PT.tipo = o.tipo; PT.materia = o.materia_id || ''; PT.rol = o.rol_id || '';
+    PT.tipo = (o.tipo !== 'grupo' && _ptCat(o.rol_id) === 'atencion') ? 'atencion' : o.tipo; PT.materia = o.materia_id || ''; PT.rol = o.rol_id || '';
     PT.grupos = _hdCsvArr(o.tipo === 'localizacion' ? o.grupo_destino_id : o.grupo_id);
     PT.sem = o.semana || ''; PT.mitad = o.mitad || '';
     _ptPanel(); _ptEstado('Brocha copiada de la celda');
@@ -120,7 +131,12 @@
     }).join('');
   }
   function ptSet(k, v) { PT[k] = v; _ptPanel(); }
-  function ptTipo(v) { PT.tipo = v; if (v !== 'grupo' && v !== 'localizacion') PT.grupos = []; _ptPanel(); }
+  function ptTipo(v) {
+    PT.tipo = v;
+    if (v !== 'grupo' && v !== 'localizacion' && v !== 'atencion') PT.grupos = [];
+    if (PT.rol && _ptRoles().every(function(r) { return r.id !== PT.rol; })) PT.rol = '';
+    _ptPanel();
+  }
   function ptSem(v) { PT.sem = v; _ptPanel(); }
   function ptMit(v) { PT.mitad = v; _ptPanel(); }
   function ptMat(id) { PT.materia = id; _ptPanel(); }
@@ -133,13 +149,15 @@
     if (o.tipo === 'grupo') return _ptNom(HD_CAT.materias, o.materia_id, true) + ' ' + _hdGruposNombres(o.grupo_id);
     return _ptNom(HD_CAT.roles, o.rol_id) + (o.grupo_destino_id ? ' ' + _hdGruposNombres(o.grupo_destino_id) : '');
   }
+  // Clases con el color pleno; PT/AL, a media intensidad; apoyos y cargos,
+  // un tinte claro: de un vistazo se ve qué es clase y qué no.
   function _ptEstilo(o) {
-    var c = o.tipo === 'grupo' ? _ptColor(HD_CAT.materias, o.materia_id) : _ptColor(HD_CAT.roles, o.rol_id);
-    return c ? _sbPill(c) : '';
+    if (o.tipo === 'grupo') return _ocEstilo('grupo', _ptColor(HD_CAT.materias, o.materia_id));
+    return _ocEstilo(_ptCat(o.rol_id) || 'cargo', _ptColor(HD_CAT.roles, o.rol_id));
   }
 
   function _ptPanel() {
-    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['localizacion', 'Apoyo'], ['especial', 'Cargo'], ['borrar', 'Borrar']], PT.tipo, 'ptTipo');
+    _ptSeg('pt-tipo', [['grupo', 'Clase'], ['atencion', 'PT/AL'], ['localizacion', 'Apoyo'], ['especial', 'Cargo']], PT.tipo, 'ptTipo');
     _ptSeg('pt-sem', [['', 'Todas'], ['A', 'Sem A'], ['B', 'Sem B']], PT.sem, 'ptSem');
     _ptSeg('pt-mitad', [['', 'Entero'], ['1', '1ª mitad'], ['2', '2ª mitad']], PT.mitad, 'ptMit');
     var chips = function(arr, sel, fn, multi, corto) {
@@ -153,11 +171,14 @@
     if (PT.tipo === 'grupo') {
       h += '<div class="pt-lbl">Área</div>' + chips(HD_CAT.materias, PT.materia, 'ptMat', false, true);
       h += '<div class="pt-lbl">Grupo(s)</div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
+    } else if (PT.tipo === 'atencion') {
+      h += '<div class="pt-lbl">PT / AL</div>' + chips(_ptRoles(), PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Grupo(s) del alumnado <span class="hint">(opcional)</span></div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
     } else if (PT.tipo === 'localizacion') {
-      h += '<div class="pt-lbl">Apoyo</div>' + chips(HD_CAT.roles, PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Apoyo</div>' + chips(_ptRoles(), PT.rol, 'ptRol');
       h += '<div class="pt-lbl">Grupo(s) destino <span class="hint">(opcional)</span></div>' + chips(HD_CAT.grupos, PT.grupos, 'ptGrupo', true);
     } else if (PT.tipo === 'especial') {
-      h += '<div class="pt-lbl">Cargo</div>' + chips(HD_CAT.roles, PT.rol, 'ptRol');
+      h += '<div class="pt-lbl">Cargo</div>' + chips(_ptRoles(), PT.rol, 'ptRol');
     }
     document.getElementById('pt-listas').innerHTML = h;
     // Vista previa de la brocha.
@@ -166,7 +187,7 @@
     if (PT.tipo === 'borrar') b.innerHTML = '<span class="pt-prev pt-prev-borrar">Borrar</span><small>' + alc + '</small>';
     else if (!_ptBrochaValida()) b.innerHTML = '<span class="pt-prev pt-prev-vacia">Elige ' + (PT.tipo === 'grupo' ? 'área y grupo' : 'cargo') + '</span><small>' + alc + '</small>';
     else {
-      var o = { tipo: PT.tipo, materia_id: PT.materia, rol_id: PT.rol, grupo_id: PT.tipo === 'grupo' ? PT.grupos.join(',') : '', grupo_destino_id: PT.tipo === 'localizacion' ? PT.grupos.join(',') : '' };
+      var tp = _ptTipoReal(), o = { tipo: tp, materia_id: PT.materia, rol_id: PT.rol, grupo_id: tp === 'grupo' ? PT.grupos.join(',') : '', grupo_destino_id: tp === 'localizacion' ? PT.grupos.join(',') : '' };
       b.innerHTML = '<span class="pt-prev" style="' + _ptEstilo(o) + '">' + _esc(_ptEtq(o)) + '</span><small>' + alc + '</small>';
     }
   }
@@ -188,14 +209,81 @@
     var partida = ocs.some(function(o) { return o.semana || o.mitad; });
     td.classList.toggle('pt-partida', partida);
     td.innerHTML = '<div class="pt-q">' + ocs.map(function(o) {
+      var gi = PT.ocs.indexOf(o);
       var col = o.semana === 'A' ? '1' : o.semana === 'B' ? '2' : '1 / 3', row = o.mitad === '1' ? '1' : o.mitad === '2' ? '2' : '1 / 3';
       var tag = (o.semana ? o.semana : '') + (o.mitad ? (o.semana ? '·' : '') + o.mitad + 'ª' : '');
       return '<div class="pt-oc" style="grid-column:' + col + ';grid-row:' + row + ';' + _ptEstilo(o) + '" title="' + _esc(_ptEtq(o) + (tag ? ' (' + tag + ')' : '')) + '">' +
+        '<span class="pt-asa" draggable="true" data-i="' + gi + '" title="Arrastra para mover (si hay otra, se intercambian)">⠿</span>' +
+        '<button type="button" class="pt-del" data-i="' + gi + '" title="Borrar">×</button>' +
         _esc(_ptEtq(o)) + (tag ? '<i>' + tag + '</i>' : '') + '</div>';
     }).join('') + '</div>';
   }
-  // Pintar con clic o arrastrando.
+  // ---------- Mover (asa ⠿) e intercambiar; borrar (×) ----------
+  function _ptHist() { PT.hist.push(JSON.parse(JSON.stringify(PT.ocs))); if (PT.hist.length > 60) PT.hist.shift(); }
+  function _ptSolapa(a, b) { var qa = _ptQ(a.semana, a.mitad); return _ptQ(b.semana, b.mitad).some(function(q) { return qa.indexOf(q) !== -1; }); }
+  // Mueve la ocupación i a (dia, tramo) y al cuarto donde se suelta (q =
+  // 'A1'…'B2'): si es de una semana o de una mitad, puede cambiar a la otra
+  // (también dentro de la misma celda). Lo que ocupaba esos cuartos en el
+  // destino pasa a donde estaba la que se mueve (intercambio).
+  function _ptMover(i, dia, tramo, q) {
+    var o = PT.ocs[i]; if (!o) return;
+    var src = { d: o.dia, t: o.tramo_id, sem: o.semana || '', mit: o.mitad || '' };
+    var sem = src.sem ? q[0] : '', mit = src.mit ? q[1] : '';
+    if (src.d === dia && src.t === tramo && sem === src.sem && mit === src.mit) return;
+    _ptHist();
+    var tq = _ptQ(sem, mit), out = [];
+    var copia = function(x, d, t, r) { var c = JSON.parse(JSON.stringify(x)); c.dia = d; c.tramo_id = t; c.semana = r[0]; c.mitad = r[1]; return c; };
+    PT.ocs.forEach(function(x) {
+      if (x === o) return;
+      if (x.dia !== dia || x.tramo_id !== tramo) { out.push(x); return; }
+      var xq = _ptQ(x.semana, x.mitad);
+      var mov = xq.filter(function(k) { return tq.indexOf(k) !== -1; });
+      if (!mov.length) { out.push(x); return; }
+      _ptRect(xq.filter(function(k) { return tq.indexOf(k) === -1; })).forEach(function(r) { out.push(copia(x, dia, tramo, r)); });
+      // La parte desplazada ocupa los cuartos que deja libres la que se mueve.
+      var dest = [];
+      mov.forEach(function(k) { var m = (src.sem || k[0]) + (src.mit || k[1]); if (dest.indexOf(m) === -1) dest.push(m); });
+      _ptRect(dest).forEach(function(r) { out.push(copia(x, src.d, src.t, r)); });
+    });
+    o.dia = dia; o.tramo_id = tramo; o.semana = sem; o.mitad = mit;
+    out.push(o);
+    PT.ocs = out;
+    _ptGrid(); _ptEstado(''); // índices cambian: se repinta todo
+  }
+  // Cuarto de la celda bajo el puntero: columna A|B y fila 1ª|2ª.
+  function _ptCuarto(td, e) {
+    var r = (td.querySelector('.pt-q') || td).getBoundingClientRect();
+    return (e.clientX < r.left + r.width / 2 ? 'A' : 'B') + (e.clientY < r.top + r.height / 2 ? '1' : '2');
+  }
+  function _ptBorrar(i) {
+    var o = PT.ocs[i]; if (!o) return;
+    _ptHist(); PT.ocs.splice(i, 1); _ptGrid();
+  }
+  document.addEventListener('click', function(e) {
+    var b = e.target.closest && e.target.closest('#pt-grid .pt-del'); if (b) _ptBorrar(+b.dataset.i);
+  });
+  document.addEventListener('dragstart', function(e) {
+    var a = e.target.closest && e.target.closest('#pt-grid .pt-asa'); if (!a) return;
+    PT.pintando = false;
+    e.dataTransfer.setData('text/plain', a.dataset.i); e.dataTransfer.effectAllowed = 'move';
+  });
+  document.addEventListener('dragover', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
+    e.preventDefault(); td.classList.add('pt-over');
+  });
+  document.addEventListener('dragleave', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (td) td.classList.remove('pt-over');
+  });
+  document.addEventListener('drop', function(e) {
+    var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
+    e.preventDefault(); td.classList.remove('pt-over');
+    var i = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (!isNaN(i)) _ptMover(i, td.dataset.d, td.dataset.t, _ptCuarto(td, e));
+  });
+
+  // Pintar con clic o arrastrando (salvo sobre el asa o la ×).
   document.addEventListener('mousedown', function(e) {
+    if (e.target.closest && e.target.closest('#pt-grid .pt-asa, #pt-grid .pt-del')) return;
     var td = e.target.closest && e.target.closest('#pt-grid .pt-cell'); if (!td) return;
     e.preventDefault();
     if (e.shiftKey) { _ptCopiar(td.dataset.d, td.dataset.t); return; }

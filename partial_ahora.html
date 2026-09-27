@@ -77,14 +77,14 @@
     var etq = { ahora: 'AHORA', proximo: 'PRÓXIMO', terminado: 'ÚLTIMO TRAMO', otro: 'TRAMO' }[estado];
     var html = '<div class="ah-card">' +
       '<div class="ah-head" style="' + st + '"><span class="ah-etq">' + etq + '</span>' +
-        _esc(String(AH.diaLargo).toUpperCase() + ' · TRAMO ' + tr.orden + ' · ' + tr.horas) +
+        _esc(String(AH.diaLargo).toUpperCase() + (tr.es_recreo ? ' · RECREO · ' : ' · TRAMO ' + tr.orden + ' · ') + tr.horas) +
         '<span class="ah-reloj" id="ah-reloj">' + _ahReloj() + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
-    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>';
+    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
     else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t) + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
-      '<div class="sb-pane">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
+      '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
     cont.innerHTML = html + '</div>';
   }
   function _ahAnchos(t) { return _sbAnchosDe([t], 14); }

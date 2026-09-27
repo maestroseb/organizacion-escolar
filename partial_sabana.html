@@ -4,6 +4,7 @@
     <p>Todos los docentes colocados en cada tramo, para localizarlos de un vistazo. Cada tramo muestra las aulas (con su docente) y, a la derecha, los apoyos y cargos numerados por prioridad de sustitución.</p>
   </div>
   <div class="sb-toolbar">
+  <span class="sb-sem-lbl">Semana</span>
   <div class="segmented" id="sb-sem" title="Semana alterna"></div>
   <button type="button" class="secondary" onclick="sbImprimir()" title="Imprimir o guardar como PDF (apaisado)">Imprimir / PDF</button>
   <button type="button" class="secondary" id="sb-btn-png" onclick="sbPng()" title="Descargar la sábana completa como imagen PNG">PNG</button>
@@ -31,6 +32,8 @@
   function _cargarSemana() {
     const cont = document.getElementById('sb-body');
     if (_sbCacheVersion !== DATOS_VERSION) { _sbCache = {}; _sbCacheVersion = DATOS_VERSION; _sbPrecargado = false; }
+    // Las dos semanas vienen ya en la página al arrancar.
+    if (window.SB_INICIAL) { if (DATOS_VERSION === 0) { window.SB_INICIAL.forEach(function(r) { _sbCache[r.semana] = r; }); if (!SB_SEM) SB_SEM = window.SB_INICIAL[0].semana; } window.SB_INICIAL = null; }
     const seq = ++_sbSeq, version = DATOS_VERSION, sem = SB_SEM;
     const ok = function(res) {
       if (res && res.semana && version === DATOS_VERSION) _sbCache[res.semana] = res;
@@ -48,8 +51,12 @@
   function _pintarSemana(res) {
     const cont = document.getElementById('sb-body');
     if (res && res.semana) { SB_SEM = res.semana; SB_SEM_ACTUAL = res.semanaActual; _pintarSemToggle(); }
-    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Centro y horario</b>.</div>'; return; }
+    if (!res || !res.hayTramos) { cont.innerHTML = '<div class="empty">Aún no hay tramos horarios. Configúralos en <b>Configuración → Tramos y semanas</b>.</div>'; return; }
+    // Al cambiar de semana se conserva la posición del scroll para comparar A y B.
+    var prev = cont.querySelector('.sb-weekscroll'), sx = prev ? prev.scrollLeft : 0, sy = prev ? prev.scrollTop : 0;
     cont.innerHTML = _sbGridHtml(res);
+    var nuevo = cont.querySelector('.sb-weekscroll');
+    if (nuevo && (sx || sy)) { if (window.ajustarAltos) ajustarAltos(); nuevo.scrollLeft = sx; nuevo.scrollTop = sy; }
     _sbPrecargar();
     if (document.fonts && document.fonts.status !== 'loaded' && !_sbFuenteEspera) {
       _sbFuenteEspera = true;
@@ -70,16 +77,18 @@
     };
     if (window.requestIdleCallback) requestIdleCallback(f, { timeout: 3000 }); else setTimeout(f, 800);
     precargar('listarDocentes');
+    precargar('datosHorarios'); // Horarios individuales: cambiar de docente/grupo es inmediato
   }
   // Rejilla completa de una semana; cada rail lleva un badge con la semana (A/B).
   function _sbGridHtml(res) {
+    var anchos = _sbAnchosDia(res);
     var badge = res.semana ? '<span class="sb-semb" title="Semana ' + _esc(res.semana) + '">' + _esc(res.semana) + '</span>' : '';
     var html = res.tramos.map(function(t){
-      if (t.tramo.es_recreo) return _sbRecreo(t.tramo);
+      if (t.tramo.es_recreo) return _sbRecreoSemana(t, res.dias, anchos);
       var col = _sbColor(t.tramo.color) || '#4f9d84', st = _sbHeadStyle(col);
       var cols = res.dias.map(function(d){
         var cell = t.porDia[d.k] || { cursos: [], apoyos: [], libres: [] };
-        return '<div class="sb-daycol">' +
+        return '<div class="sb-daycol" style="' + anchos[d.k] + '">' +
           '<div class="sb-dayhead" style="' + st + '">' + _esc(_sbTitulo(d.n, t.tramo)) + '</div>' +
           _sbCols(cell.cursos, cell.apoyos, cell.libres) +
         '</div>';
@@ -101,6 +110,17 @@
     });
     return _sbAnchosDe(celdas, 13);
   }
+  // Anchos por día: cada día mide lo justo para su texto más largo en todos
+  // sus tramos (el lunes puede ser más ancho que el martes).
+  function _sbAnchosDia(res) {
+    var out = {};
+    res.dias.forEach(function(d) {
+      var celdas = [];
+      res.tramos.forEach(function(t) { if (!t.tramo.es_recreo && t.porDia[d.k]) celdas.push(t.porDia[d.k]); });
+      out[d.k] = celdas.length ? _sbAnchosDe(celdas, 13) : '';
+    });
+    return out;
+  }
   var _sbCanvas = null;
   function _sbMedir(textos, peso, px) {
     var ctx = (_sbCanvas || (_sbCanvas = document.createElement('canvas'))).getContext('2d');
@@ -112,28 +132,39 @@
   }
   // celdas: [{cursos, apoyos}]; px: tamaño de letra de la tabla.
   function _sbAnchosDe(celdas, px) {
-    var cursos = [], docs = [], ocs = [];
+    // Las cabeceras también cuentan: la columna nunca es más estrecha que su título.
+    // Panel de cargos y roles aparte (suele ser más estrecho): locs/docs2/ocs2.
+    var cursos = ['CURSO'], docs = ['DOCENTE'], ocs = ['OCUP.'], segs = [];
+    var locs = ['LOC', '#00'], docs2 = ['DOCENTE'], ocs2 = ['OCUP.'];
     celdas.forEach(function(c) {
       c.cursos.forEach(function(g) {
         cursos.push(g.grupo.nombre);
-        var ns = [];
+        var ns = [], ms = [];
         (g.ocupantes || []).forEach(function(o) {
           if (ns.indexOf(o.docente) === -1) ns.push(o.docente);
-          ocs.push(o.materia);
+          if (o.materia) ms.push(o.materia);
         });
         docs.push(ns.join(' · ')); // filas compartidas: nombres en línea
+        if (ms.length) segs.push(ms);
       });
       c.apoyos.forEach(function(a) {
-        cursos.push('#00');
-        docs.push(a.docente + (a.cubre ? ' SUST.' : ''));
-        ocs.push(a.rol + (a.destino && a.destino.length ? ' ' + a.destino.join(' / ') : ''));
+        docs2.push(a.docente + (a.cubre ? ' SUST.' : ''));
+        ocs2.push(a.rol + (a.destino && a.destino.length ? ' ' + a.destino.join(' / ') : ''));
       });
     });
     var pill = Math.round(px * 0.92);
     var cw = _sbMedir(cursos, 700, px) + 11;
     var dw = _sbMedir(docs, 600, px) + 11;
     var ow = _sbMedir(ocs, 700, pill) + 22; // sin tope: se adapta a los chips
-    return '--sb-cw:' + cw + 'px;--sb-docw:' + dw + 'px;--sb-ocw:' + Math.max(ow, px * 4) + 'px;';
+    // Filas con varias clases: la pill partida debe caber entera (cada trozo
+    // mide lo que su texto + su relleno).
+    segs.forEach(function(ms) {
+      var w = 12;
+      ms.forEach(function(m) { w += _sbMedir([m], 700, pill) + 8; });
+      if (w > ow) ow = w;
+    });
+    return '--sb-cw:' + cw + 'px;--sb-docw:' + dw + 'px;--sb-ocw:' + Math.max(ow, px * 4) + 'px;' +
+      '--sb-lw:' + (_sbMedir(locs, 700, px) + 11) + 'px;--sb-dw2:' + (_sbMedir(docs2, 600, px) + 11) + 'px;--sb-ow2:' + Math.max(_sbMedir(ocs2, 700, pill) + 22, px * 4) + 'px;';
   }
 
   // ---------- Exportar: PDF (impresión apaisada) y PNG ----------
@@ -209,11 +240,24 @@
   function _sbRecreo(tr) {
     return '<div class="sb-recreo">RECREO' + (tr.horas ? (' · ' + _esc(tr.horas)) : '') + '</div>';
   }
+  // Recreo con turnos: una franja por día con «Zona: nombres». Sin turnos,
+  // la banda de siempre.
+  function _sbRecreoSemana(t, dias, anchos) {
+    var hay = dias.some(function(d) { return ((t.porDia[d.k] || {}).zonas || []).length; });
+    if (!hay) return _sbRecreo(t.tramo);
+    return '<div class="sb-weekrow sb-recreo-w"><div class="sb-rail sb-rail-recreo">RECREO</div>' + dias.map(function(d) {
+      return '<div class="sb-daycol sb-recreo-col" style="' + (anchos ? anchos[d.k] : '') + '">' + _sbZonas(((t.porDia[d.k] || {}).zonas) || []) + '</div>';
+    }).join('') + '</div>';
+  }
+  function _sbZonas(zonas) {
+    return zonas.length ? zonas.map(function(z) { return '<span class="sb-zona"><b>' + _esc(z.zona) + ':</b> ' + z.docentes.map(_esc).join(', ') + '</span>'; }).join('')
+      : '<span class="sb-zona sb-zona-vacia">—</span>';
+  }
   // «No en el centro» va bajo los apoyos (hueco libre del 2.º panel): una fila menos.
   function _sbCols(cursos, apoyos, libres) {
     return '<div class="sb-cols">' +
       '<div class="sb-pane">' + _sbTablaCursos(cursos) + '</div>' +
-      '<div class="sb-pane">' + _sbTablaApoyos(apoyos) + _sbLibres(libres) + '</div>' +
+      '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(apoyos) + _sbLibres(libres) + '</div>' +
     '</div>';
   }
 
@@ -225,10 +269,11 @@
     return _esc(o.docente || '—') + (o.cubre ? ' <span class="sb-cubre" title="Está cubriendo una sustitución">sust.</span>' : '');
   }
 
-  // Orden dentro de un curso compartido: Religión, luego ATEDU, luego el resto.
+  // Orden dentro de un curso compartido: Religión, luego ATEDU, luego el
+  // resto y, al final, las alternativas («Alt. Fra.» va tras Francés).
   function _sbPrio(o) {
     var m = String(o.materia || '').toLowerCase();
-    return /relig/.test(m) ? 0 : /atedu|atenci[oó]n educ/.test(m) ? 1 : 2;
+    return /relig/.test(m) ? 0 : /atedu|atenci[oó]n educ/.test(m) ? 1 : /^alt\b|^alt\.|alternativ/.test(m) ? 3 : 2;
   }
   // Una fila por curso: nombres en línea («Inma B. · Puri») y pill partida
   // en un tramo de color por área, para que todas las filas midan lo mismo.
@@ -257,9 +302,12 @@
   function _sbTablaApoyos(apoyos) {
     var rows = apoyos.map(function(a){
       var dest = (a.destino && a.destino.length) ? (' ' + _esc(a.destino.join(' / '))) : '';
-      return '<tr><td class="sb-loc">#' + _esc(('0' + a.loc).slice(-2)) + '</td>' +
+      // PT/AL: son clases (a 1-2 alumnos), no cargos: pill con borde de
+      // clase y la fila marcada; solo sustituyen por fuerza mayor.
+      var aten = a.categoria === 'atencion';
+      return '<tr' + (aten ? ' class="sb-aten" title="Atención PT/AL: clase a alumnado NEAE (solo sustituye por fuerza mayor)"' : '') + '><td class="sb-loc">#' + _esc(('0' + a.loc).slice(-2)) + '</td>' +
         '<td class="sb-doc">' + _sbNombre(a) + '</td>' +
-        '<td class="sb-oc"><span class="sb-pill" style="' + _sbPill(a.color) + '" title="' + _esc(a.rolLargo || a.rol) + '">' + _esc(a.rol) + dest + '</span></td></tr>';
+        '<td class="sb-oc"><span class="sb-pill' + (aten ? ' sb-pill-aten' : '') + '" style="' + _sbPill(a.color) + '" title="' + _esc(a.rolLargo || a.rol) + '">' + _esc(a.rol) + dest + '</span></td></tr>';
     }).join('') || '<tr><td colspan="3" style="padding:8px;color:var(--faint)">—</td></tr>';
     return '<table class="sb">' + _SB_COLS + '<thead><tr><th>Loc</th><th>Docente</th><th>Ocup.</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
@@ -271,6 +319,17 @@
   function _sbColor(c) { return /^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(String(c || '')) ? c : ''; }
   function _sbHeadStyle(col) { return 'background:' + col + ';color:' + _sbTxt(col) + ';'; }
   function _sbPill(hex) { hex = _sbColor(hex); if (!hex) return 'background:var(--surface-3);color:var(--text);'; return 'background:' + hex + ';color:' + _sbTxt(hex) + ';'; }
+  // Estilo de una ocupación según su clase: las clases a grupo van con el
+  // color pleno; PT/AL (atención a 1-2 alumnos) a media intensidad; apoyos
+  // y cargos, un tinte claro con filete de color. categoria: 'grupo' |
+  // 'atencion' | 'apoyo' | 'cargo'.
+  function _ocEstilo(categoria, hex) {
+    hex = _sbColor(hex);
+    if (!hex) return '';
+    if (categoria === 'grupo') return _sbPill(hex);
+    var pct = categoria === 'atencion' ? 45 : 20;
+    return 'background:color-mix(in srgb,' + hex + ' ' + pct + '%,var(--surface));color:var(--text);box-shadow:inset 3px 0 0 ' + hex + ';';
+  }
   function _sbTxt(hex) {
     var c = String(hex || '').replace('#',''); if (c.length < 6) return '#1f2430';
     var r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);

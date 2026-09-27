@@ -1,0 +1,237 @@
+<div class="page-head">
+  <h2>Recreos</h2>
+  <p>Turnos de vigilancia por zona. Arrastra nombres a los cuadros (o pulsa un nombre y luego el cuadro). Soltar en el nombre de una zona lo pone los cinco días. Cada turno aparece en el horario individual, la sábana y Ahora.</p>
+</div>
+
+<div class="rc-toolbar">
+  <select id="rc-tramo" onchange="rcCambiarTramo(this.value)" title="Recreo"></select>
+  <span class="rc-lbl solo-edicion">Al soltar</span>
+  <div class="segmented solo-edicion" id="rc-modo" title="Semanas en las que vale el turno que sueltas"></div>
+  <span class="sb-grow"></span>
+  <button type="button" class="secondary solo-edicion" onclick="rcZonasAbrir()">Zonas…</button>
+  <button type="button" class="secondary" onclick="window.print()">Imprimir</button>
+  <button type="button" class="primary solo-edicion" id="rc-guardar" onclick="rcGuardar()">Guardar</button>
+</div>
+<div id="rc-res"></div>
+<div class="rc-layout">
+  <aside class="rc-pool">
+    <input type="search" id="rc-buscar" placeholder="🔍 Buscar…" oninput="_rcPool()">
+    <label class="rc-ocultar" title="Retira de la lista a quien ya llega a ese número de turnos por semana en este recreo (un turno solo de semana A o B cuenta ½). Vacío: no oculta a nadie.">Ocultar con ≥ <input type="number" id="rc-tope" min="0.5" step="0.5" placeholder="—" oninput="rcTope(this.value)"> turnos</label>
+    <div id="rc-pool-list"></div>
+  </aside>
+  <div id="rc-body" class="rc-body"></div>
+</div>
+
+<!-- Modal de zonas -->
+<div class="modal-overlay" id="rc-zmodal">
+  <div class="modal-box">
+    <h3>Zonas de recreo</h3>
+    <p class="hint">Cada zona es un cuadro. <b>Plazas</b>: cuántas personas vigilan a la vez.</p>
+    <div id="rc-zlista"></div>
+    <button type="button" class="secondary" onclick="rcZAdd()">+ Zona</button>
+    <div class="modal-actions" style="margin-top:14px">
+      <button type="button" class="secondary" onclick="rcZonasCerrar()">Cancelar</button>
+      <button type="button" class="primary" id="rc-zok" onclick="rcZonasGuardar()">Guardar zonas</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // RC: datos del servidor; RC_T: recreo elegido; RC_TUR: turnos del recreo
+  // en edición [{docente_id, dia, zona_id, semana}]; RC_MODO: semana que se
+  // asigna al soltar ('' todas, 'A', 'B'); RC_SEL: docente elegido con clic.
+  var RC = null, RC_T = '', RC_TUR = [], RC_MODO = '', RC_SEL = '', RC_ZON = [];
+  var RC_DIAS = [{ k: 'L', n: 'Lunes' }, { k: 'M', n: 'Martes' }, { k: 'X', n: 'Miércoles' }, { k: 'J', n: 'Jueves' }, { k: 'V', n: 'Viernes' }];
+  (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(['recreos', 'recreos', function() { return RC ? { t: RC_T, x: RC_TUR } : null; }, function() { rcGuardar(); }]);
+
+  function renderRecreos() {
+    if (hayCambios('recreos')) return;
+    document.getElementById('rc-body').innerHTML = '<p class="hint"><span class="spinner"></span> Cargando…</p>';
+    google.script.run.withSuccessHandler(function(res) {
+      RC = res;
+      if (!RC_T || !res.tramos.some(function(t) { return t.id === RC_T; })) RC_T = (res.tramos[0] || {}).id || '';
+      _rcCargarTramo();
+    }).withFailureHandler(function(err) { document.getElementById('rc-body').innerHTML = _errHtml(err); }).datosRecreos();
+  }
+  function _rcCargarTramo() {
+    RC_TUR = RC.turnos.filter(function(t) { return t.tramo_id === RC_T; })
+      .map(function(t) { return { docente_id: t.docente_id, dia: t.dia, zona_id: t.zona_id, semana: t.semana }; });
+    _snap('recreos'); _rcPintar();
+  }
+  function rcCambiarTramo(id) {
+    var go = function() { RC_T = id; _rcCargarTramo(); };
+    if (hayCambios('recreos')) confirmar('Hay cambios sin guardar en este recreo. ¿Descartarlos?', go, { peligro: true, aceptar: 'Descartar' });
+    else go();
+    document.getElementById('rc-tramo').value = RC_T;
+  }
+
+  function _rcDoc(id) { return (RC._doc || (RC._doc = (function() { var m = {}; RC.docentes.forEach(function(d) { m[d.id] = d; }); return m; })()))[id]; }
+  function _rcSemanas(s) { return s ? [s] : ['A', 'B']; }
+  // ¿Está en el centro ese día en todas las semanas del turno?
+  function _rcPresente(t) { var d = _rcDoc(t.docente_id); return d && _rcSemanas(t.semana).every(function(w) { return d.presente[t.dia + '|' + w]; }); }
+  // ¿Tiene otro turno ese día (misma semana) en otra zona?
+  function _rcDuplicado(t) {
+    return RC_TUR.some(function(o) {
+      return o !== t && o.docente_id === t.docente_id && o.dia === t.dia &&
+        _rcSemanas(o.semana).some(function(w) { return _rcSemanas(t.semana).indexOf(w) !== -1; });
+    });
+  }
+
+  function _rcPintar() {
+    var sel = document.getElementById('rc-tramo');
+    sel.innerHTML = RC.tramos.map(function(t) { return '<option value="' + _esc(t.id) + '"' + (t.id === RC_T ? ' selected' : '') + '>Recreo ' + _esc(t.horas) + '</option>'; }).join('');
+    sel.style.display = RC.tramos.length > 1 ? '' : 'none';
+    document.getElementById('rc-modo').innerHTML = [['', 'Todas las semanas'], ['A', 'Solo A'], ['B', 'Solo B']].map(function(o) {
+      return '<button type="button" class="' + (o[0] === RC_MODO ? 'active' : '') + '" onclick="RC_MODO=\'' + o[0] + '\';_rcPintar()">' + o[1] + '</button>';
+    }).join('');
+    var body = document.getElementById('rc-body');
+    if (!RC.tramos.length) { body.innerHTML = '<div class="empty">No hay ningún tramo marcado como recreo. Márcalo en <b>Configuración → Tramos y semanas</b>.</div>'; _rcPool(); return; }
+    if (!RC.zonas.length) { body.innerHTML = '<div class="empty">Aún no hay zonas. Crea las zonas de vigilancia (Patio, Pista…) con <b>Zonas…</b>.</div>'; _rcPool(); return; }
+
+    var h = '<table class="rc-t"><thead><tr><th class="rc-zh">Zona</th>' + RC_DIAS.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead><tbody>';
+    RC.zonas.forEach(function(z) {
+      h += '<tr><th class="rc-zh rc-drop" data-z="' + _esc(z.id) + '" data-d="*" title="Suelta aquí para los cinco días">' + _esc(z.nombre) + '<small>' + z.plazas + ' plaza' + (z.plazas > 1 ? 's' : '') + '</small></th>';
+      RC_DIAS.forEach(function(d) {
+        var nom = function(t) { var x = _rcDoc(t.docente_id); return x ? x.nombre : ''; };
+        var ts = RC_TUR.filter(function(t) { return t.zona_id === z.id && t.dia === d.k; })
+          .sort(function(a, b) { return nom(a).localeCompare(nom(b), 'es', { sensitivity: 'base' }); }); // orden alfabético
+        var falta = Math.max.apply(null, ['A', 'B'].map(function(w) { return z.plazas - ts.filter(function(t) { return _rcSemanas(t.semana).indexOf(w) !== -1; }).length; }));
+        var chip = function(t) {
+          var i = RC_TUR.indexOf(t), d0 = _rcDoc(t.docente_id), aus = !_rcPresente(t), dup = _rcDuplicado(t);
+          return '<span class="rc-chip' + (aus ? ' rc-aus' : '') + (dup ? ' rc-dup' : '') + '" draggable="true" data-i="' + i + '" title="' +
+            _esc((d0 ? d0.nombre + '. ' : '') + (d0 && d0.nombre !== d0.titular ? 'Sustituye a ' + d0.titular + '. ' : '') + (aus ? 'No está en el centro ese día. ' : '') + (dup ? 'Tiene otro turno ese día. ' : '')) + '">' +
+            '<span class="rc-nom">' + _esc(d0 ? d0.nombre : '¿?') + '</span>' +
+            '<button type="button" class="rc-sem" onclick="rcSemana(' + i + ')" title="Semanas: todas → A → B">' + (t.semana || 'A/B') + '</button>' +
+            '<button type="button" class="rc-x" onclick="rcQuitar(' + i + ')" title="Quitar">×</button></span>';
+        };
+        // Con turnos de semana A/B el cuadro se parte: A a la izquierda y B a
+        // la derecha (los de todas las semanas, arriba y a lo ancho). Los
+        // nombres, siempre uno debajo de otro.
+        var partido = ts.some(function(t) { return t.semana; }), cont;
+        if (partido) {
+          var mitad = function(w) {
+            return '<div class="rc-half rc-drop" data-z="' + _esc(z.id) + '" data-d="' + d.k + '" data-s="' + w + '"><span class="rc-hl">' + w + '</span>' +
+              ts.filter(function(t) { return t.semana === w; }).map(chip).join('') + '</div>';
+          };
+          cont = '<div class="rc-stack">' + ts.filter(function(t) { return !t.semana; }).map(chip).join('') + '</div>' +
+            '<div class="rc-split">' + mitad('A') + mitad('B') + '</div>';
+        } else cont = '<div class="rc-stack">' + ts.map(chip).join('') + '</div>';
+        h += '<td class="rc-cell rc-drop' + (falta > 0 ? ' rc-corto' : '') + '" data-z="' + _esc(z.id) + '" data-d="' + d.k + '"' + (falta > 0 ? ' title="Falta' + (falta > 1 ? 'n ' + falta : ' 1') + '"' : '') + '>' + cont + '</td>';
+      });
+      h += '</tr>';
+    });
+    body.innerHTML = h + '</tbody></table>';
+    _rcPool();
+  }
+
+  // Lista de nombres con cuántos turnos semanales lleva cada uno (A/B cuenta ½).
+  function _rcPool() {
+    if (!RC) return;
+    var q = _rcNorm(document.getElementById('rc-buscar').value);
+    var carga = {};
+    RC_TUR.forEach(function(t) { carga[t.docente_id] = (carga[t.docente_id] || 0) + (t.semana ? 0.5 : 1); });
+    var tope = document.getElementById('rc-tope');
+    if (document.activeElement !== tope) tope.value = RC_TOPE || '';
+    document.getElementById('rc-pool-list').innerHTML = RC.docentes.filter(function(d) {
+      return (!q || _rcNorm(d.nombre + ' ' + d.titular).indexOf(q) !== -1) && !(RC_TOPE && (carga[d.id] || 0) >= RC_TOPE && d.id !== RC_SEL);
+    }).map(function(d) {
+      var n = carga[d.id] || 0, txt = n ? (Math.floor(n) || '') + (n % 1 ? '½' : '') : '';
+      return '<div class="rc-pchip' + (RC_SEL === d.id ? ' on' : '') + '" draggable="true" data-doc="' + _esc(d.id) + '" onclick="rcElegir(' + _jsAttr(d.id) + ')">' +
+        _esc(d.nombre) + (txt ? '<span class="rc-n">' + txt + '</span>' : '') + '</div>';
+    }).join('');
+  }
+  function _rcNorm(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
+
+  // Ocultar a quien ya llega a los turnos semanales fijados (2, 2,5, 3…).
+  // Se recuerda en este navegador.
+  var RC_TOPE = (function() { try { return parseFloat(localStorage.getItem('rc_tope')) || 0; } catch (e) { return 0; } })();
+  function rcTope(v) { RC_TOPE = parseFloat(String(v).replace(',', '.')) || 0; try { localStorage.setItem('rc_tope', RC_TOPE || ''); } catch (e) {} _rcPool(); }
+  function rcElegir(id) { RC_SEL = RC_SEL === id ? '' : id; _rcPool(); }
+  function rcSemana(i) { if (soloLectura()) return; var t = RC_TUR[i]; t.semana = t.semana === '' ? 'A' : t.semana === 'A' ? 'B' : ''; _rcCambio(); }
+  function rcQuitar(i) { if (soloLectura()) return; RC_TUR.splice(i, 1); _rcCambio(); }
+  function _rcCambio() { _rcPintar(); revisarCambios(); }
+  // Añade (o mueve, si viene de otra celda) un turno.
+  // sem: la mitad A/B donde se suelta (en un cuadro partido); si no, «Al soltar».
+  function _rcSoltar(zona, dia, doc, idx, sem) {
+    if (soloLectura()) return;
+    var dias = dia === '*' ? RC_DIAS.map(function(d) { return d.k; }) : [dia];
+    if (idx != null && RC_TUR[idx]) {
+      var t = RC_TUR[idx]; t.zona_id = zona; t.dia = dias[0]; if (sem) t.semana = sem;
+    } else {
+      var w = sem || RC_MODO;
+      dias.forEach(function(d) {
+        if (RC_TUR.some(function(t) { return t.docente_id === doc && t.dia === d && t.zona_id === zona && t.semana === w; })) return;
+        RC_TUR.push({ docente_id: doc, dia: d, zona_id: zona, semana: w });
+      });
+    }
+    _rcCambio();
+  }
+
+  // ---------- Arrastrar y soltar (y clic: nombre elegido → cuadro) ----------
+  document.addEventListener('dragstart', function(e) {
+    var p = e.target.closest && e.target.closest('#view-recreos .rc-pchip, #view-recreos .rc-chip'); if (!p) return;
+    e.dataTransfer.setData('text/plain', JSON.stringify(p.dataset.doc ? { doc: p.dataset.doc } : { i: +p.dataset.i }));
+    e.dataTransfer.effectAllowed = 'copyMove';
+  });
+  document.addEventListener('dragover', function(e) {
+    var c = e.target.closest && e.target.closest('#view-recreos .rc-drop'); if (!c) return;
+    e.preventDefault(); c.classList.add('rc-over');
+  });
+  document.addEventListener('dragleave', function(e) {
+    var c = e.target.closest && e.target.closest('#view-recreos .rc-drop'); if (c) c.classList.remove('rc-over');
+  });
+  document.addEventListener('drop', function(e) {
+    var c = e.target.closest && e.target.closest('#view-recreos .rc-drop'); if (!c) return;
+    e.preventDefault(); c.classList.remove('rc-over');
+    var x; try { x = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (er) { return; }
+    _rcSoltar(c.dataset.z, c.dataset.d, x.doc || (RC_TUR[x.i] || {}).docente_id, x.doc ? null : x.i, c.dataset.s);
+  });
+  document.addEventListener('click', function(e) {
+    if (!RC_SEL || e.target.closest('button')) return;
+    var c = e.target.closest && e.target.closest('#view-recreos .rc-drop'); if (!c) return;
+    _rcSoltar(c.dataset.z, c.dataset.d, RC_SEL, null, c.dataset.s);
+  });
+
+  function rcGuardar() {
+    if (!RC || !RC_T) return;
+    var btn = document.getElementById('rc-guardar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Guardando…';
+    google.script.run.withSuccessHandler(function(r) {
+      btn.disabled = false; btn.textContent = 'Guardar';
+      document.getElementById('rc-res').innerHTML = '<div class="result ok">✓ Guardados ' + r.total + ' turnos.</div>';
+      _snap('recreos'); datosCambiados();
+      RC.turnos = RC.turnos.filter(function(t) { return t.tramo_id !== RC_T; }).concat(RC_TUR.map(function(t) { return Object.assign({ tramo_id: RC_T }, t); }));
+    }).withFailureHandler(function(err) {
+      btn.disabled = false; btn.textContent = 'Guardar'; _fabListo();
+      document.getElementById('rc-res').innerHTML = _errHtml(err);
+    }).guardarRecreos(RC_T, RC_TUR);
+  }
+
+  // ---------- Zonas ----------
+  function rcZonasAbrir() {
+    if (!RC) return;
+    RC_ZON = RC.zonas.map(function(z) { return { id: z.id, nombre: z.nombre, plazas: z.plazas }; });
+    if (!RC_ZON.length) RC_ZON = [{ nombre: 'Patio', plazas: 2 }];
+    _rcZPintar(); document.getElementById('rc-zmodal').classList.add('show');
+  }
+  function _rcZPintar() {
+    document.getElementById('rc-zlista').innerHTML = RC_ZON.map(function(z, i) {
+      return '<div class="rc-zfila"><button type="button" class="btn-icon" title="Subir" onclick="rcZMover(' + i + ',-1)"' + (i ? '' : ' disabled') + '>↑</button>' +
+        '<input type="text" value="' + _esc(z.nombre) + '" placeholder="Patio, Pista, Porche…" oninput="RC_ZON[' + i + '].nombre=this.value">' +
+        '<input type="number" min="1" max="20" value="' + _esc(z.plazas) + '" title="Plazas" oninput="RC_ZON[' + i + '].plazas=this.value">' +
+        '<button type="button" class="btn-icon" title="Eliminar (se quitan sus turnos)" onclick="RC_ZON.splice(' + i + ',1);_rcZPintar()">×</button></div>';
+    }).join('');
+  }
+  function rcZAdd() { RC_ZON.push({ nombre: '', plazas: 1 }); _rcZPintar(); }
+  function rcZMover(i, d) { var x = RC_ZON.splice(i, 1)[0]; RC_ZON.splice(i + d, 0, x); _rcZPintar(); }
+  function rcZonasCerrar() { document.getElementById('rc-zmodal').classList.remove('show'); }
+  function rcZonasGuardar() {
+    var go = function() {
+      var btn = document.getElementById('rc-zok'); btn.disabled = true;
+      google.script.run.withSuccessHandler(function() {
+        btn.disabled = false; rcZonasCerrar(); datosCambiados(); RC = null; delete _SNAP.recreos; renderRecreos();
+      }).withFailureHandler(function(err) { btn.disabled = false; aviso((err && err.message) || String(err), 'err'); })
+        .guardarZonasRecreo(RC_ZON.filter(function(z) { return String(z.nombre || '').trim(); }));
+    };
+    if (hayCambios('recreos')) confirmar('Guardar las zonas recarga los turnos y descarta los cambios sin guardar. ¿Continuar?', go); else go();
+  }
+</script>
