@@ -106,9 +106,12 @@
   /* ---------- Barra superior: marca · pestañas · tema en una fila ---------- */
   .topbar {
     position: sticky; top: 0; z-index: 20;
-    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    /* Degradado pastel suave; la pestaña activa "sale" del fondo de la página. */
+    background:
+      linear-gradient(100deg, color-mix(in srgb, var(--accent) 9%, transparent), transparent 40%, color-mix(in srgb, #10b981 8%, transparent)),
+      color-mix(in srgb, var(--surface) 92%, transparent);
     backdrop-filter: saturate(1.4) blur(10px);
-    border-bottom: 1px solid var(--border);
+    box-shadow: inset 0 -1px 0 var(--border);
   }
   .topbar-inner {
     max-width: 1440px; margin: 0 auto; padding: 0 var(--s4);
@@ -140,20 +143,32 @@
   .brand h1 { font-size: 14px; font-weight: 650; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .brand .sub { font-family: var(--font-cond); font-size: var(--fs-sm); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
 
+  /* Pestañas tipo carpeta con borde en diagonal. Cada una queda por detrás de
+     la anterior (z-index y --k desde construirTabs) y es algo más oscura y
+     esmerilada; la activa va delante con el color de fondo de la página. */
   .tabs {
-    grid-area: tabs; display: flex; gap: 2px; overflow-x: auto; align-self: stretch;
-    scrollbar-width: none; -ms-overflow-style: none;
+    grid-area: tabs; display: flex; overflow-x: auto; align-self: end;
+    padding: 8px 12px 0; scrollbar-width: none; -ms-overflow-style: none;
   }
   .tabs::-webkit-scrollbar { display: none; }
   .tab {
-    appearance: none; border: none; background: none; cursor: pointer; border-radius: 0;
+    --k: 0; position: relative; appearance: none; border: none; background: none; cursor: pointer;
     font: inherit; font-size: var(--fs); color: var(--muted); font-weight: 550;
-    padding: 0 12px; min-height: 48px; white-space: nowrap;
-    box-shadow: inset 0 -2px 0 transparent;
-    display: inline-flex; align-items: center; gap: 6px; transition: color .15s, box-shadow .15s;
+    padding: 0 50px 0 30px; margin-right: -30px; min-width: 150px; min-height: 42px; white-space: nowrap;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color .15s;
   }
-  .tab:hover:not(:disabled) { color: var(--text); box-shadow: inset 0 -2px 0 var(--border-strong); }
-  .tab.active { color: var(--accent-text); box-shadow: inset 0 -2px 0 var(--accent); }
+  .tab::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: color-mix(in srgb, color-mix(in srgb, var(--text) calc(6% + var(--k) * 5%), var(--bg)) 72%, transparent);
+    -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 42' preserveAspectRatio='none'%3E%3Cpath d='M18 0V42H0V16C0 6 6 0 16 0Z'/%3E%3C/svg%3E") left / 18px 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 42' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6C13 0 16 3 19 9L31 33C34 39 38 42 48 42H0Z'/%3E%3C/svg%3E") right / 48px 100% no-repeat, linear-gradient(#000, #000) 18px 0 / calc(100% - 66px) 100% no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 42' preserveAspectRatio='none'%3E%3Cpath d='M18 0V42H0V16C0 6 6 0 16 0Z'/%3E%3C/svg%3E") left / 18px 100% no-repeat, url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 42' preserveAspectRatio='none'%3E%3Cpath d='M0 0H6C13 0 16 3 19 9L31 33C34 39 38 42 48 42H0Z'/%3E%3C/svg%3E") right / 48px 100% no-repeat, linear-gradient(#000, #000) 18px 0 / calc(100% - 66px) 100% no-repeat;
+    transition: background .2s;
+  }
+  .tab:hover:not(:disabled) { color: var(--text); }
+  .tab:hover:not(:disabled):not(.active)::before { background: color-mix(in srgb, color-mix(in srgb, var(--text) 4%, var(--bg)) 85%, transparent); }
+  .tab.active { z-index: 50 !important; color: var(--text); font-weight: 650; }
+  .tab.active::before { background: var(--bg); }
   .tab:focus-visible { outline-offset: -4px; }
   .tab:disabled { color: var(--faint); cursor: not-allowed; opacity: .75; }
   .tab .soon {
@@ -170,7 +185,7 @@
   @media (max-width: 720px) {
     .topbar-inner { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "brand tema" "tabs tabs"; padding: 0 var(--s3); }
     .brand { max-width: none; padding: 6px 0 2px; }
-    .tab { min-height: 40px; padding: 0 10px; }
+    .tab { min-height: 38px; min-width: 0; padding: 0 38px 0 18px; }
   }
 
   /* ---------- Submenú de Configuración ---------- */
@@ -525,6 +540,10 @@
   .ah-etq { font-size: 11px; letter-spacing: .08em; background: rgba(0,0,0,.22); color: #fff; border-radius: 999px; padding: 2px 8px; }
   .ah-reloj { margin-left: auto; font-size: 13px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; opacity: .95; white-space: nowrap; }
   .ah-sem { font-size: 11px; background: rgba(255,255,255,.92); color: #1f2430; border-radius: 4px; padding: 0 6px; line-height: 18px; }
+  .ah-descanso { max-width: 720px; margin: 0 auto; text-align: center; }
+  .ah-escena { display: block; width: 100%; height: 220px; border-radius: 16px; box-shadow: var(--shadow); cursor: pointer; }
+  .ah-desc-t { font-size: var(--fs-lg); font-weight: 700; margin-top: var(--s4); }
+  .ah-desc-s { color: var(--muted); margin-top: var(--s1); }
   .ah-aus { font-size: var(--fs-sm); padding: 4px 12px; background: var(--warn-weak, #fff4e0); color: var(--text); border-bottom: 1px solid var(--border); }
   .ah-cols { overflow-x: auto; }
   .ah-cols table.sb { font-size: 14px; }

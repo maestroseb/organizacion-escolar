@@ -68,8 +68,10 @@
   function _ahPintar() {
     var cont = document.getElementById('ah-body');
     if (!AH) return;
-    if (AH.finDeSemana || !AH.tramos || !AH.tramos.length) { cont.innerHTML = '<div class="empty">Hoy no hay clase.</div>'; return; }
+    if (AH.finDeSemana || !AH.tramos || !AH.tramos.length) { _ahDescanso(cont, 'libre'); return; }
     var act = _ahActual(), estado = 'ahora';
+    // Clases terminadas por hoy: escena animada (‹ vuelve al último tramo).
+    if (!AH_FIJO && act.estado === 'terminado') { AH_IDX = AH.tramos.length; _ahDescanso(cont, 'fin'); return; }
     if (AH_FIJO) estado = (AH_IDX === act.i && act.estado === 'ahora') ? 'ahora' : 'otro';
     else { AH_IDX = act.i; estado = act.estado; }
     var t = AH.tramos[AH_IDX], tr = t.tramo;
@@ -87,6 +89,159 @@
       '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
     cont.innerHTML = html + '</div>';
   }
+  // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
+  function _ahDescanso(cont, tipo) {
+    var d = new Date(), h = d.getHours(), dow = d.getDay();
+    var modo = (h >= 21 || h < 7) ? 'noche' : (h >= 16 ? 'tarde' : 'dia');
+    var tit, sub;
+    if (tipo === 'fin') {
+      tit = modo === 'noche' ? 'El cole duerme… 🌙' : '¡Clases terminadas por hoy!';
+      var pri = AH.tramos[0] && String(AH.tramos[0].tramo.horas).split('–')[0];
+      sub = (dow === 5 ? 'El lunes' : 'Mañana') + (pri ? ', la primera a las ' + pri.trim() : ' volvemos') + '. ‹ para repasar los tramos de hoy.';
+    } else if (dow === 0 || dow === 6) {
+      tit = '¡Buen fin de semana! ' + (modo === 'noche' ? '🌙' : '☀️'); sub = 'Las clases vuelven el lunes. Toca descansar.';
+    } else { tit = 'Hoy no hay clase'; sub = 'Día sin tramos lectivos. ¡A disfrutarlo!'; }
+    var cv = cont.querySelector('canvas.ah-escena');
+    if (!cv || cv.dataset.modo !== modo + tipo) {
+      cont.innerHTML = '<div class="ah-descanso"><canvas class="ah-escena" data-modo="' + modo + tipo + '" aria-hidden="true"></canvas>' +
+        '<div class="ah-desc-t">' + _esc(tit) + '</div><div class="ah-desc-s">' + _esc(sub) + '</div></div>';
+      _ahEscena(cont.querySelector('canvas.ah-escena'), modo);
+    }
+  }
+
+  function _ahEscena(cv, modo) {
+    var ctx = cv.getContext('2d'), W = 0, H = 0, dpr = Math.max(1, window.devicePixelRatio || 1);
+    var quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var CIELO = { dia: ['#7cc4f4', '#d8efff'], tarde: ['#f59e7b', '#ffd9a0'], noche: ['#141a3a', '#3a3f78'] }[modo];
+    var rnd = function(a, b) { return a + Math.random() * (b - a); };
+    var estrellas = [], nubes = [], chispas = [], zzz = [], t0 = performance.now();
+    for (var i = 0; i < 60; i++) estrellas.push({ x: Math.random(), y: Math.random() * .6, r: rnd(.5, 1.6), f: rnd(0, 6) });
+    for (i = 0; i < 4; i++) nubes.push({ x: Math.random(), y: rnd(.1, .4), s: rnd(.6, 1.2), v: rnd(.006, .014) });
+
+    function medir() {
+      var w = cv.clientWidth || 600; if (w === W) return;
+      W = w; H = Math.round(Math.min(260, Math.max(180, w * .38)));
+      cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    cv.addEventListener('click', function(e) {
+      var r = cv.getBoundingClientRect(), x = e.clientX - r.left, y = e.clientY - r.top;
+      var cols = ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa'];
+      for (var k = 0; k < 26; k++) { var a = rnd(0, 6.28), v = rnd(1.5, 4.5); chispas.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, v: 1, c: cols[k % 5], r: rnd(2, 4) }); }
+    });
+
+    function nube(x, y, s) {
+      ctx.beginPath();
+      ctx.arc(x, y, 16 * s, 0, 7); ctx.arc(x + 18 * s, y - 8 * s, 20 * s, 0, 7);
+      ctx.arc(x + 40 * s, y, 15 * s, 0, 7); ctx.rect(x, y, 40 * s, 15 * s); ctx.fill();
+    }
+    function cara(x, y, r, dormido, t) {
+      ctx.strokeStyle = 'rgba(60,40,20,.75)'; ctx.lineWidth = Math.max(1.5, r * .07); ctx.lineCap = 'round';
+      ctx.beginPath();
+      if (dormido) { ctx.arc(x - r * .33, y - r * .05, r * .14, .2, Math.PI - .2); ctx.moveTo(x + r * .47, y - r * .05); ctx.arc(x + r * .33, y - r * .05, r * .14, .2, Math.PI - .2); }
+      else {
+        var parp = (t % 4) < .12 ? .02 : .12; // parpadeo
+        ctx.ellipse(x - r * .3, y - r * .1, r * .07, r * parp, 0, 0, 7); ctx.moveTo(x + r * .37, y - r * .1); ctx.ellipse(x + r * .3, y - r * .1, r * .07, r * parp, 0, 0, 7);
+      }
+      ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y + r * .15, r * .28, .25, Math.PI - .25); ctx.stroke();
+      ctx.fillStyle = 'rgba(244,114,182,.45)';
+      ctx.beginPath(); ctx.arc(x - r * .55, y + r * .15, r * .13, 0, 7); ctx.arc(x + r * .55, y + r * .15, r * .13, 0, 7); ctx.fill();
+    }
+    function cole(t) {
+      var bw = Math.min(260, W * .42), bh = H * .38, bx = W * .5 - bw / 2, by = H * .8 - bh;
+      var noche = modo === 'noche';
+      ctx.fillStyle = noche ? '#3b3f5c' : '#f3d9b1'; ctx.fillRect(bx, by, bw, bh);
+      ctx.fillStyle = noche ? '#5b3b4a' : '#d9623b';                 // tejado
+      ctx.beginPath(); ctx.moveTo(bx - 12, by); ctx.lineTo(bx + bw / 2, by - bh * .42); ctx.lineTo(bx + bw + 12, by); ctx.fill();
+      ctx.fillStyle = noche ? '#fde68a' : '#fff'; ctx.beginPath(); ctx.arc(bx + bw / 2, by - bh * .16, bh * .11, 0, 7); ctx.fill(); // reloj
+      ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.beginPath();
+      var cx = bx + bw / 2, cy = by - bh * .16, rr = bh * .08, ang = t * .5;
+      ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr);
+      ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang / 12) * rr * .6, cy + Math.sin(ang / 12) * rr * .6); ctx.stroke();
+      var cols = 5, ww = bw / (cols * 1.7), wh = bh * .2;           // ventanas
+      for (var f = 0; f < 2; f++) for (var c = 0; c < cols; c++) {
+        if (f === 1 && c === 2) continue;
+        var wx = bx + bw * (c + .5) / cols - ww / 2, wy = by + bh * (.18 + f * .42);
+        var luz = noche && ((c * 7 + f * 3) % 5 === 0) && Math.sin(t * .7 + c) > -.6;
+        ctx.fillStyle = luz ? '#fde68a' : (noche ? '#252841' : '#9fd3f2'); ctx.fillRect(wx, wy, ww, wh);
+      }
+      ctx.fillStyle = noche ? '#23253a' : '#7a4a2a';                 // puerta
+      var dw = bw * .13, dh = bh * .36; ctx.fillRect(bx + bw / 2 - dw / 2, by + bh - dh, dw, dh);
+      ctx.fillStyle = noche ? '#fff' : '#7a4a2a'; ctx.font = '700 ' + Math.max(8, dh * .16) + 'px system-ui';
+      ctx.textAlign = 'center'; ctx.fillText('CERRADO', bx + bw / 2, by + bh - dh - 5);
+      return { x: bx, y: by, w: bw, h: bh };
+    }
+
+    function frame(now) {
+      if (!cv.isConnected) return;                                   // la vista se ha repintado
+      if (cv.offsetParent === null) { requestAnimationFrame(frame); return; }
+      medir();
+      var t = (now - t0) / 1000;
+      var g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, CIELO[0]); g.addColorStop(1, CIELO[1]);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      if (modo === 'noche') estrellas.forEach(function(s) {
+        ctx.globalAlpha = .45 + .55 * Math.abs(Math.sin(t * 1.3 + s.f));
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(s.x * W, s.y * H, s.r, 0, 7); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+
+      // Astro: sol que bota (día), sol que se pone (tarde), luna dormida (noche).
+      var ax = W * .8, ay = H * .28, ar = Math.min(34, H * .14);
+      if (modo === 'tarde') ay = H * .32 + Math.sin(t * .4) * 6;
+      else ay += Math.sin(t * 1.6) * 5;
+      if (modo !== 'noche') {
+        ctx.save(); ctx.translate(ax, ay); ctx.rotate(t * .3); ctx.strokeStyle = '#fcd34d'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+        for (var k = 0; k < 10; k++) { ctx.rotate(Math.PI / 5); ctx.beginPath(); ctx.moveTo(ar * 1.25, 0); ctx.lineTo(ar * (1.5 + .12 * Math.sin(t * 3 + k)), 0); ctx.stroke(); }
+        ctx.restore();
+        ctx.fillStyle = modo === 'tarde' ? '#fb923c' : '#fcd34d'; ctx.beginPath(); ctx.arc(ax, ay, ar, 0, 7); ctx.fill();
+        cara(ax, ay, ar, modo === 'tarde', t);
+      } else {
+        ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.arc(ax, ay, ar, 0, 7); ctx.fill();
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(ax + ar * .45, ay - ar * .25, ar * .85, 0, 7); ctx.fill();
+        cara(ax - ar * .35, ay + ar * .1, ar * .55, true, t);
+      }
+      if (modo !== 'dia' && Math.random() < .012) zzz.push({ x: ax - ar, y: ay - ar * .6, v: 1 });
+      zzz = zzz.filter(function(z) {
+        z.x -= .35; z.y -= .45; z.v -= .006; if (z.v <= 0) return false;
+        ctx.globalAlpha = z.v; ctx.fillStyle = modo === 'noche' ? '#e0e7ff' : '#7c2d12';
+        ctx.font = '700 ' + (14 + (1 - z.v) * 12) + 'px system-ui'; ctx.fillText('z', z.x, z.y); return true;
+      });
+      ctx.globalAlpha = 1;
+
+      ctx.fillStyle = modo === 'noche' ? 'rgba(200,210,255,.18)' : 'rgba(255,255,255,.85)';
+      nubes.forEach(function(n) { n.x += n.v / 60; if (n.x > 1.15) n.x = -.2; nube(n.x * W, n.y * H, n.s); });
+
+      // Colinas y cole.
+      ctx.fillStyle = modo === 'noche' ? '#1f3b36' : (modo === 'tarde' ? '#7fae6a' : '#86c77a');
+      ctx.beginPath(); ctx.moveTo(0, H);
+      for (var x = 0; x <= W; x += 10) ctx.lineTo(x, H * .82 + Math.sin(x / 70) * 6);
+      ctx.lineTo(W, H); ctx.fill();
+      cole(t);
+      ctx.fillStyle = modo === 'noche' ? '#18302c' : '#5fa35a';
+      ctx.fillRect(0, H * .9, W, H * .1);
+
+      // Avión de papel con estela de puntos.
+      var px = ((t * 60) % (W + 160)) - 80, py = H * .45 + Math.sin(t * 1.4) * H * .12;
+      ctx.fillStyle = modo === 'noche' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.9)';
+      for (var j = 1; j < 14; j++) { var qx = px - j * 9; ctx.beginPath(); ctx.arc(qx, H * .45 + Math.sin(t * 1.4 - j * .15) * H * .12, 1.4, 0, 7); ctx.fill(); }
+      var ang = Math.atan2(Math.cos(t * 1.4) * H * .12 * 1.4, 60);
+      ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
+      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-10, -8); ctx.lineTo(-5, 0); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-5, 0); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
+      ctx.restore();
+
+      // Confeti al hacer clic.
+      chispas = chispas.filter(function(p) {
+        p.x += p.vx; p.y += p.vy; p.vy += .12; p.v -= .015; if (p.v <= 0) return false;
+        ctx.globalAlpha = p.v; ctx.fillStyle = p.c; ctx.fillRect(p.x, p.y, p.r, p.r); return true;
+      });
+      ctx.globalAlpha = 1;
+      if (!quieto) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
   function _ahAnchos(t) { return _sbAnchosDe([t], 14); }
 
   // Panel con la URL (copiar / abrir) en lugar de un alert del navegador.
