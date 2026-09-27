@@ -74,11 +74,24 @@
     if (!document.getElementById('bot-msgs').children.length) {
       _botDecir('¡Hola! Soy <b>Bedel</b>. Escríbeme el nombre de alguien y te digo dónde está ahora. También entiendo «¿dónde estaba…?», «¿dónde estará…?», «Mar el martes a 3ª», un grupo («3ºA») o «¿quién está libre?». Hoy también sé quién falta y quién le sustituye.');
       _botSugerencias();
+      _botResumen();
     }
     setTimeout(function() { document.getElementById('bot-in').focus(); }, 30);
   }
+  // Al abrir: cómo va el día (faltas y huecos sin cubrir según el parte).
+  function _botResumen() {
+    var d = new Date().getDay(); if (d === 0 || d === 6) return _botDecir('Hoy es fin de semana: ¡nada de horarios! 😴 Aun así, pregúntame por cualquier día.');
+    _botHoy(function(err, r) {
+      if (err || !r) return;
+      var sin = 0;
+      r.tramos.forEach(function(t) { var c = t.porDia[r._dia] || {}; (c.cursos || []).forEach(function(g) { (g.ocupantes || []).forEach(function(o) { if (o.sinCubrir) sin++; }); }); (c.apoyos || []).forEach(function(a) { if (a.sinCubrir) sin++; }); });
+      if (!r.ausentes.length) return _botDecir('Hoy no falta nadie en el parte. ¡Día tranquilo! 🌞');
+      _botDecir('Hoy falta' + (r.ausentes.length > 1 ? 'n ' + r.ausentes.length + ' personas' : ' ' + '<b>' + _esc(r.ausentes[0]) + '</b>') + (r.ausentes.length > 1 ? ' (' + r.ausentes.map(_esc).join(', ') + ')' : '') + '.' +
+        (sin ? ' Hay <b class="sb-sin">' + sin + ' hueco' + (sin > 1 ? 's' : '') + ' sin cubrir</b>. <button type="button" class="pt-chip" onclick="irPestana(\'sustituciones\')">Ir a Sustituciones</button>' : ' Todo cubierto. 👍'));
+    });
+  }
   function _botSugerencias() {
-    var s = ['¿Quién está libre?', '¿Dónde estará…', 'Ayuda'];
+    var s = ['¿Qué me toca?', '¿Quién está libre?', '¿Quién falta?', '¿Cuánto queda para el recreo?', '¿Quién vigila el recreo?', 'Cuéntame un chiste', 'Ayuda'];
     document.getElementById('bot-sug').innerHTML = s.map(function(t) { return '<button type="button" class="pt-chip" onclick="botSugerir(' + _jsAttr(t) + ')">' + _esc(t) + '</button>'; }).join('');
   }
   function botSugerir(t) {
@@ -122,9 +135,68 @@
     });
   }
 
-  function _botResponder(q, cb) {
+  function _botAzar(a) { return a[Math.floor(Math.random() * a.length)]; }
+  // Charla: saludos, gracias, chistes… (sin datos).
+  function _botCharla(n) {
+    if (/ (hola|buenas|buenos dias|buenas tardes|hey|ey) /.test(n) && n.split(' ').filter(Boolean).length <= 3)
+      return _botAzar(['¡Hola! ¿A quién buscamos hoy? 🔎', '¡Buenas! Dime un nombre y te lo encuentro en un plis.', '¡Hola, hola! Yo me sé el horario de todo el claustro. Casi mejor que Jefatura. 😎']);
+    if (/ (gracias|grax|thanks|genial|perfecto|crack|maquina) /.test(n))
+      return _botAzar(['¡De nada! Para eso estoy, que el timbre no se toca solo. 🔔', '¡A mandar! 🫡', 'Un placer. Si alguien se pierde por los pasillos, ya sabes dónde encontrarme.']);
+    if (/ (quien eres|como te llamas|que eres) /.test(n))
+      return 'Soy <b>Bedel</b>, el robot del centro: vivo en esta esquina, llevo un reloj en la barriga y me sé los horarios de memoria. No hago fotocopias, lo siento. 🤖';
+    if (/ (adios|hasta luego|chao|nos vemos|hasta manana) /.test(n))
+      return _botAzar(['¡Hasta luego! Y no te olvides de firmar la salida. 👋', '¡Chao! Aquí me quedo, vigilando el reloj.']);
+    if (/ (chiste|cuentame algo|hazme reir|broma) /.test(n))
+      return _botAzar([
+        '¿Por qué el libro de Matemáticas estaba triste? Porque tenía demasiados problemas. 📘',
+        '— Maestra, ¿me pueden castigar por algo que no he hecho? — ¡Claro que no! — Pues no he hecho los deberes. 😅',
+        '¿Qué le dice un tramo horario a otro? «Nos vemos en el recreo». 🔔',
+        'Mi horario favorito es el de 14:00. Adivina por qué. 🏃',
+        '¿Sabes por qué el lápiz no quiere sustituir? Porque no le sacan punta a nada. ✏️',
+        'En la sala de profes hay una ley: el último café siempre es del que tiene guardia. ☕']);
+    if (/ (cafe|cafecito) /.test(n)) return 'Yo no tomo café, funciono con el timbre. Pero la cafetera de la sala de profes suele estar a tope a la hora del recreo. ☕';
+    if (/ (vacaciones|puente|festivo) /.test(n)) return 'Ojalá lo supiera… mientras tanto, ¡ánimo, que cada tramo cuenta! 🏖️';
+    if (/ (te quiero|eres el mejor|eres la mejor|guapo) /.test(n)) return '¡Ay, que me sonrojo el reloj! 😊';
+    if (/ (tonto|inutil|idiota|no sirves) /.test(n)) return 'Vaya, hoy alguien ha tenido una guardia dura… 😅 Prueba a escribirme solo el nombre de la persona.';
+    if (/ que hora es /.test(n)) { var d = new Date(); return 'Son las <b>' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + '</b>. Míralo en mi barriga. ⏰'; }
+    return null;
+  }
+
+  // Quién soy yo: el docente (o sustituto/a) cuyo email es el de la sesión.
+  function _botYo(cb) {
+    var email = String(((ESTADO || {}).permisos || {}).email || '').toLowerCase();
+    if (!email) return cb(null);
+    _run().withSuccessHandler(function(ds) {
+      var d = (ds || []).filter(function(x) { return String(x.email || '').toLowerCase() === email || String(x.sustituto_email || '').toLowerCase() === email; })[0];
+      cb(d ? (String(d.sustituto || '').trim() && String(d.sustituto_email || '').toLowerCase() === email ? d.sustituto : (String(d.sustituto || '').trim() || d.nombre_corto)) : null);
+    }).withFailureHandler(function() { cb(null); }).listarDocentes();
+  }
+
+  function _botResponder(q, cb, conYo) {
     var n = ' ' + _botN(q) + ' ';
-    if (/\b(ayuda|que sabes|como funciona)\b/.test(n)) return cb('Pregúntame por una persona («Mar», «¿dónde estaba Inma B.?», «¿dónde estará Puri a 4ª?», «Mar el jueves a las 12:30»), por un grupo («3ºA», «¿quién está en 5ºB mañana?») o «¿quién está libre ahora?». Para <b>hoy</b> uso el parte de Sustituciones («¿quién falta?», «¿quién sustituye a Mar?»); para otros días, los horarios (semana A/B).');
+    var charla = _botCharla(n); if (charla) return cb(charla);
+    // «¿Qué me toca?», «¿dónde estoy a 4ª?», «mis recreos» → con mi nombre.
+    if (!conYo && / (me toca|estoy|mi horario|mis recreos|mi recreo|tengo|me tocaba|me tocara|vigilo) /.test(n)) {
+      return _botYo(function(yo) {
+        if (!yo) return cb('No sé quién eres: tu email no está en la lista de docentes. Escríbeme tu nombre corto y listo. 😉');
+        _botResponder(q + ' ' + yo, cb, true);
+      });
+    }
+    // ¿Qué días vigila alguien el recreo? (toda la semana)
+    if (/ (cuando|que dias|recreos|turnos) /.test(n) && / (vigila|vigilo|recreo|recreos|turno|turnos|patio) /.test(n)) {
+      return _botSabana('', function(err, res) {
+        if (err || !res) return cb('No he podido leer los recreos.');
+        var nm = _botNombres(res, null).map(function(x) { return { nm: x, p: _botPuntos(n, x) }; }).filter(function(x) { return x.p > 0; }).sort(function(a, b) { return b.p - a.p; })[0];
+        if (!nm) return cb('¿De quién? Dime el nombre («¿cuándo vigila Mar?»).');
+        var dias = [];
+        res.tramos.forEach(function(t) {
+          if (!t.tramo.es_recreo) return;
+          BOT_DIAS.forEach(function(d) { ((t.porDia[d] || {}).zonas || []).forEach(function(z) { if (z.docentes.indexOf(nm.nm) !== -1) dias.push(BOT_DN[d] + ' (' + z.zona + ')'); }); });
+        });
+        cb(dias.length ? '<b>' + _esc(nm.nm) + '</b> vigila el recreo (semana ' + res.semana + '): ' + dias.join(', ') + '.' : '<b>' + _esc(nm.nm) + '</b> no tiene turnos de recreo la semana ' + res.semana + '. ¡Qué suerte! 🍀');
+      });
+    }
+    if (/\b(ayuda|que sabes|como funciona)\b/.test(n)) return cb('Pregúntame por una persona («Mar», «¿dónde estaba Inma B.?», «¿dónde estará Puri a 4ª?», «Mar el jueves a las 12:30»), por un grupo («3ºA», «¿quién está en 5ºB mañana?»), «¿quién está libre?», «¿qué me toca?», «¿cuándo vigilo el recreo?», «¿quién vigila hoy?», «¿cuánto queda para el recreo / para salir?», «¿qué semana es?»… y si te aburres, «cuéntame un chiste». Para <b>hoy</b> uso el parte de Sustituciones («¿quién falta?», «¿quién sustituye a Mar?»); para otros días, los horarios (semana A/B).');
 
     // Día (y si cambia de semana): hoy por defecto.
     var hoy = new Date(), dia = hoy.getDay(), salto = 0;
@@ -179,6 +251,38 @@
   function _botContestar(n, res, d, otroDia, sem, q) {
     var ts = _botTramos(res), ahora = new Date(), min = ahora.getHours() * 60 + ahora.getMinutes();
     var lect = ts.filter(function(x) { return !x.recreo; });
+    // Reloj: cuánto queda, qué tramo es, qué semana es.
+    var fmt = function(m) { return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60 ? (m % 60) + ' min' : '') : m + ' min'; };
+    if (/ (cuanto queda|cuanto falta|falta mucho|queda mucho) /.test(n)) {
+      if (/ recreo /.test(n)) {
+        var rc = ts.filter(function(x) { return x.recreo && x.ini > min; })[0];
+        if (ts.some(function(x) { return x.recreo && x.ini <= min && min < x.fin; })) return '¡Estamos en el recreo! Aprovecha, que quedan ' + fmt(ts.filter(function(x) { return x.recreo && x.ini <= min && min < x.fin; })[0].fin - min) + '. 🥪';
+        return rc ? 'Quedan <b>' + fmt(rc.ini - min) + '</b> para el recreo. ' + _botAzar(['¡Tú puedes! 💪', 'Resiste… 🥪', 'El bocadillo ya se huele. 🥖']) : 'Hoy ya no queda recreo. 😢';
+      }
+      var fin = ts.length ? ts[ts.length - 1].fin : -1;
+      if (fin < 0 || min >= fin) return 'La jornada ya ha terminado. ¡A descansar! 🛋️';
+      if (ts.length && min < ts[0].ini) return 'Aún no hemos empezado: faltan ' + fmt(ts[0].ini - min) + ' para la primera sesión. ☕';
+      var act0 = ts.filter(function(x) { return x.ini <= min && min < x.fin; })[0];
+      return 'Quedan <b>' + fmt(fin - min) + '</b> para acabar la jornada' + (act0 ? ' y ' + fmt(act0.fin - min) + ' para el cambio de clase 🔔' : '') + '. ' + _botAzar(['¡Ánimo!', '¡Ya queda menos!', 'Tic, tac… ⏳']);
+    }
+    if (/ (que tramo|en que tramo|que hora toca|que sesion) /.test(n)) {
+      var a1 = ts.filter(function(x) { return x.ini <= min && min < x.fin; })[0];
+      return a1 ? 'Estamos ' + (a1.recreo ? 'en el <b>recreo</b>' : 'en la <b>' + a1.orden + 'ª</b> sesión') + ' (' + _esc(a1.t.tramo.horas) + ').' : 'Ahora mismo no hay ninguna sesión en marcha.';
+    }
+    if (/ (que semana|semana a o b|es semana) /.test(n)) return 'Esta es la <b>semana ' + _esc(res.semanaActual || sem) + '</b>. 🗓️';
+    // ¿Quién vigila el recreo (hoy / ese día)?
+    if (/ (quien vigila|quienes vigilan|vigilan|vigilancia) /.test(n)) {
+      var rcs = ts.filter(function(x) { return x.recreo; });
+      if (!rcs.length) return 'No hay ningún tramo de recreo configurado.';
+      var z = [];
+      rcs.forEach(function(x) { ((x.t.porDia[d] || {}).zonas || []).forEach(function(zz) { z.push('<b>' + _esc(zz.zona) + '</b>: ' + zz.docentes.map(_esc).join(', ')); }); });
+      return z.length ? 'Recreo ' + (otroDia ? 'del ' + BOT_DN[d] : 'de hoy') + ':<br>' + z.join('<br>') : 'No hay turnos de recreo asignados ' + (otroDia ? 'el ' + BOT_DN[d] : 'hoy') + '. Configúralos en <b>Recreos</b>.';
+    }
+    // ¿Quién falta hoy?
+    if (/ (falta|faltan|ausente|ausentes|ha faltado|han faltado) /.test(n) && !_botNombres(res, d).some(function(nm) { return _botPuntos(n, nm) > 0; })) {
+      if (!res.hoy) return 'Las ausencias solo las conozco de <b>hoy</b> (las del parte de Sustituciones).';
+      return res.ausentes.length ? 'Hoy faltan: ' + res.ausentes.map(function(a) { return '<b>' + _esc(a) + '</b>'; }).join(', ') + '.' : 'Hoy no falta nadie en el parte de sustituciones.';
+    }
     // Tramo pedido: número («3ª», «tramo 3»), hora («a las 11:30»), recreo, anterior/siguiente o ahora.
     var idx = null, nota = '';
     // Tramo por número: «3ª», «a 3ª hora», «tramo 3», «3 hora» (en el texto original,
@@ -202,13 +306,9 @@
       if (idx >= ts.length) return 'Después de este tramo ya no hay más: es el último del día.';
     }
     var T = ts[idx], tr = T.t, cel = tr.porDia[d] || { cursos: [], apoyos: [], libres: [], zonas: [] };
+    BOT.ult = { sem: sem, d: d, i: idx };
     var cuando = [((otroDia ? 'el ' + BOT_DN[d] + ' ' : '') + (T.recreo ? '' : 'a ' + T.orden + 'ª (' + tr.tramo.horas + ')') + nota).trim(), sem ? 'sem. ' + sem : ''].filter(Boolean).join(' · ');
 
-    // ¿Quién falta hoy?
-    if (/ (falta|faltan|ausente|ausentes|ha faltado|han faltado) /.test(n) && !_botNombres(res, d).some(function(nm) { return _botPuntos(n, nm) > 0; })) {
-      if (!res.hoy) return 'Las ausencias solo las conozco de <b>hoy</b> (las del parte de Sustituciones).';
-      return res.ausentes.length ? 'Hoy faltan: ' + res.ausentes.map(function(a) { return '<b>' + _esc(a) + '</b>'; }).join(', ') + '.' : 'Hoy no falta nadie en el parte de sustituciones.';
-    }
     // ¿Quién está libre? → apoyos del tramo por prioridad.
     if (/ (libre|libres|disponible|disponibles|puede sustituir|sustituir) /.test(n)) {
       if (T.recreo) return 'Es el recreo ' + cuando + '.';
@@ -229,18 +329,18 @@
     if (cand.length) {
       var top = cand.filter(function(x) { return x.p === cand[0].p; });
       if (top.length > 1) return '¿A quién te refieres? ' + top.map(function(x) { return '<button type="button" class="pt-chip" onclick="botSugerir(' + _jsAttr(x.nm + ' ' + _botResto(n)) + ')">' + _esc(x.nm) + '</button>'; }).join(' ');
-      return _botDonde(top[0].nm, cel, T, cuando, res);
+      return _botDonde(top[0].nm, cel, T, cuando, res) + _botVer(top[0].nm);
     }
     if (grupo.length) {
       var g0 = grupo[0];
       if (T.recreo) return '<b>' + _esc(g0.grupo.nombre) + '</b> está de recreo ' + cuando + '.';
-      if (g0.vacio || !g0.ocupantes.length) return '<b>' + _esc(g0.grupo.nombre) + '</b> ' + cuando + ': <span class="sb-sin">sin cubrir</span> (no tiene clase asignada).';
+      if (g0.vacio || !g0.ocupantes.length) return '<b>' + _esc(g0.grupo.nombre) + '</b> ' + cuando + ': <span class="sb-sin">sin cubrir</span> (no tiene clase asignada). 🚨' + _botVer(g0.grupo.nombre);
       var apg = (cel.apoyos || []).filter(function(a) { return (a.destino || []).indexOf(g0.grupo.nombre) !== -1; });
       return '<b>' + _esc(g0.grupo.nombre) + '</b> ' + cuando + ': ' + g0.ocupantes.map(function(o) {
           if (o.sinCubrir) return '<span class="sb-sin">sin cubrir</span> (falta ' + _esc(o.ausente) + ')';
           return '<b>' + _esc(o.docente) + '</b>' + (o.ausente ? ' (sustituye a ' + _esc(o.ausente) + ')' : o.materia ? ' (' + _esc(o.materia) + ')' : '');
         }).join(' · ') +
-        (apg.length ? '<br>Con apoyo: ' + apg.map(function(a) { return _esc(a.docente) + ' (' + _esc(a.rol) + ')'; }).join(' · ') : '');
+        (apg.length ? '<br>Con apoyo: ' + apg.map(function(a) { return _esc(a.docente) + ' (' + _esc(a.rol) + ')'; }).join(' · ') : '') + _botVer(g0.grupo.nombre);
     }
     return 'No encuentro a nadie con ese nombre. Prueba con el nombre corto (el de la sábana) o escribe «ayuda».';
   }
@@ -249,10 +349,13 @@
   function _botNombres(res, d) {
     var s = {};
     res.tramos.forEach(function(t) {
-      var c = t.porDia[d]; if (!c) return;
+      (d ? [d] : Object.keys(t.porDia)).forEach(function(dd) {
+      var c = t.porDia[dd]; if (!c) return;
       (c.cursos || []).forEach(function(g) { (g.ocupantes || []).forEach(function(o) { if (o.docente) s[o.docente] = 1; if (o.ausente) s[o.ausente] = 1; }); });
       (c.apoyos || []).forEach(function(a) { if (a.docente) s[a.docente] = 1; if (a.ausente) s[a.ausente] = 1; });
       (c.libres || []).forEach(function(x) { s[x] = 1; });
+      (c.zonas || []).forEach(function(z) { z.docentes.forEach(function(x) { s[x] = 1; }); });
+      });
     });
     (res.ausentes || []).forEach(function(x) { s[x] = 1; });
     return Object.keys(s);
@@ -288,8 +391,29 @@
     });
     if (falta) return pre + (sust.length ? sust.join(' · ') + ' — ' + cuando + '.' : 'No tenía nada ' + cuando + '.');
     if (partes.length) return b + 'está ' + partes.join(' y ') + ' ' + cuando + '.';
-    if ((cel.libres || []).indexOf(nm) !== -1) return b + 'no está en el centro ' + cuando + '.';
-    return b + 'no tiene nada asignado ' + cuando + '.';
+    if ((cel.libres || []).indexOf(nm) !== -1) return b + 'no está en el centro ' + cuando + '. ' + _botAzar(['Estará haciendo recados… o en su casa, que también se vale. 🏠', 'Hoy a esa hora no le toca venir. ¡Afortunado/a! 🍀', 'Ni rastro por los pasillos. 👀']);
+    return b + 'no tiene nada asignado ' + cuando + '. ' + _botAzar(['¿Hora libre? Seguro que está corrigiendo… o en la sala de profes. ☕', 'Libre como un pájaro. 🐦', 'Quizá esté preparando la próxima clase. 📚']);
+  }
+
+  // Botón «Ver en la sábana»: va a la sábana, a esa semana, y resalta la celda.
+  function _botVer(txt) {
+    if (!BOT.ult) return '';
+    return '<br><button type="button" class="pt-chip" onclick="botVerSabana(' + _jsAttr(BOT.ult) + ',' + _jsAttr(txt) + ')">Ver en la sábana ↗</button>';
+  }
+  function botVerSabana(u, txt) {
+    irPestana('sabana');
+    var ir = function() {
+      var g = document.querySelector('#sb-body .sb-weekscroll'); if (!g) return setTimeout(ir, 200);
+      var fila = g.children[u.i]; if (!fila) return;
+      var col = fila.querySelectorAll('.sb-daycol')[BOT_DIAS.indexOf(u.d)] || fila;
+      col.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
+      var celdas = Array.prototype.filter.call(col.querySelectorAll('td, .sb-zona'), function(td) { return td.textContent.indexOf(txt) !== -1; });
+      (celdas.length ? celdas.map(function(td) { return td.closest('tr') || td; }) : [col]).forEach(function(el) {
+        el.classList.add('bot-flash'); setTimeout(function() { el.classList.remove('bot-flash'); }, 2600);
+      });
+    };
+    if (u.sem && typeof SB_SEM !== 'undefined' && SB_SEM !== u.sem && typeof setSbSemana === 'function') { setSbSemana(u.sem); }
+    setTimeout(ir, 250);
   }
 
   // Se muestra solo dentro de la app (no en el alta guiada).

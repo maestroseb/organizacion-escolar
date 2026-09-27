@@ -96,15 +96,27 @@
         var ts = RC_TUR.filter(function(t) { return t.zona_id === z.id && t.dia === d.k; })
           .sort(function(a, b) { return nom(a).localeCompare(nom(b), 'es', { sensitivity: 'base' }); }); // orden alfabético
         var falta = Math.max.apply(null, ['A', 'B'].map(function(w) { return z.plazas - ts.filter(function(t) { return _rcSemanas(t.semana).indexOf(w) !== -1; }).length; }));
-        h += '<td class="rc-cell rc-drop' + (falta > 0 ? ' rc-corto' : '') + '" data-z="' + _esc(z.id) + '" data-d="' + d.k + '"' + (falta > 0 ? ' title="Falta' + (falta > 1 ? 'n ' + falta : ' 1') + '"' : '') + '>' +
-          ts.map(function(t) {
-            var i = RC_TUR.indexOf(t), d0 = _rcDoc(t.docente_id), aus = !_rcPresente(t), dup = _rcDuplicado(t);
-            return '<span class="rc-chip' + (aus ? ' rc-aus' : '') + (dup ? ' rc-dup' : '') + '" draggable="true" data-i="' + i + '" title="' +
-              _esc((d0 && d0.nombre !== d0.titular ? 'Sustituye a ' + d0.titular + '. ' : '') + (aus ? 'No está en el centro ese día. ' : '') + (dup ? 'Tiene otro turno ese día. ' : '')) + '">' +
-              _esc(d0 ? d0.nombre : '¿?') +
-              '<button type="button" class="rc-sem" onclick="rcSemana(' + i + ')" title="Semanas: todas → A → B">' + (t.semana || 'A/B') + '</button>' +
-              '<button type="button" class="rc-x" onclick="rcQuitar(' + i + ')" title="Quitar">×</button></span>';
-          }).join('') + '</td>';
+        var chip = function(t) {
+          var i = RC_TUR.indexOf(t), d0 = _rcDoc(t.docente_id), aus = !_rcPresente(t), dup = _rcDuplicado(t);
+          return '<span class="rc-chip' + (aus ? ' rc-aus' : '') + (dup ? ' rc-dup' : '') + '" draggable="true" data-i="' + i + '" title="' +
+            _esc((d0 ? d0.nombre + '. ' : '') + (d0 && d0.nombre !== d0.titular ? 'Sustituye a ' + d0.titular + '. ' : '') + (aus ? 'No está en el centro ese día. ' : '') + (dup ? 'Tiene otro turno ese día. ' : '')) + '">' +
+            '<span class="rc-nom">' + _esc(d0 ? d0.nombre : '¿?') + '</span>' +
+            '<button type="button" class="rc-sem" onclick="rcSemana(' + i + ')" title="Semanas: todas → A → B">' + (t.semana || 'A/B') + '</button>' +
+            '<button type="button" class="rc-x" onclick="rcQuitar(' + i + ')" title="Quitar">×</button></span>';
+        };
+        // Con turnos de semana A/B el cuadro se parte: A a la izquierda y B a
+        // la derecha (los de todas las semanas, arriba y a lo ancho). Los
+        // nombres, siempre uno debajo de otro.
+        var partido = ts.some(function(t) { return t.semana; }), cont;
+        if (partido) {
+          var mitad = function(w) {
+            return '<div class="rc-half rc-drop" data-z="' + _esc(z.id) + '" data-d="' + d.k + '" data-s="' + w + '"><span class="rc-hl">' + w + '</span>' +
+              ts.filter(function(t) { return t.semana === w; }).map(chip).join('') + '</div>';
+          };
+          cont = '<div class="rc-stack">' + ts.filter(function(t) { return !t.semana; }).map(chip).join('') + '</div>' +
+            '<div class="rc-split">' + mitad('A') + mitad('B') + '</div>';
+        } else cont = '<div class="rc-stack">' + ts.map(chip).join('') + '</div>';
+        h += '<td class="rc-cell rc-drop' + (falta > 0 ? ' rc-corto' : '') + '" data-z="' + _esc(z.id) + '" data-d="' + d.k + '"' + (falta > 0 ? ' title="Falta' + (falta > 1 ? 'n ' + falta : ' 1') + '"' : '') + '>' + cont + '</td>';
       });
       h += '</tr>';
     });
@@ -139,14 +151,16 @@
   function rcQuitar(i) { RC_TUR.splice(i, 1); _rcCambio(); }
   function _rcCambio() { _rcPintar(); revisarCambios(); }
   // Añade (o mueve, si viene de otra celda) un turno.
-  function _rcSoltar(zona, dia, doc, idx) {
+  // sem: la mitad A/B donde se suelta (en un cuadro partido); si no, «Al soltar».
+  function _rcSoltar(zona, dia, doc, idx, sem) {
     var dias = dia === '*' ? RC_DIAS.map(function(d) { return d.k; }) : [dia];
     if (idx != null && RC_TUR[idx]) {
-      var t = RC_TUR[idx]; t.zona_id = zona; t.dia = dias[0];
+      var t = RC_TUR[idx]; t.zona_id = zona; t.dia = dias[0]; if (sem) t.semana = sem;
     } else {
+      var w = sem || RC_MODO;
       dias.forEach(function(d) {
-        if (RC_TUR.some(function(t) { return t.docente_id === doc && t.dia === d && t.zona_id === zona && t.semana === RC_MODO; })) return;
-        RC_TUR.push({ docente_id: doc, dia: d, zona_id: zona, semana: RC_MODO });
+        if (RC_TUR.some(function(t) { return t.docente_id === doc && t.dia === d && t.zona_id === zona && t.semana === w; })) return;
+        RC_TUR.push({ docente_id: doc, dia: d, zona_id: zona, semana: w });
       });
     }
     _rcCambio();
@@ -169,12 +183,12 @@
     var c = e.target.closest && e.target.closest('#view-recreos .rc-drop'); if (!c) return;
     e.preventDefault(); c.classList.remove('rc-over');
     var x; try { x = JSON.parse(e.dataTransfer.getData('text/plain')); } catch (er) { return; }
-    _rcSoltar(c.dataset.z, c.dataset.d, x.doc || (RC_TUR[x.i] || {}).docente_id, x.doc ? null : x.i);
+    _rcSoltar(c.dataset.z, c.dataset.d, x.doc || (RC_TUR[x.i] || {}).docente_id, x.doc ? null : x.i, c.dataset.s);
   });
   document.addEventListener('click', function(e) {
     if (!RC_SEL || e.target.closest('button')) return;
     var c = e.target.closest && e.target.closest('#view-recreos .rc-drop'); if (!c) return;
-    _rcSoltar(c.dataset.z, c.dataset.d, RC_SEL, null);
+    _rcSoltar(c.dataset.z, c.dataset.d, RC_SEL, null, c.dataset.s);
   });
 
   function rcGuardar() {

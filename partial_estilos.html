@@ -529,7 +529,7 @@
   .ah-link-row .btn-like { display: inline-flex; align-items: center; text-decoration: none; color: var(--text); background: var(--surface-2); border: 1px solid var(--border-strong); }
 
   /* ---------- Botón flotante «Guardar cambios» (solo con cambios pendientes) ---------- */
-  .fab { position: fixed; right: 20px; bottom: 20px; z-index: 900; min-height: 44px; padding: 0 22px; border-radius: 999px; font-size: var(--fs-md);
+  .fab { position: fixed; right: 92px; bottom: 20px; z-index: 900; min-height: 44px; padding: 0 22px; border-radius: 999px; font-size: var(--fs-md);
     box-shadow: 0 8px 24px rgba(79,70,229,.35), var(--shadow); opacity: 0; transform: translateY(16px) scale(.96); pointer-events: none; transition: opacity .18s, transform .18s var(--ease); }
   .fab.visible { opacity: 1; transform: none; pointer-events: auto; }
   /* Los botones de guardar de cada sección los sustituye el flotante. */
@@ -782,10 +782,10 @@
   .rc-ocultar { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--muted); font-weight: 600; cursor: pointer; }
   .rc-ocultar input { margin: 0; width: 56px; min-height: 26px; padding: 0 4px; }
   /* ---------- Bedel (asistente) ---------- */
-  .bot { position: fixed; left: 14px; bottom: 10px; z-index: 950; }
+  .bot { position: fixed; right: 14px; bottom: 10px; z-index: 950; }
   #bot-canvas { width: 64px; height: 64px; cursor: pointer; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.18)); transition: transform .15s; }
   #bot-canvas:hover { transform: scale(1.08); }
-  .bot-panel { position: absolute; left: 0; bottom: 72px; width: min(360px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 120px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; }
+  .bot-panel { position: absolute; right: 0; bottom: 72px; width: min(360px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 120px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; }
   .bot-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--accent); color: var(--on-accent); }
   .bot-head span { font-size: var(--fs-sm); opacity: .85; margin-right: auto; }
   .bot-head .ghost { color: inherit; min-height: 0; padding: 2px 6px; }
@@ -798,4 +798,16 @@
   .bot-form input { flex: 1; min-width: 0; }
   .bot-form button { min-height: 32px; padding: 0 12px; }
   @media print { .bot { display: none !important; } }
+  .bot-flash { animation: botFlash 1.3s ease 2; }
+  @keyframes botFlash { 0%, 100% { box-shadow: none; } 50% { box-shadow: 0 0 0 3px var(--accent) inset; background: var(--accent-weak); } }
+  .rc-stack { display: flex; flex-direction: column; align-items: flex-start; }
+  .rc-split { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 2px; }
+  .rc-half { position: relative; display: flex; flex-direction: column; align-items: flex-start; min-height: 40px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--accent) 6%, transparent); padding: 14px 2px 2px; min-width: 0; }
+  .rc-half + .rc-half { border-left: 1.5px dashed var(--border-strong); }
+  .rc-hl { position: absolute; top: 1px; left: 5px; font-size: 9.5px; font-weight: 800; color: var(--muted); }
+  .rc-half .rc-chip { max-width: 100%; }
+  .rc-half .rc-sem { display: none; }  /* la mitad ya dice la semana */
+  .rc-half .rc-chip { padding-left: 5px; gap: 1px; }
+  .rc-nom { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  td.rc-cell { height: auto; }
 </style>
