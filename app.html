@@ -586,7 +586,9 @@
         // Lo que va debajo de la caja en su columna (hermanos siguientes).
         var debajo = 0;
         for (var el = c; el && el !== col; el = el.parentElement)
-          for (var sb = el.nextElementSibling; sb; sb = sb.nextElementSibling) if (sb.offsetParent) debajo += sb.offsetHeight + 10;
+          for (var sb = el.nextElementSibling; sb; sb = sb.nextElementSibling)
+            // Solo lo que queda debajo (no lo que va al lado, p. ej. en una rejilla).
+            if (sb.offsetParent && sb.getBoundingClientRect().top >= r.bottom - 1) debajo += sb.offsetHeight + 10;
         c.style.maxHeight = Math.max(220, window.innerHeight - top - debajo - 16) + 'px';
         // Si aun así la página se desplaza (márgenes, rellenos…), se recorta lo
         // que sobra: la caja no debe meterse bajo la cabecera fija.
