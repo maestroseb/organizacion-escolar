@@ -1,0 +1,297 @@
+<!-- ============ Bedel: asistente para localizar a la gente ============ -->
+<div id="bot" class="bot" hidden>
+  <canvas id="bot-canvas" width="128" height="128" title="Pregúntame dónde está alguien" onclick="botAbrir()"></canvas>
+  <div id="bot-panel" class="bot-panel" hidden>
+    <div class="bot-head"><b>Bedel</b><span>¿A quién buscas?</span><button type="button" class="ghost" onclick="botAbrir(false)" title="Cerrar">✕</button></div>
+    <div id="bot-msgs" class="bot-msgs"></div>
+    <div id="bot-sug" class="bot-sug"></div>
+    <form class="bot-form" onsubmit="botEnviar(); return false;">
+      <input type="text" id="bot-in" autocomplete="off" placeholder="Escribe un nombre o pregunta…">
+      <button type="submit" class="primary">↵</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Bedel: responde con los datos de la sábana (semana A/B) y el reloj:
+  //   «Mar» / «¿dónde está Mar?»            → ahora
+  //   «¿dónde estaba Mar?» / «… antes»      → tramo anterior
+  //   «¿dónde estará Mar?» / «… después»    → tramo siguiente
+  //   «Mar a 3ª», «Mar el martes a las 11», «Mar mañana»
+  //   «3ºA» / «¿quién está en 3ºA?»        → quién está con ese grupo
+  //   «¿quién está libre?»                  → apoyos del tramo (por prioridad)
+  // No usa servicios externos: todo sale de los horarios de la app.
+  var BOT = { abierto: false, datos: {}, v: -1 };
+  var BOT_DIAS = ['L', 'M', 'X', 'J', 'V'], BOT_DN = { L: 'lunes', M: 'martes', X: 'miércoles', J: 'jueves', V: 'viernes' };
+
+  // ---------- Dibujo en canvas: un robot-bedel con reloj en el pecho ----------
+  var _botT0 = performance.now(), _botParp = 0;
+  function _botDibujar(t) {
+    var c = document.getElementById('bot-canvas'); if (!c || !c.offsetParent) { requestAnimationFrame(_botDibujar); return; }
+    var x = c.getContext('2d'), s = c.width / 64, k = (t - _botT0) / 1000;
+    var osc = getComputedStyle(document.documentElement);
+    var acc = (osc.getPropertyValue('--accent') || '#4f46e5').trim(), sup = (osc.getPropertyValue('--surface') || '#fff').trim();
+    x.setTransform(s, 0, 0, s, 0, 0); x.clearRect(0, 0, 64, 64);
+    var dy = Math.sin(k * 2) * 1.5; // flota
+    // sombra
+    x.fillStyle = 'rgba(0,0,0,.15)'; x.beginPath(); x.ellipse(32, 60, 14 - dy, 2.5, 0, 0, 7); x.fill();
+    x.save(); x.translate(0, dy);
+    // antena con campana (timbre de cambio de clase)
+    x.strokeStyle = acc; x.lineWidth = 2; x.beginPath(); x.moveTo(32, 10); x.lineTo(32, 4); x.stroke();
+    var bamb = Math.sin(k * 6) * (Math.sin(k * 0.7) > 0.8 ? 0.5 : 0.08);
+    x.save(); x.translate(32, 4); x.rotate(bamb); x.fillStyle = '#f2b705'; x.beginPath(); x.moveTo(-3.5, 2); x.quadraticCurveTo(-3.5, -4, 0, -4); x.quadraticCurveTo(3.5, -4, 3.5, 2); x.closePath(); x.fill(); x.restore();
+    // cabeza
+    x.fillStyle = acc; _botRR(x, 14, 10, 36, 22, 8); x.fill();
+    x.fillStyle = sup; _botRR(x, 18, 14, 28, 14, 6); x.fill();
+    // ojos (parpadean y miran de lado a lado)
+    _botParp = (Math.floor(k * 10) % 37 === 0) ? 1 : 0;
+    var mira = Math.sin(k * 0.9) * 2.5;
+    x.fillStyle = '#1f2430';
+    [25, 39].forEach(function(ox) { x.beginPath(); x.ellipse(ox + mira, 21, 2.6, _botParp ? 0.4 : 3, 0, 0, 7); x.fill(); });
+    // cuerpo con reloj
+    x.fillStyle = acc; _botRR(x, 19, 34, 26, 20, 7); x.fill();
+    x.fillStyle = sup; x.beginPath(); x.arc(32, 44, 7, 0, 7); x.fill();
+    var d = new Date(), h = (d.getHours() % 12 + d.getMinutes() / 60) / 12 * Math.PI * 2, m = d.getMinutes() / 60 * Math.PI * 2;
+    x.strokeStyle = '#1f2430'; x.lineCap = 'round';
+    x.lineWidth = 1.6; x.beginPath(); x.moveTo(32, 44); x.lineTo(32 + Math.sin(h) * 3.8, 44 - Math.cos(h) * 3.8); x.stroke();
+    x.lineWidth = 1.1; x.beginPath(); x.moveTo(32, 44); x.lineTo(32 + Math.sin(m) * 5.5, 44 - Math.cos(m) * 5.5); x.stroke();
+    // brazos (saluda de vez en cuando)
+    var saludo = Math.max(0, Math.sin(k * 0.5)) > 0.9 ? Math.sin(k * 10) * 0.5 : 0;
+    x.strokeStyle = acc; x.lineWidth = 3.5;
+    x.beginPath(); x.moveTo(19, 38); x.lineTo(13, 46); x.stroke();
+    x.save(); x.translate(45, 38); x.rotate(-0.9 + saludo); x.beginPath(); x.moveTo(0, 0); x.lineTo(0, 10); x.stroke(); x.restore();
+    x.restore();
+    requestAnimationFrame(_botDibujar);
+  }
+  function _botRR(x, a, b, w, h, r) { x.beginPath(); x.moveTo(a + r, b); x.arcTo(a + w, b, a + w, b + h, r); x.arcTo(a + w, b + h, a, b + h, r); x.arcTo(a, b + h, a, b, r); x.arcTo(a, b, a + w, b, r); x.closePath(); }
+  requestAnimationFrame(_botDibujar);
+
+  // ---------- Panel ----------
+  function botAbrir(v) {
+    BOT.abierto = v == null ? !BOT.abierto : v;
+    document.getElementById('bot-panel').hidden = !BOT.abierto;
+    if (!BOT.abierto) return;
+    if (!document.getElementById('bot-msgs').children.length) {
+      _botDecir('¡Hola! Soy <b>Bedel</b>. Escríbeme el nombre de alguien y te digo dónde está ahora. También entiendo «¿dónde estaba…?», «¿dónde estará…?», «Mar el martes a 3ª», un grupo («3ºA») o «¿quién está libre?». Hoy también sé quién falta y quién le sustituye.');
+      _botSugerencias();
+    }
+    setTimeout(function() { document.getElementById('bot-in').focus(); }, 30);
+  }
+  function _botSugerencias() {
+    var s = ['¿Quién está libre?', '¿Dónde estará…', 'Ayuda'];
+    document.getElementById('bot-sug').innerHTML = s.map(function(t) { return '<button type="button" class="pt-chip" onclick="botSugerir(' + _jsAttr(t) + ')">' + _esc(t) + '</button>'; }).join('');
+  }
+  function botSugerir(t) {
+    var inp = document.getElementById('bot-in');
+    if (/…$/.test(t)) { inp.value = t.replace('…', ' '); inp.focus(); return; }
+    inp.value = t; botEnviar();
+  }
+  function _botDecir(html, yo) {
+    var m = document.getElementById('bot-msgs');
+    m.insertAdjacentHTML('beforeend', '<div class="bot-msg' + (yo ? ' yo' : '') + '">' + html + '</div>');
+    m.scrollTop = m.scrollHeight;
+  }
+  function botEnviar() {
+    var inp = document.getElementById('bot-in'), q = inp.value.trim(); if (!q) return;
+    inp.value = '';
+    _botDecir(_esc(q), true);
+    _botDecir('<span class="spinner"></span>');
+    var m = document.getElementById('bot-msgs'), espera = m.lastChild;
+    _botResponder(q, function(html) { espera.innerHTML = html; m.scrollTop = m.scrollHeight; });
+  }
+
+  // ---------- Datos: sábana de la semana que toque (caché propia) ----------
+  function _botSabana(sem, cb) {
+    if (BOT.v !== DATOS_VERSION) { BOT.datos = {}; BOT.v = DATOS_VERSION; }
+    var k = sem || '';
+    if (BOT.datos[k]) return cb(null, BOT.datos[k]);
+    var ya = (typeof _sbCache !== 'undefined' && _sbCacheVersion === DATOS_VERSION && sem && _sbCache[sem]) ||
+             (window.SB_INICIAL && DATOS_VERSION === 0 && window.SB_INICIAL.filter(function(r) { return !sem || r.semana === sem || (!sem && r.semana === r.semanaActual); })[0]);
+    if (ya) { BOT.datos[k] = ya; return cb(null, ya); }
+    google.script.run.withSuccessHandler(function(r) { BOT.datos[k] = r; if (r && r.semana) BOT.datos[r.semana] = r; cb(null, r); })
+      .withFailureHandler(function(e) { cb(e); }).sabanaSemana(sem || '');
+  }
+
+  // ---------- Entender la pregunta ----------
+  function _botN(t) { return String(t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/º|ª/g, '').replace(/[¿?¡!,;:()"]/g, ' ').replace(/\s+/g, ' ').trim(); }
+  function _botMin(hhmm) { var m = String(hhmm || '').match(/(\d{1,2})[:.](\d{2})/); return m ? (+m[1]) * 60 + (+m[2]) : -1; }
+  function _botTramos(res) {
+    return res.tramos.map(function(t, i) {
+      var p = String(t.tramo.horas || '').split(/\s*[–-]\s*/);
+      return { i: i, t: t, ini: _botMin(p[0]), fin: _botMin(p[1]), recreo: t.tramo.es_recreo, orden: t.tramo.orden };
+    });
+  }
+
+  function _botResponder(q, cb) {
+    var n = ' ' + _botN(q) + ' ';
+    if (/\b(ayuda|que sabes|como funciona)\b/.test(n)) return cb('Pregúntame por una persona («Mar», «¿dónde estaba Inma B.?», «¿dónde estará Puri a 4ª?», «Mar el jueves a las 12:30»), por un grupo («3ºA», «¿quién está en 5ºB mañana?») o «¿quién está libre ahora?». Para <b>hoy</b> uso el parte de Sustituciones («¿quién falta?», «¿quién sustituye a Mar?»); para otros días, los horarios (semana A/B).');
+
+    // Día (y si cambia de semana): hoy por defecto.
+    var hoy = new Date(), dia = hoy.getDay(), salto = 0;
+    var dn = { lunes: 1, martes: 2, miercoles: 3, jueves: 4, viernes: 5 }, diaPedido = null;
+    Object.keys(dn).forEach(function(k) { if (n.indexOf(' ' + k + ' ') !== -1) diaPedido = dn[k]; });
+    if (/ manana /.test(n)) diaPedido = dia >= 5 || dia === 0 ? 1 : dia + 1;
+    var otroDia = diaPedido != null && diaPedido !== dia;
+    if (diaPedido != null) {
+      salto = (diaPedido - dia + 7) % 7; // días hasta ese día (0 = hoy)
+      dia = diaPedido;
+    }
+    var finde = dia === 0 || dia === 6;
+    if (finde && diaPedido == null) { dia = 1; salto = hoy.getDay() === 6 ? 2 : 1; otroDia = true; }
+    // Semana: si el día pedido cae en la semana siguiente, la otra A/B.
+    var cambiaSemana = (hoy.getDay() === 0 || hoy.getDay() === 6) ? false : (hoy.getDay() + salto) > 5;
+
+    // Hoy: los datos de Ahora, con las sustituciones del día ya aplicadas.
+    if (!otroDia && !finde) {
+      return _botHoy(function(err, hoyRes) {
+        if (!err && hoyRes) return cb(_botContestar(n, hoyRes, hoyRes._dia, false, hoyRes.semanaActual, q));
+        _botSemana();
+      });
+    }
+    _botSemana();
+    function _botSemana() {
+    _botSabana('', function(err, base) {
+      if (err || !base || !base.tramos) return cb('No he podido leer los horarios ahora mismo.');
+      var sem = base.semanaActual || base.semana;
+      if (cambiaSemana) sem = sem === 'A' ? 'B' : 'A';
+      _botSabana(sem, function(err2, res) {
+        if (err2 || !res) return cb('No he podido leer la semana ' + sem + '.');
+        cb(_botContestar(n, res, BOT_DIAS[dia - 1], otroDia, sem, q));
+      });
+    });
+    }
+  }
+
+  // Datos de hoy (Ahora): mismos campos que la sábana de un día, más quién
+  // falta (ausentes) y quién sustituye a quién (o.ausente / sinCubrir).
+  function _botHoy(cb) {
+    if (BOT.hoyV === DATOS_VERSION && BOT.hoy !== undefined) return cb(null, BOT.hoy);
+    google.script.run.withSuccessHandler(function(r) {
+      BOT.hoyV = DATOS_VERSION;
+      if (!r || r.finDeSemana || !r.tramos) { BOT.hoy = null; return cb(null, null); }
+      var por = {};
+      BOT.hoy = { _dia: r.dia, semanaActual: r.semana, semana: r.semana, ausentes: r.ausentes || [], hoy: true,
+        tramos: r.tramos.map(function(t) { var pd = {}; pd[r.dia] = t; return { tramo: t.tramo, porDia: pd }; }) };
+      cb(null, BOT.hoy);
+    }).withFailureHandler(function(e) { cb(e); }).datosAhora();
+  }
+
+  function _botContestar(n, res, d, otroDia, sem, q) {
+    var ts = _botTramos(res), ahora = new Date(), min = ahora.getHours() * 60 + ahora.getMinutes();
+    var lect = ts.filter(function(x) { return !x.recreo; });
+    // Tramo pedido: número («3ª», «tramo 3»), hora («a las 11:30»), recreo, anterior/siguiente o ahora.
+    var idx = null, nota = '';
+    // Tramo por número: «3ª», «a 3ª hora», «tramo 3», «3 hora» (en el texto original,
+    // para no confundir «3ºA» —un grupo— con la 3ª hora).
+    var raw = ' ' + String(q || '').toLowerCase() + ' ';
+    var mT = raw.match(/tramo\s*(\d)|(\d)\s*(?:ª|a hora|º hora| hora)/), mH = n.match(/ a las (\d{1,2})(?:[:.h ](\d{2}))? /);
+    if (mH) { var mm = (+mH[1]) * 60 + (+(mH[2] || 0)); var f = ts.filter(function(x) { return x.ini <= mm && mm < x.fin; })[0]; if (f) idx = f.i; }
+    else if (/ recreo /.test(n) && !/ quien /.test(n + ' ') ) { var r = ts.filter(function(x) { return x.recreo; })[0]; if (r) idx = r.i; }
+    else if (mT && (mT[1] || mT[2])) { var o = +(mT[1] || mT[2]); var f2 = ts.filter(function(x) { return String(x.orden) === String(o); })[0]; if (f2) idx = f2.i; else return 'No hay ' + o + 'ª hora: los tramos van de 1ª a ' + lect.length + 'ª.'; }
+    if (idx == null) {
+      var act = ts.filter(function(x) { return x.ini <= min && min < x.fin; })[0];
+      var rel = / (estaba|antes|anterior|estuvo) /.test(n) ? -1 : / (estara|despues|siguiente|proximo|luego|va a estar) /.test(n) ? 1 : 0;
+      if (otroDia) { idx = (lect[0] || ts[0]).i; nota = rel ? '' : ' (a primera hora)'; }
+      else if (act) idx = act.i + rel;
+      else if (ts.length && min < ts[0].ini) { idx = rel > 0 ? ts[0].i : ts[0].i; nota = ' (aún no ha empezado la jornada; a primera hora)'; }
+      else if (ts.length && min >= ts[ts.length - 1].fin) { idx = rel < 0 ? ts[ts.length - 1].i : null; if (idx == null) return 'La jornada de hoy ya ha terminado. Pregúntame por <b>mañana</b> o por un día («el lunes a 2ª»).'; }
+      else { // entre tramos
+        var sig = ts.filter(function(x) { return x.ini >= min; })[0]; idx = sig ? sig.i : ts.length - 1;
+      }
+      if (idx < 0) return 'Antes de este tramo no había nada: es el primero del día.';
+      if (idx >= ts.length) return 'Después de este tramo ya no hay más: es el último del día.';
+    }
+    var T = ts[idx], tr = T.t, cel = tr.porDia[d] || { cursos: [], apoyos: [], libres: [], zonas: [] };
+    var cuando = [((otroDia ? 'el ' + BOT_DN[d] + ' ' : '') + (T.recreo ? '' : 'a ' + T.orden + 'ª (' + tr.tramo.horas + ')') + nota).trim(), sem ? 'sem. ' + sem : ''].filter(Boolean).join(' · ');
+
+    // ¿Quién falta hoy?
+    if (/ (falta|faltan|ausente|ausentes|ha faltado|han faltado) /.test(n) && !_botNombres(res, d).some(function(nm) { return _botPuntos(n, nm) > 0; })) {
+      if (!res.hoy) return 'Las ausencias solo las conozco de <b>hoy</b> (las del parte de Sustituciones).';
+      return res.ausentes.length ? 'Hoy faltan: ' + res.ausentes.map(function(a) { return '<b>' + _esc(a) + '</b>'; }).join(', ') + '.' : 'Hoy no falta nadie en el parte de sustituciones.';
+    }
+    // ¿Quién está libre? → apoyos del tramo por prioridad.
+    if (/ (libre|libres|disponible|disponibles|puede sustituir|sustituir) /.test(n)) {
+      if (T.recreo) return 'Es el recreo ' + cuando + '.';
+      var ap = cel.apoyos || [];
+      return ap.length ? 'Apoyos ' + cuando + ':<br>' + ap.map(function(a) { return '#' + ('0' + a.loc).slice(-2) + ' <b>' + _esc(a.docente) + '</b> · ' + _esc(a.rol) + (a.destino && a.destino.length ? ' ' + _esc(a.destino.join('/')) : ''); }).join('<br>')
+        : 'No hay nadie de apoyo ' + cuando + '.';
+    }
+
+    // ¿Un grupo? («3A», «3 a», «inf4»…)
+    // Palabras sueltas y parejas unidas («3 a» → «3a»).
+    var pal = n.split(' '), pares = {};
+    pal.forEach(function(w, i) { pares[w] = 1; if (pal[i + 1]) pares[w + pal[i + 1]] = 1; });
+    var grupo = (cel.cursos || []).filter(function(c) { var g = _botN(c.grupo.nombre).replace(/ /g, ''); return g.length >= 2 && pares[g]; });
+    // Personas: nombres que aparecen en ese día.
+    var nombres = _botNombres(res, d);
+    var cand = nombres.map(function(nm) { return { nm: nm, p: _botPuntos(n, nm) }; }).filter(function(x) { return x.p > 0; })
+      .sort(function(a, b) { return b.p - a.p; });
+    if (cand.length) {
+      var top = cand.filter(function(x) { return x.p === cand[0].p; });
+      if (top.length > 1) return '¿A quién te refieres? ' + top.map(function(x) { return '<button type="button" class="pt-chip" onclick="botSugerir(' + _jsAttr(x.nm + ' ' + _botResto(n)) + ')">' + _esc(x.nm) + '</button>'; }).join(' ');
+      return _botDonde(top[0].nm, cel, T, cuando, res);
+    }
+    if (grupo.length) {
+      var g0 = grupo[0];
+      if (T.recreo) return '<b>' + _esc(g0.grupo.nombre) + '</b> está de recreo ' + cuando + '.';
+      if (g0.vacio || !g0.ocupantes.length) return '<b>' + _esc(g0.grupo.nombre) + '</b> ' + cuando + ': <span class="sb-sin">sin cubrir</span> (no tiene clase asignada).';
+      var apg = (cel.apoyos || []).filter(function(a) { return (a.destino || []).indexOf(g0.grupo.nombre) !== -1; });
+      return '<b>' + _esc(g0.grupo.nombre) + '</b> ' + cuando + ': ' + g0.ocupantes.map(function(o) {
+          if (o.sinCubrir) return '<span class="sb-sin">sin cubrir</span> (falta ' + _esc(o.ausente) + ')';
+          return '<b>' + _esc(o.docente) + '</b>' + (o.ausente ? ' (sustituye a ' + _esc(o.ausente) + ')' : o.materia ? ' (' + _esc(o.materia) + ')' : '');
+        }).join(' · ') +
+        (apg.length ? '<br>Con apoyo: ' + apg.map(function(a) { return _esc(a.docente) + ' (' + _esc(a.rol) + ')'; }).join(' · ') : '');
+    }
+    return 'No encuentro a nadie con ese nombre. Prueba con el nombre corto (el de la sábana) o escribe «ayuda».';
+  }
+  function _botResto(n) { return n.replace(/ (donde|esta|estaba|estara|quien|y) /g, ' ').trim(); }
+
+  function _botNombres(res, d) {
+    var s = {};
+    res.tramos.forEach(function(t) {
+      var c = t.porDia[d]; if (!c) return;
+      (c.cursos || []).forEach(function(g) { (g.ocupantes || []).forEach(function(o) { if (o.docente) s[o.docente] = 1; if (o.ausente) s[o.ausente] = 1; }); });
+      (c.apoyos || []).forEach(function(a) { if (a.docente) s[a.docente] = 1; if (a.ausente) s[a.ausente] = 1; });
+      (c.libres || []).forEach(function(x) { s[x] = 1; });
+    });
+    (res.ausentes || []).forEach(function(x) { s[x] = 1; });
+    return Object.keys(s);
+  }
+  // Coincidencia de un nombre («Inma B.», «Lola Gómez») con la pregunta:
+  // todas sus palabras como palabras completas (las iniciales, también).
+  function _botPuntos(n, nombre) {
+    var toks = _botN(nombre).replace(/\./g, ' ').split(' ').filter(Boolean);
+    if (!toks.length) return 0;
+    var hay = function(t) { return new RegExp(' ' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + (t.length === 1 ? '\\.?' : '') + ' ').test(n.replace(/\./g, ' . ').replace(/\s+/g, ' ')); };
+    if (!hay(toks[0])) return 0;
+    return toks.filter(hay).length * 10 + (toks.every(hay) ? 5 : 0);
+  }
+
+  function _botDonde(nm, cel, T, cuando, res) {
+    var b = '<b>' + _esc(nm) + '</b> ', falta = (res.ausentes || []).indexOf(nm) !== -1;
+    var pre = falta ? b + '<span class="sb-sin">falta hoy</span>. ' : '';
+    if (T.recreo) {
+      var z = (cel.zonas || []).filter(function(z) { return z.docentes.indexOf(nm) !== -1; });
+      if (falta) return pre;
+      return b + (z.length ? 'vigila el recreo en <b>' + _esc(z.map(function(x) { return x.zona; }).join(', ')) + '</b>' : 'está de recreo (sin turno de vigilancia)') + (cuando ? ' · ' + cuando : '') + '.';
+    }
+    var partes = [], sust = [];
+    (cel.cursos || []).forEach(function(g) {
+      (g.ocupantes || []).forEach(function(o) {
+        if (o.docente === nm && !o.sinCubrir) partes.push('en <b>' + _esc(g.grupo.nombre) + '</b>' + (o.ausente ? ' <b>sustituyendo a ' + _esc(o.ausente) + '</b>' : (o.materia ? ' con ' + _esc(o.materia) : (o.cubre ? ' (cubriendo)' : ''))));
+        if (o.ausente === nm) sust.push(_esc(g.grupo.nombre) + ': ' + (o.sinCubrir ? '<span class="sb-sin">sin cubrir</span>' : 'le sustituye <b>' + _esc(o.docente) + '</b>'));
+      });
+    });
+    (cel.apoyos || []).forEach(function(a) {
+      if (a.docente === nm && !a.sinCubrir) partes.push((a.ausente ? '<b>sustituyendo a ' + _esc(a.ausente) + '</b> en ' : 'de ') + '<b>' + _esc(a.rol) + '</b>' + (a.destino && a.destino.length ? ' en ' + _esc(a.destino.join('/')) : '') + (a.cubre ? ' (tiene una sustitución)' : ''));
+      if (a.ausente === nm) sust.push(_esc(a.rol) + ': ' + (a.sinCubrir ? '<span class="sb-sin">sin cubrir</span>' : 'le sustituye <b>' + _esc(a.docente) + '</b>'));
+    });
+    if (falta) return pre + (sust.length ? sust.join(' · ') + ' — ' + cuando + '.' : 'No tenía nada ' + cuando + '.');
+    if (partes.length) return b + 'está ' + partes.join(' y ') + ' ' + cuando + '.';
+    if ((cel.libres || []).indexOf(nm) !== -1) return b + 'no está en el centro ' + cuando + '.';
+    return b + 'no tiene nada asignado ' + cuando + '.';
+  }
+
+  // Se muestra solo dentro de la app (no en el alta guiada).
+  function botMostrar(v) { var b = document.getElementById('bot'); if (b) b.hidden = !v; }
+</script>

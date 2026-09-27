@@ -781,4 +781,21 @@
   body.con-cajas .shell { padding-bottom: 12px; }
   .rc-ocultar { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--muted); font-weight: 600; cursor: pointer; }
   .rc-ocultar input { margin: 0; width: 56px; min-height: 26px; padding: 0 4px; }
+  /* ---------- Bedel (asistente) ---------- */
+  .bot { position: fixed; left: 14px; bottom: 10px; z-index: 950; }
+  #bot-canvas { width: 64px; height: 64px; cursor: pointer; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.18)); transition: transform .15s; }
+  #bot-canvas:hover { transform: scale(1.08); }
+  .bot-panel { position: absolute; left: 0; bottom: 72px; width: min(360px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 120px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; }
+  .bot-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--accent); color: var(--on-accent); }
+  .bot-head span { font-size: var(--fs-sm); opacity: .85; margin-right: auto; }
+  .bot-head .ghost { color: inherit; min-height: 0; padding: 2px 6px; }
+  .bot-msgs { flex: 1; overflow: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-data); }
+  .bot-msg { background: var(--surface-3); border-radius: 12px 12px 12px 4px; padding: 6px 10px; max-width: 88%; line-height: 1.4; }
+  .bot-msg.yo { align-self: flex-end; background: var(--accent-weak); border-radius: 12px 12px 4px 12px; }
+  .bot-msg .pt-chip { margin: 2px; }
+  .bot-sug { display: flex; flex-wrap: wrap; gap: 4px; padding: 0 10px 6px; }
+  .bot-form { display: flex; gap: 6px; padding: 8px; border-top: 1px solid var(--border); }
+  .bot-form input { flex: 1; min-width: 0; }
+  .bot-form button { min-height: 32px; padding: 0 12px; }
+  @media print { .bot { display: none !important; } }
 </style>

@@ -91,6 +91,8 @@
 
   <button type="button" class="primary fab" id="fab-guardar" onclick="guardarPendientes()">Guardar cambios</button>
 
+  <?!= include('partial_bot') ?>
+
   <!-- ============ Modal de confirmación reutilizable ============ -->
   <div class="modal-overlay" id="modal-confirm">
     <div class="modal-box">
@@ -261,6 +263,7 @@
     function entrarWorkspace(pestana) {
       document.getElementById('onboarding').style.display = 'none';
       document.getElementById('workspace').style.display = 'block';
+      if (typeof botMostrar === 'function') botMostrar(true);
       pintarCabecera();
       construirTabs();
       const destino = pestana || _pestanaDesdeHash() || PESTANA_INICIAL || INICIO;
@@ -448,6 +451,7 @@
     function mostrarOnboarding() {
       document.getElementById('workspace').style.display = 'none';
       document.getElementById('onboarding').style.display = 'block';
+      if (typeof botMostrar === 'function') botMostrar(false);
       if (typeof iniciarOnboarding === 'function') iniciarOnboarding();
     }
 
