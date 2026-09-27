@@ -295,10 +295,12 @@
     function construirTabs() {
       const nav = document.getElementById('tabs');
       nav.innerHTML = '';
-      TABS.forEach(function(t) {
-        if (!_tabPermitida(t) || t.oculta) return;
+      var vis = TABS.filter(function(t) { return _tabPermitida(t) && !t.oculta; });
+      vis.forEach(function(t, i) {
         const b = document.createElement('button');
         b.className = 'tab';
+        b.style.zIndex = vis.length - i;          // cada pestaña, por detrás de la anterior
+        b.style.setProperty('--k', i);            // y un poco más oscura
         b.id = 'tab-' + t.key;
         b.type = 'button';
         if (t.soon) {
