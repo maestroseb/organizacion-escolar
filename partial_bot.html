@@ -416,6 +416,11 @@
     setTimeout(ir, 250);
   }
 
+  // Clic fuera del panel (y del robot) = cerrar, como la ✕.
+  document.addEventListener('mousedown', function(e) {
+    if (BOT.abierto && !(e.target.closest && e.target.closest('#bot'))) botAbrir(false);
+  });
+
   // Se muestra solo dentro de la app (no en el alta guiada).
   function botMostrar(v) { var b = document.getElementById('bot'); if (b) b.hidden = !v; }
 </script>

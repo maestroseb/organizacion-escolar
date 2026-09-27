@@ -786,6 +786,7 @@
   #bot-canvas { width: 64px; height: 64px; cursor: pointer; display: block; filter: drop-shadow(0 2px 4px rgba(0,0,0,.18)); transition: transform .15s; }
   #bot-canvas:hover { transform: scale(1.08); }
   .bot-panel { position: absolute; right: 0; bottom: 72px; width: min(360px, calc(100vw - 28px)); max-height: min(520px, calc(100vh - 120px)); display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow-lg); overflow: hidden; }
+  .bot-panel[hidden], .bot[hidden] { display: none; }
   .bot-head { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: var(--accent); color: var(--on-accent); }
   .bot-head span { font-size: var(--fs-sm); opacity: .85; margin-right: auto; }
   .bot-head .ghost { color: inherit; min-height: 0; padding: 2px 6px; }
