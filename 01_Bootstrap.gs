@@ -110,19 +110,33 @@ function estadoApp() {
     bdUrl: bdUrl,
     permisos: permisosUsuario(),
     urlApp: (function() { try { return ScriptApp.getService().getUrl(); } catch (e) { return ''; } })(),
-    contadores: {
-      tramos:         _contar(SHEETS.TRAMOS),
-      semanas:        _contar(SHEETS.SEMANAS),
-      grupos:         _contar(SHEETS.GRUPOS),
-      docentes:       _contar(SHEETS.DOCENTES),
-      tutorias:       _contarConTutor(),
-      localizaciones: _contar(SHEETS.LOCALIZACIONES),
-      materias:       _contar(SHEETS.MATERIAS),
-      roles:          _contar(SHEETS.ROLES),
-      // Solo la columna id: _Ocupaciones es la pestaña grande.
-      ocupaciones:    _contar(SHEETS.OCUPACIONES)
-    }
+    contadores: _contadores()
   };
+}
+
+/**
+ * Nº de filas por sección (para los contadores de Configuración). Se guarda
+ * con la versión de los datos: así cargar la app no lee _Ocupaciones (la
+ * pestaña grande) solo para contarla.
+ */
+function _contadores() {
+  const c = _cache(), k = c ? _claveDatos('cnt') : '';
+  const guardado = c ? _cacheLeerJson(c, k) : null;
+  if (guardado) return guardado;
+  const res = {
+    tramos:       _contar(SHEETS.TRAMOS),
+    semanas:      _contar(SHEETS.SEMANAS),
+    grupos:       _contar(SHEETS.GRUPOS),
+    docentes:     _contar(SHEETS.DOCENTES),
+    tutorias:     _contarConTutor(),
+    localizaciones: _contar(SHEETS.LOCALIZACIONES),
+    materias:     _contar(SHEETS.MATERIAS),
+    roles:        _contar(SHEETS.ROLES),
+    // Solo la columna id: _Ocupaciones es la pestaña grande.
+    ocupaciones:    _contar(SHEETS.OCUPACIONES)
+  };
+  if (c) _cacheGuardarJson(c, k, res);
+  return res;
 }
 
 /**
