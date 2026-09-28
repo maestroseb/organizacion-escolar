@@ -30,11 +30,12 @@
   }
   function ahDatos(res) {
     AH = res; AH_FIJO = false; _ahPintar();
-    // El reloj avanza de tramo solo; los datos se refrescan cada 5 min.
+    // El reloj avanza de tramo solo; los datos se refrescan cada minuto (salen
+    // de la caché del servidor) y solo se repinta si algo ha cambiado.
     if (!AH_TIMER) AH_TIMER = setInterval(function() {
       if (!AH || document.getElementById('ah-body').offsetParent === null) return; // pestaña oculta
       if (!AH_FIJO) _ahPintar();
-      if (Date.now() - (AH._t || 0) > 300000) google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); }).datosAhora();
+      if (Date.now() - (AH._t || 0) > 55000) google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); }).datosAhora();
     }, 30000);
     AH._t = Date.now();
   }
@@ -82,17 +83,23 @@
     var t = AH.tramos[AH_IDX], tr = t.tramo;
     var col = _sbColor(tr.color) || '#4f9d84', st = _sbHeadStyle(col);
     var etq = { ahora: 'AHORA', proximo: 'PRÓXIMO', terminado: 'ÚLTIMO TRAMO', otro: 'TRAMO' }[estado];
+    var reloj = _ahReloj();
     var html = '<div class="ah-card">' +
       '<div class="ah-head" style="' + st + '"><span class="ah-etq">' + etq + '</span>' +
         '<span class="ah-tit">' + _esc(String(AH.diaLargo).toUpperCase() + (tr.es_recreo ? ' · RECREO · ' : ' · TRAMO ' + tr.orden + ' · ') + tr.horas) + '</span>' +
-        '<span class="ah-reloj" id="ah-reloj">' + _ahReloj() + '</span>' +
+        '<span class="ah-reloj" id="ah-reloj">' + reloj + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
     if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
     else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t, cont.clientWidth - 2) + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
       '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
-    cont.innerHTML = html + '</div>';
+    html += '</div>';
+    // Sin cambios (salvo el reloj, que va aparte): no se toca el DOM, sin parpadeo.
+    var cmp = html.split(reloj).join('');
+    if (cont._ahCmp === cmp && cont.querySelector('.ah-card')) return;
+    cont._ahCmp = cmp;
+    cont.innerHTML = html;
     // La tarjeta mide lo que su contenido (cabecera o columnas, lo mayor); se
     // fija ese ancho y entonces las tablas se estiran hasta los bordes.
     var card = cont.querySelector('.ah-card');
@@ -116,6 +123,7 @@
     } else { tit = 'Hoy no hay clase'; sub = 'Día sin tramos lectivos. ¡A disfrutarlo!'; }
     var cv = cont.querySelector('canvas.ah-escena');
     if (!cv || cv.dataset.modo !== modo + tipo) {
+      cont._ahCmp = null;
       cont.innerHTML = '<div class="ah-descanso"><canvas class="ah-escena" data-modo="' + modo + tipo + '" aria-hidden="true"></canvas>' +
         '<div class="ah-desc-t">' + _esc(tit) + '</div><div class="ah-desc-s">' + _esc(sub) + '</div></div>';
       _ahEscena(cont.querySelector('canvas.ah-escena'), modo);
