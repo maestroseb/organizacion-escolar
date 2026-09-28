@@ -20,7 +20,7 @@ function doGet(e) {
     const ta = HtmlService.createTemplateFromFile('ahora');
     ta.datos = datosAhora();
     return ta.evaluate()
-      .setTitle('Ahora · Sábana')
+      .setTitle('Ahora · Localizaciones')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
       .setFaviconUrl(FAVICON_URL)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);

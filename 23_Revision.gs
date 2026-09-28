@@ -165,7 +165,7 @@ function revisarProblemas() {
   if (sinTutor.length) {
     gruposProblemas.push({
       tipo: 'sin_tutor', gravedad: 'aviso', titulo: 'Grupos sin tutor',
-      descripcion: 'Sin tutor, los huecos sin clase de estos grupos salen como "sin cubrir" en la sábana. Asigna su tutor/a.',
+      descripcion: 'Sin tutor, los huecos sin clase de estos grupos salen como "sin cubrir" en Localizaciones. Asigna su tutor/a.',
       items: sinTutor
     });
   }
@@ -385,7 +385,7 @@ function revisarProblemas() {
   });
   if (vacias.length) gruposProblemas.push({
     tipo: 'aula_vacia', gravedad: 'error', titulo: 'Aulas vacías',
-    descripcion: 'Tramos lectivos en que un grupo no tiene ninguna clase asignada: en la sábana salen «sin cubrir». Asigna la clase (o descártalo si ese grupo no tiene clase a esa hora).', items: vacias
+    descripcion: 'Tramos lectivos en que un grupo no tiene ninguna clase asignada: en Localizaciones salen «sin cubrir». Asigna la clase (o descártalo si ese grupo no tiene clase a esa hora).', items: vacias
   });
 
   // Religión sin ATEDU; misma materia con dos docentes a la vez.
@@ -544,7 +544,7 @@ function revisarProblemas() {
   if (rolSinCol.length) sinColor.push(_gen('Cargos sin color: ' + _muestra(rolSinCol), [{ t: 'tab', label: 'Editar cargos', tab: 'areas' }]));
   if (sinColor.length) gruposProblemas.push({
     tipo: 'sin_color', gravedad: 'aviso', titulo: 'Áreas o cargos sin color',
-    descripcion: 'Sin color propio, la sábana usa colores por defecto. Asigna uno para que se distingan mejor.', items: sinColor
+    descripcion: 'Sin color propio, Localizaciones usa colores por defecto. Asigna uno para que se distingan mejor.', items: sinColor
   });
 
   // Descartados por el usuario (todo salvo referencias rotas se puede descartar).
