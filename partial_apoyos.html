@@ -38,21 +38,21 @@
     var grupos = AP.grupos.filter(function(g) { return g.filas.some(function(f) { return sel.indexOf(f.tipo) !== -1; }); });
     if (!grupos.length) { body.innerHTML = '<div class="empty">Ninguna clase recibe ' + (AP_FILTRO || 'refuerzo, PT ni AL') + ' en los horarios.</div>'; return; }
 
-    // Resumen: horas por clase y tipo.
+    if (!grupos.some(function(g) { return g.id === AP_GRUPO; })) AP_GRUPO = grupos[0].id;
+    // Resumen: horas por clase y tipo (pulsar una fila muestra su horario).
     var tot = { A: 0, B: 0 }, totTipo = {};
     var res = '<div class="tablewrap ap-resumen"><table class="sb"><thead><tr><th>Curso</th>' +
       sel.map(function(k) { return '<th>' + k + '</th>'; }).join('') + (sel.length > 1 ? '<th>Total</th>' : '') + '</tr></thead><tbody>' +
       grupos.map(function(g) {
         var s = _apSuma(g.totales, sel); if (s) { tot.A += s.A; tot.B += s.B; }
         sel.forEach(function(k) { var t = g.totales[k]; if (t) { var x = totTipo[k] || (totTipo[k] = { A: 0, B: 0 }); x.A += t.A; x.B += t.B; } });
-        return '<tr><td class="sb-curso">' + _esc(g.nombre) + '</td>' + sel.map(function(k) { return '<td>' + _apTot(g.totales[k]) + '</td>'; }).join('') +
+        return '<tr class="ap-fila' + (g.id === AP_GRUPO ? ' on' : '') + '" onclick="setApGrupo(' + _jsAttr(g.id) + ')" title="Ver su horario"><td class="sb-curso">' + _esc(g.nombre) + '</td>' + sel.map(function(k) { return '<td>' + _apTot(g.totales[k]) + '</td>'; }).join('') +
           (sel.length > 1 ? '<td><b>' + _apTot(s) + '</b></td>' : '') + '</tr>';
       }).join('') +
       '<tr class="ap-total"><td>Total</td>' + sel.map(function(k) { return '<td>' + _apTot(totTipo[k]) + '</td>'; }).join('') +
       (sel.length > 1 ? '<td>' + _apTot(tot) + '</td>' : '') + '</tr></tbody></table></div>';
 
     // Rejilla semanal del curso elegido (como en Horarios individuales).
-    if (!grupos.some(function(g) { return g.id === AP_GRUPO; })) AP_GRUPO = grupos[0].id;
     var g = grupos.filter(function(x) { return x.id === AP_GRUPO; })[0];
     var filas = g.filas.filter(function(f) { return sel.indexOf(f.tipo) !== -1; });
     var dias = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
@@ -72,6 +72,7 @@
           }).join('') + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>';
-    body.innerHTML = res + det;
+    // Resumen a la izquierda y horario del curso a la derecha (se apilan si no caben).
+    body.innerHTML = '<div class="ap-layout"><div class="ap-izq">' + res + '</div><div class="ap-der">' + det + '</div></div>';
   }
 </script>

@@ -672,6 +672,12 @@
   .ap-resumen td, .ap-resumen th { text-align: center; padding: 3px 10px; }
   .ap-resumen td.sb-curso { text-align: left; }
   .ap-resumen tr.ap-total td { font-weight: 700; border-top: 2px solid var(--border-strong); background: var(--surface-3); }
+  .ap-layout { display: flex; gap: var(--s4); align-items: flex-start; flex-wrap: wrap; }
+  .ap-izq { flex: 0 0 auto; max-width: 100%; }
+  .ap-der { flex: 1 1 560px; min-width: 0; }
+  .ap-layout .ap-resumen { margin-bottom: 0; }
+  .ap-resumen tr.ap-fila { cursor: pointer; }
+  .ap-resumen tr.ap-fila.on td { background: var(--accent-weak); color: var(--accent-text); font-weight: 700; }
   .ap-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: var(--s2); }
   .ap-bar label { display: inline; margin: 0; font-weight: 600; font-size: var(--fs-sm); color: var(--muted); }
   .ap-bar select { width: auto; min-width: 180px; }
