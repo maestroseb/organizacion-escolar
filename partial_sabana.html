@@ -1,13 +1,13 @@
 <div class="page-head sb-head-row">
   <div>
-    <h2>Sábana</h2>
+    <h2>Localizaciones</h2>
     <p>Todos los docentes colocados en cada tramo, para localizarlos de un vistazo. Cada tramo muestra las aulas (con su docente) y, a la derecha, los apoyos y cargos numerados por prioridad de sustitución.</p>
   </div>
   <div class="sb-toolbar">
   <span class="sb-sem-lbl">Semana</span>
   <div class="segmented" id="sb-sem" title="Semana alterna"></div>
   <button type="button" class="secondary" onclick="sbImprimir()" title="Imprimir o guardar como PDF (apaisado)">Imprimir / PDF</button>
-  <button type="button" class="secondary" id="sb-btn-png" onclick="sbPng()" title="Descargar la sábana completa como imagen PNG">PNG</button>
+  <button type="button" class="secondary" id="sb-btn-png" onclick="sbPng()" title="Descargar Localizaciones completa como imagen PNG">PNG</button>
   </div>
 </div>
 
@@ -224,7 +224,7 @@
       html2canvas(copia, { scale: esc, backgroundColor: bg, windowWidth: w + 40 })
         .then(function(canvas) {
           var a = document.createElement('a');
-          a.download = 'sabana-semana-' + (SB_SEM || '') + '.png';
+          a.download = 'localizaciones-semana-' + (SB_SEM || '') + '.png';
           a.href = canvas.toDataURL('image/png');
           document.body.appendChild(a); a.click(); a.remove();
         })

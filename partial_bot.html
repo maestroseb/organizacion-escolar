@@ -353,7 +353,7 @@
         }).join(' · ') +
         (apg.length ? '<br>Con apoyo: ' + apg.map(function(a) { return _esc(a.docente) + ' (' + _esc(a.rol) + ')'; }).join(' · ') : '') + _botVer(g0.grupo.nombre);
     }
-    return 'No encuentro a nadie con ese nombre. Prueba con el nombre corto (el de la sábana) o escribe «ayuda».';
+    return 'No encuentro a nadie con ese nombre. Prueba con el nombre corto (el que sale en Localizaciones) o escribe «ayuda».';
   }
   function _botResto(n) { return n.replace(/ (donde|esta|estaba|estara|quien|y) /g, ' ').trim(); }
 
@@ -409,7 +409,7 @@
   // Botón «Ver en la sábana»: va a la sábana, a esa semana, y resalta la celda.
   function _botVer(txt) {
     if (!BOT.ult) return '';
-    return '<br><button type="button" class="pt-chip" onclick="botVerSabana(' + _jsAttr(BOT.ult) + ',' + _jsAttr(txt) + ')">Ver en la sábana ↗</button>';
+    return '<br><button type="button" class="pt-chip" onclick="botVerSabana(' + _jsAttr(BOT.ult) + ',' + _jsAttr(txt) + ')">Ver en Localizaciones ↗</button>';
   }
   function botVerSabana(u, txt) {
     irPestana('sabana');

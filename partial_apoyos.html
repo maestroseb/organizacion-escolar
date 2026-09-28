@@ -1,14 +1,14 @@
 <div class="page-head sb-head-row">
   <div>
     <h2>Refuerzo, PT y AL</h2>
-    <p>Por clase, los tramos en que recibe refuerzo, PT o AL: quién lo da, qué área y docente hay en el aula en ese momento, y las horas semanales.</p>
+    <p>Horas semanales de refuerzo, PT y AL por clase y, para el curso elegido, su rejilla semanal: quién entra en cada tramo y qué hay en el aula.</p>
   </div>
   <div class="segmented" id="ap-filtro"></div>
 </div>
 <div id="ap-body"><p class="hint"><span class="spinner"></span> Cargando…</p></div>
 
 <script>
-  var AP = null, AP_V = -1, AP_FILTRO = '';
+  var AP = null, AP_V = -1, AP_FILTRO = '', AP_GRUPO = '';
 
   function renderApoyos() {
     if (AP && AP_V === DATOS_VERSION) { _apPintar(); return; }
@@ -18,6 +18,7 @@
       .datosApoyos();
   }
   function setApFiltro(t) { AP_FILTRO = t; _apPintar(); }
+  function setApGrupo(id) { AP_GRUPO = id; _apPintar(); }
 
   // Minutos → "2:15 h"; si A y B difieren: "A 2:15 h · B 1:30 h".
   function _apH(m) { return Math.floor(m / 60) + ':' + ('0' + (m % 60)).slice(-2) + ' h'; }
@@ -37,34 +38,42 @@
     var grupos = AP.grupos.filter(function(g) { return g.filas.some(function(f) { return sel.indexOf(f.tipo) !== -1; }); });
     if (!grupos.length) { body.innerHTML = '<div class="empty">Ninguna clase recibe ' + (AP_FILTRO || 'refuerzo, PT ni AL') + ' en los horarios.</div>'; return; }
 
-    // Resumen: horas por clase y tipo.
+    if (!grupos.some(function(g) { return g.id === AP_GRUPO; })) AP_GRUPO = '';
+    // Resumen: horas por clase y tipo (pulsar una fila muestra su horario).
     var tot = { A: 0, B: 0 }, totTipo = {};
     var res = '<div class="tablewrap ap-resumen"><table class="sb"><thead><tr><th>Curso</th>' +
       sel.map(function(k) { return '<th>' + k + '</th>'; }).join('') + (sel.length > 1 ? '<th>Total</th>' : '') + '</tr></thead><tbody>' +
       grupos.map(function(g) {
         var s = _apSuma(g.totales, sel); if (s) { tot.A += s.A; tot.B += s.B; }
         sel.forEach(function(k) { var t = g.totales[k]; if (t) { var x = totTipo[k] || (totTipo[k] = { A: 0, B: 0 }); x.A += t.A; x.B += t.B; } });
-        return '<tr><td class="sb-curso">' + _esc(g.nombre) + '</td>' + sel.map(function(k) { return '<td>' + _apTot(g.totales[k]) + '</td>'; }).join('') +
+        return '<tr class="ap-fila' + (g.id === AP_GRUPO ? ' on' : '') + '" onclick="setApGrupo(' + _jsAttr(g.id) + ')" title="Ver su horario"><td class="sb-curso">' + _esc(g.nombre) + '</td>' + sel.map(function(k) { return '<td>' + _apTot(g.totales[k]) + '</td>'; }).join('') +
           (sel.length > 1 ? '<td><b>' + _apTot(s) + '</b></td>' : '') + '</tr>';
       }).join('') +
       '<tr class="ap-total"><td>Total</td>' + sel.map(function(k) { return '<td>' + _apTot(totTipo[k]) + '</td>'; }).join('') +
       (sel.length > 1 ? '<td>' + _apTot(tot) + '</td>' : '') + '</tr></tbody></table></div>';
 
-    // Detalle por clase.
-    var det = '<div class="ap-grid">' + grupos.map(function(g) {
-      var filas = g.filas.filter(function(f) { return sel.indexOf(f.tipo) !== -1; });
-      return '<div class="ap-card"><div class="ap-card-h"><b>' + _esc(g.nombre) + '</b><span>' + _apTot(_apSuma(g.totales, sel)) + '</span></div>' +
-        '<table class="sb ap-t"><thead><tr><th>Día · tramo</th><th>Apoyo</th><th>En clase</th></tr></thead><tbody>' +
-        filas.map(function(f) {
-          var clase = f.clase.length ? f.clase.map(function(c) {
-            return '<span class="sb-pill" style="' + _sbPill(c.color) + '">' + _esc(c.area || '—') + '</span> ' + _esc(c.docente);
-          }).join('<br>') : '<span class="sb-tutor">—</span>';
-          return '<tr><td class="ap-when"><b>' + _esc(f.diaLargo.slice(0, 3)) + ' T' + _esc(f.tramo) + '</b> <span class="hd-horas" style="display:inline">' + _esc(f.horas) + '</span>' +
-            (f.semana ? ' <span class="sb-semb" style="writing-mode:horizontal-tb;transform:none;margin:0">' + _esc(f.semana) + '</span>' : '') + '</td>' +
-            '<td><span class="sb-pill" style="' + _sbPill(f.color) + '">' + _esc(f.rol) + '</span> ' + _esc(f.apoyo) + '</td>' +
-            '<td>' + clase + '</td></tr>';
-        }).join('') + '</tbody></table></div>';
-    }).join('') + '</div>';
-    body.innerHTML = res + det;
+    // Rejilla semanal del curso elegido (como en Horarios individuales).
+    var g = grupos.filter(function(x) { return x.id === AP_GRUPO; })[0];
+    var filas = g ? g.filas.filter(function(f) { return sel.indexOf(f.tipo) !== -1; }) : [];
+    var dias = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
+    var det = '<div class="ap-bar"><label for="ap-grupo">Curso</label><select id="ap-grupo" onchange="setApGrupo(this.value)">' +
+      '<option value="">— elige curso —</option>' + grupos.map(function(x) { return '<option value="' + _esc(x.id) + '"' + (x.id === AP_GRUPO ? ' selected' : '') + '>' + _esc(x.nombre) + '</option>'; }).join('') +
+      '</select>' + (g ? '<span class="ap-bar-tot">' + _esc(g.nombre) + ': ' + _apTot(_apSuma(g.totales, sel)) + '</span>' : '') + '</div>' +
+      (!g ? '<div class="empty">Elige un curso para ver su horario de refuerzo, PT y AL.</div>' :
+      '<div class="hd-wrap"><table class="hd ap-rej"><thead><tr><th class="hd-th-tramo">Tramo</th>' + dias.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      (AP.tramos || []).map(function(t) {
+        if (t.es_recreo) return '<tr class="ap-rec"><th class="hd-th-tramo">Recreo<span class="hd-horas">' + _esc(t.horas) + '</span></th><td colspan="5"></td></tr>';
+        return '<tr><th class="hd-th-tramo">T' + _esc(t.orden) + '<span class="hd-horas">' + _esc(t.horas) + '</span></th>' + dias.map(function(d) {
+          var fs = filas.filter(function(f) { return f.dia === d.k && f.tramo_id === t.id; });
+          return '<td>' + fs.map(function(f) {
+            var clase = f.clase.map(function(c) { return _esc((c.area ? c.area + ' · ' : '') + c.docente); }).join(' / ');
+            return '<div class="ap-ent"><span class="sb-pill" style="' + _sbPill(f.color) + '">' + _esc(f.rol) + '</span> <b>' + _esc(f.apoyo) + '</b>' +
+              (f.semana ? ' <span class="ap-sem">' + _esc(f.semana) + '</span>' : '') +
+              (clase ? '<div class="ap-clase">En clase: ' + clase + '</div>' : '') + '</div>';
+          }).join('') + '</td>';
+        }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>');
+    // Resumen a la izquierda y horario del curso a la derecha (se apilan si no caben).
+    body.innerHTML = '<div class="ap-layout"><div class="ap-izq">' + res + '</div><div class="ap-der">' + det + '</div></div>';
   }
 </script>

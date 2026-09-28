@@ -125,7 +125,7 @@
 
     // Pestañas superiores del espacio de trabajo (uso diario).
     var TABS = [
-      { key: 'sabana',         label: 'Sábana' },
+      { key: 'sabana',         label: 'Localizaciones' },
       { key: 'ahora',          label: 'Ahora' },
       { key: 'sustituciones',  label: 'Sustituciones' },
       { key: 'horario',        label: 'Horarios individuales' },
@@ -170,6 +170,7 @@
     else setTimeout(arrancar, 0);
 
     function arrancar() {
+      _cabecerasCompactas();
       // Ajustes generales dentro de «Centro y ajustes».
       var src = document.getElementById('ajustes-src'), dst = document.getElementById('centro-ajustes');
       if (src && dst) { while (src.firstChild) dst.appendChild(src.firstChild); src.remove(); }
@@ -593,6 +594,8 @@
     // Sin foto todavía: solo cuenta como cambio si ya hay datos (no al abrir la vista).
     function _sucio(g) {
       var cur = _estadoDe(g), snap = _SNAP[g.clave];
+      // null = no hay nada abierto (p. ej. «— elige docente —»): nada que guardar.
+      if (cur === 'null') return false;
       return snap === undefined ? !(cur === 'null' || cur === '' || cur === '[]') : snap !== cur;
     }
     function _snap(clave) {
@@ -765,6 +768,28 @@
       });
       aviso('Pegadas ' + n + ' celdas');
     });
+
+    // Cabecera de cada vista: el título ya está en la pestaña, así que se quita
+    // y la explicación pasa a un icono «i» desplegable (gana espacio vertical).
+    function _cabecerasCompactas() {
+      document.querySelectorAll('.view > .page-head:first-child').forEach(function(ph) {
+        var h = ph.querySelector('h2'), p = ph.querySelector('p');
+        if (h) h.remove();
+        if (!p) return;
+        var w = document.createElement('span');
+        w.className = 'info-wrap ph-info';
+        w.innerHTML = '<button type="button" class="info-btn" aria-label="Qué es esta sección" title="Qué es esta sección" onclick="toggleInfo(this, event)">i</button><span class="info-pop" hidden></span>';
+        w.lastChild.innerHTML = p.innerHTML;
+        // Si le sigue una barra de herramientas, el icono va al principio de
+        // ella y la cabecera desaparece; si no, queda en una línea mínima.
+        var sig = ph.nextElementSibling;
+        if (!ph.querySelector('.segmented, .sb-toolbar, button, select') && sig && /toolbar/.test(sig.className)) {
+          sig.insertBefore(w, sig.firstChild); ph.remove(); return;
+        }
+        p.replaceWith(w);
+        ph.classList.add('ph-compacta');
+      });
+    }
 
     // Icono «i» con explicación desplegable (no ocupa sitio en la maquetación).
     function toggleInfo(btn, ev) {

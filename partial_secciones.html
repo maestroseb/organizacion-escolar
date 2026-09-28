@@ -191,7 +191,7 @@
 <section class="view" id="view-docentes">
   <div class="page-head">
     <h2>Docentes</h2>
-    <p>El claustro. El <strong>nombre corto</strong> es el que aparece en sábanas, sustituciones y vistas; debe ser único.</p>
+    <p>El claustro. El <strong>nombre corto</strong> es el que aparece en Localizaciones, Sustituciones y demás vistas; debe ser único. Solo puede abrir la app quien tenga aquí su <strong>email</strong> (o el de su sustituto/a) y esté activo.</p>
   </div>
   <div class="doc-tabla">
   <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
@@ -199,7 +199,7 @@
     <table class="data fit">
       <thead><tr>
         <th class="col-num" style="width:32px">#</th><th style="width:120px">Nombre corto *</th><th style="width:210px">Nombre completo</th>
-        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th style="width:230px" title="Pulsa + si hay una baja: su nombre sustituye al del titular en la sábana y las vistas, y su email hereda el acceso a Sustituciones. Pulsa − cuando vuelva el titular.">Sustituto/a</th><th class="col-center" style="width:52px">Activo</th>
+        <th style="width:160px">Puesto</th><th style="width:210px">Email</th><th style="width:230px" title="Pulsa + si hay una baja: su nombre sustituye al del titular en todas las vistas, y su email hereda el acceso a Sustituciones. Pulsa − cuando vuelva el titular.">Sustituto/a</th><th class="col-center" style="width:52px">Activo</th>
         <th class="col-center" style="width:70px" title="Permiso de Edición (Equipo Directivo): ve Configuración y puede guardar cambios (sustituciones, horarios, recreos…). Sin él, solo puede ver. Requiere email.">Edición</th>
         <th class="col-center" style="width:60px" title="Jornada parcial (no viene todos los días): Revisión no avisa de horario incompleto">Parcial</th><th class="col-acc"></th>
       </tr></thead>
@@ -230,7 +230,7 @@
 <section class="view" id="view-areas">
   <div class="page-head">
     <h2>Áreas y cargos</h2>
-    <p>Las materias/áreas que se imparten y los cargos/roles del centro, con sus colores (que usan la sábana y las vistas).</p>
+    <p>Las materias/áreas que se imparten y los cargos/roles del centro, con sus colores (que usan Localizaciones y las demás vistas).</p>
   </div>
   <div class="two-col">
     <div class="col-sec">
@@ -256,7 +256,7 @@
       <div class="col-head">
         <h3 class="info-wrap">Cargos y roles
           <button type="button" class="info-btn" aria-label="Información" onclick="toggleInfo(this, event)">i</button>
-          <span class="info-pop" hidden>El <strong>orden</strong> (arrastra <b>⠿</b>) marca la prioridad de sustitución (también de PT/AL: ponlos al final si solo deben entrar por fuerza mayor) y numera las localizaciones de la sábana (#01, #02…).</span>
+          <span class="info-pop" hidden>El <strong>orden</strong> (arrastra <b>⠿</b>) marca la prioridad de sustitución (también de PT/AL: ponlos al final si solo deben entrar por fuerza mayor) y numera las localizaciones (#01, #02…).</span>
         </h3>
         <div class="toolbar">
           <button class="secondary" onclick="cargarPlantillaRoles()">Plantilla</button>
@@ -266,7 +266,7 @@
       <div class="tablewrap">
         <table class="data">
           <thead><tr>
-            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones de la sábana">#</th><th style="width:56px" class="col-center">Color</th><th style="width:150px">Nombre * <span class="hint">(horas)</span></th><th>Nombre largo</th><th style="width:110px" title="Apoyo: entra a sustituir antes. PT/AL: clase a 1-2 alumnos (solo sustituye por fuerza mayor). Cargo: dirección, coordinaciones…">Tipo</th><th class="col-acc"></th>
+            <th class="col-num" title="Arrastra ⠿ para ordenar: el orden marca la prioridad de sustitución y numera las localizaciones (#01, #02…)">#</th><th style="width:56px" class="col-center">Color</th><th style="width:150px">Nombre * <span class="hint">(horas)</span></th><th>Nombre largo</th><th style="width:110px" title="Apoyo: entra a sustituir antes. PT/AL: clase a 1-2 alumnos (solo sustituye por fuerza mayor). Cargo: dirección, coordinaciones…">Tipo</th><th class="col-acc"></th>
           </tr></thead>
           <tbody id="roles-body" data-anadir="anadirRol"></tbody>
         </table>
@@ -521,7 +521,7 @@
     var abierta = String(d.sustituto || '').trim() || String(d.sustituto_email || '').trim() || _docSustAbre.indexOf(d) !== -1;
     if (!abierta) return '<button type="button" class="btn-icon doc-sust-btn" title="Añadir sustituto/a (baja)" onclick="docSustituto(' + i + ', true)">+</button>';
     return '<div class="doc-sust"><button type="button" class="btn-icon doc-sust-btn" title="Quitar sustituto/a (vuelve el titular)" onclick="docSustituto(' + i + ', false)">−</button>' +
-      '<input type="text" value="' + _esc(d.sustituto) + '" placeholder="Nombre" title="Aparece en la sábana y las vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)">' +
+      '<input type="text" value="' + _esc(d.sustituto) + '" placeholder="Nombre" title="Aparece en todas las vistas en lugar del titular" oninput="actualizarDocente(' + i + ',\'sustituto\',this.value)">' +
       '<input type="email" value="' + _esc(d.sustituto_email) + '" placeholder="Email" title="Hereda el permiso de Edición del titular" oninput="actualizarDocente(' + i + ',\'sustituto_email\',this.value)"></div>';
   }
   function docSustituto(i, abrir) {
