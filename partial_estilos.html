@@ -672,6 +672,16 @@
   .ap-resumen td, .ap-resumen th { text-align: center; padding: 3px 10px; }
   .ap-resumen td.sb-curso { text-align: left; }
   .ap-resumen tr.ap-total td { font-weight: 700; border-top: 2px solid var(--border-strong); background: var(--surface-3); }
+  .ap-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: var(--s2); }
+  .ap-bar label { display: inline; margin: 0; font-weight: 600; font-size: var(--fs-sm); color: var(--muted); }
+  .ap-bar select { width: auto; min-width: 180px; }
+  .ap-bar-tot { font-family: var(--font-cond); font-weight: 700; color: var(--muted); }
+  table.hd.ap-rej td { vertical-align: top; }
+  .ap-ent { padding: 2px 0; }
+  .ap-ent + .ap-ent { border-top: 1px dashed var(--border); margin-top: 2px; padding-top: 4px; }
+  .ap-clase { font-size: var(--fs-xs); color: var(--muted); margin-top: 1px; }
+  .ap-sem { font-size: 10px; font-weight: 800; background: var(--surface-3); border-radius: 3px; padding: 0 4px; }
+  table.hd.ap-rej tr.ap-rec > * { background: var(--surface-2); color: var(--muted); }
   .ap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 10px; }
   .ap-card { background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
   .ap-card-h { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; background: var(--band); color: #fff; font-size: var(--fs-md); }

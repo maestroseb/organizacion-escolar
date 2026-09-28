@@ -45,7 +45,7 @@ function datosApoyos() {
       });
       const g = porGrupo[gid] || (porGrupo[gid] = { filas: [], totales: {} });
       g.filas.push({
-        dia: dia, diaLargo: _diaLargo(dia), tramo: t.orden, horas: _hhmm(t.hora_inicio) + '–' + _hhmm(t.hora_fin),
+        dia: dia, diaLargo: _diaLargo(dia), tramo: t.orden, tramo_id: t.id, horas: _hhmm(t.hora_inicio) + '–' + _hhmm(t.hora_fin),
         _ord: (ordenDia[dia] || 0) * 100 + (t.orden || 0),
         tipo: tipo, rol: rol ? rol.nombre : tipo, color: (rol && rol.color) || _colorPorNombreRol(rol ? rol.nombre : tipo),
         apoyo: nombreDoc(o.docente_id), semana: sem, clase: clase
@@ -63,5 +63,8 @@ function datosApoyos() {
     x.filas.forEach(function(f) { delete f._ord; });
     return { id: g.id, nombre: g.nombre_corto, filas: x.filas, totales: x.totales };
   });
-  return { tipos: ['Refuerzo', 'PT', 'AL'], grupos: grupos };
+  const tramos = ctx.tramos.map(function(t) {
+    return { id: t.id, orden: t.orden, es_recreo: !!t.es_recreo, horas: _hhmm(t.hora_inicio) + '–' + _hhmm(t.hora_fin) };
+  });
+  return { tipos: ['Refuerzo', 'PT', 'AL'], grupos: grupos, tramos: tramos };
 }

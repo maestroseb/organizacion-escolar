@@ -593,6 +593,8 @@
     // Sin foto todavía: solo cuenta como cambio si ya hay datos (no al abrir la vista).
     function _sucio(g) {
       var cur = _estadoDe(g), snap = _SNAP[g.clave];
+      // null = no hay nada abierto (p. ej. «— elige docente —»): nada que guardar.
+      if (cur === 'null') return false;
       return snap === undefined ? !(cur === 'null' || cur === '' || cur === '[]') : snap !== cur;
     }
     function _snap(clave) {
