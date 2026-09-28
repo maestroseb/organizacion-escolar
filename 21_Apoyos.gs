@@ -61,7 +61,15 @@ function datosApoyos() {
     const x = porGrupo[g.id];
     x.filas.sort(function(a, b) { return a._ord - b._ord; });
     x.filas.forEach(function(f) { delete f._ord; });
-    return { id: g.id, nombre: g.nombre_corto, filas: x.filas, totales: x.totales };
+    // Horario de clase completo del grupo (para mostrar las áreas en la rejilla).
+    const horario = ctx.ocupaciones.filter(function(c) {
+      return c.tipo === 'grupo' && _csvIds(c.grupo_id).indexOf(g.id) !== -1 && tramoById[c.tramo_id];
+    }).map(function(c) {
+      const m = ctx.materiaById[c.materia_id];
+      return { dia: _diaCanon(c.dia), tramo_id: c.tramo_id, docente: nombreDoc(c.docente_id),
+               area: m ? (m.abreviatura || m.nombre) : '', color: m ? (m.color || '') : '', semana: String(c.semana || '').trim().toUpperCase() };
+    });
+    return { id: g.id, nombre: g.nombre_corto, filas: x.filas, totales: x.totales, horario: horario };
   });
   const tramos = ctx.tramos.map(function(t) {
     return { id: t.id, orden: t.orden, es_recreo: !!t.es_recreo, horas: _hhmm(t.hora_inicio) + '–' + _hhmm(t.hora_fin) };

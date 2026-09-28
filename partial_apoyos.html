@@ -8,7 +8,7 @@
 <div id="ap-body"><p class="hint"><span class="spinner"></span> Cargando…</p></div>
 
 <script>
-  var AP = null, AP_V = -1, AP_FILTRO = '', AP_GRUPO = '';
+  var AP = null, AP_V = -1, AP_FILTRO = '', AP_GRUPO = '', AP_AREAS = false;
 
   function renderApoyos() {
     if (AP && AP_V === DATOS_VERSION) { _apPintar(); return; }
@@ -19,6 +19,15 @@
   }
   function setApFiltro(t) { AP_FILTRO = t; _apPintar(); }
   function setApGrupo(id) { AP_GRUPO = id; _apPintar(); }
+  function setApAreas(on) { AP_AREAS = !!on; _apPintar(); }
+  // Clase del grupo en un hueco, sin repetir (varias sesiones = varias pastillas).
+  function _apClase(g, dia, tramoId) {
+    var vistos = {};
+    return (g.horario || []).filter(function(c) {
+      if (c.dia !== dia || c.tramo_id !== tramoId) return false;
+      var k = c.area + '|' + c.docente + '|' + c.semana; if (vistos[k]) return false; vistos[k] = 1; return true;
+    });
+  }
 
   // Minutos → "2:15 h"; si A y B difieren: "A 2:15 h · B 1:30 h".
   function _apH(m) { return Math.floor(m / 60) + ':' + ('0' + (m % 60)).slice(-2) + ' h'; }
@@ -58,18 +67,25 @@
     var dias = [{k:'L',n:'Lunes'},{k:'M',n:'Martes'},{k:'X',n:'Miércoles'},{k:'J',n:'Jueves'},{k:'V',n:'Viernes'}];
     var det = '<div class="ap-bar"><label for="ap-grupo">Curso</label><select id="ap-grupo" onchange="setApGrupo(this.value)">' +
       '<option value="">— elige curso —</option>' + grupos.map(function(x) { return '<option value="' + _esc(x.id) + '"' + (x.id === AP_GRUPO ? ' selected' : '') + '>' + _esc(x.nombre) + '</option>'; }).join('') +
-      '</select>' + (g ? '<span class="ap-bar-tot">' + _esc(g.nombre) + ': ' + _apTot(_apSuma(g.totales, sel)) + '</span>' : '') + '</div>' +
+      '</select>' + (g ? '<span class="ap-bar-tot">' + _esc(g.nombre) + ': ' + _apTot(_apSuma(g.totales, sel)) + '</span>' +
+        '<label class="ap-chk"><input type="checkbox"' + (AP_AREAS ? ' checked' : '') + ' onchange="setApAreas(this.checked)"> Mostrar las áreas de la clase</label>' : '') + '</div>' +
       (!g ? '<div class="empty">Elige un curso para ver su horario de refuerzo, PT y AL.</div>' :
       '<div class="hd-wrap"><table class="hd ap-rej"><thead><tr><th class="hd-th-tramo">Tramo</th>' + dias.map(function(d) { return '<th>' + d.n + '</th>'; }).join('') + '</tr></thead><tbody>' +
       (AP.tramos || []).map(function(t) {
         if (t.es_recreo) return '<tr class="ap-rec"><th class="hd-th-tramo">Recreo<span class="hd-horas">' + _esc(t.horas) + '</span></th><td colspan="5"></td></tr>';
         return '<tr><th class="hd-th-tramo">T' + _esc(t.orden) + '<span class="hd-horas">' + _esc(t.horas) + '</span></th>' + dias.map(function(d) {
           var fs = filas.filter(function(f) { return f.dia === d.k && f.tramo_id === t.id; });
-          return '<td>' + fs.map(function(f) {
-            var clase = f.clase.map(function(c) { return _esc((c.area ? c.area + ' · ' : '') + c.docente); }).join(' / ');
+          // La clase sale una sola vez por celda: siempre que haya apoyo y, con
+          // «Mostrar las áreas», en todas (y la celda toma el color del área).
+          var cl = (fs.length || AP_AREAS) ? _apClase(g, d.k, t.id) : [];
+          var fondo = AP_AREAS && cl.length && _sbColor(cl[0].color) ? ' style="background:color-mix(in srgb, ' + _sbColor(cl[0].color) + ' 16%, var(--surface))"' : '';
+          var clase = cl.length ? '<div class="ap-clase">' + cl.map(function(c) {
+            return '<span class="ap-area"><span class="sb-pill" style="' + _sbPill(c.color) + '">' + _esc(c.area || '—') + '</span> ' + _esc(c.docente) +
+              (c.semana ? ' <span class="ap-sem">' + _esc(c.semana) + '</span>' : '') + '</span>';
+          }).join('') + '</div>' : '';
+          return '<td' + fondo + '>' + clase + fs.map(function(f) {
             return '<div class="ap-ent"><span class="sb-pill" style="' + _sbPill(f.color) + '">' + _esc(f.rol) + '</span> <b>' + _esc(f.apoyo) + '</b>' +
-              (f.semana ? ' <span class="ap-sem">' + _esc(f.semana) + '</span>' : '') +
-              (clase ? '<div class="ap-clase">En clase: ' + clase + '</div>' : '') + '</div>';
+              (f.semana ? ' <span class="ap-sem">' + _esc(f.semana) + '</span>' : '') + '</div>';
           }).join('') + '</td>';
         }).join('') + '</tr>';
       }).join('') + '</tbody></table></div>');

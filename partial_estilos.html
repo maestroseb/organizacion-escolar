@@ -691,7 +691,11 @@
   table.hd.ap-rej td { vertical-align: top; }
   .ap-ent { padding: 2px 0; }
   .ap-ent + .ap-ent { border-top: 1px dashed var(--border); margin-top: 2px; padding-top: 4px; }
-  .ap-clase { font-size: var(--fs-xs); color: var(--muted); margin-top: 1px; }
+  .ap-clase { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); color: var(--muted); margin-bottom: 3px; }
+  .ap-clase + .ap-ent { border-top: 1px dashed var(--border); padding-top: 4px; }
+  .ap-area .sb-pill { font-size: var(--fs-xs); line-height: 15px; }
+  .ap-chk { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); cursor: pointer; }
+  .ap-chk input { width: auto; margin: 0; }
   .ap-sem { font-size: 10px; font-weight: 800; background: var(--surface-3); border-radius: 3px; padding: 0 4px; }
   table.hd.ap-rej tr.ap-rec > * { background: var(--surface-2); color: var(--muted); }
   .ap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr)); gap: 10px; }
