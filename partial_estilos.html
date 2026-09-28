@@ -134,7 +134,6 @@
   .tab-config.active { color: var(--accent-text); background: var(--accent-weak); }
   /* Configuración solo con icono cuando falta sitio para las pestañas. */
   @media (max-width: 1400px) { .tab-config span { display: none; } }
-  @media (max-width: 1200px) and (min-width: 721px) { .tabs .tab { padding: 0 32px 0 14px; margin-right: -22px; font-size: var(--fs-sm); } }
   /* Profesorado sin permiso de Edición: solo ve. */
   body.solo-lectura .solo-edicion, body.solo-lectura .rc-x, body.solo-lectura .rc-sem { display: none !important; }
   body.solo-lectura .rc-chip, body.solo-lectura .rc-pchip { cursor: default; }
@@ -162,7 +161,7 @@
   .tab {
     --k: 0; --h: 240; position: relative; appearance: none; border: none; background: none; cursor: pointer;
     font: inherit; font-size: var(--fs); color: var(--muted); font-weight: 550;
-    padding: 0 42px 0 22px; margin-right: -28px; min-width: 0; min-height: 42px; white-space: nowrap;
+    padding: 0 50px 0 30px; margin-right: -30px; min-width: 150px; min-height: 42px; white-space: nowrap;
     display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; transition: color .15s;
   }
   .tab::before {
