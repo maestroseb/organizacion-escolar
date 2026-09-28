@@ -132,7 +132,9 @@
   .tab-config { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
   .tab-config[hidden] { display: none; }
   .tab-config.active { color: var(--accent-text); background: var(--accent-weak); }
-  @media (max-width: 900px) { .tab-config span { display: none; } }
+  /* Configuración solo con icono cuando falta sitio para las pestañas. */
+  @media (max-width: 1400px) { .tab-config span { display: none; } }
+  @media (max-width: 1200px) and (min-width: 721px) { .tabs .tab { padding: 0 32px 0 14px; margin-right: -22px; font-size: var(--fs-sm); } }
   /* Profesorado sin permiso de Edición: solo ve. */
   body.solo-lectura .solo-edicion, body.solo-lectura .rc-x, body.solo-lectura .rc-sem { display: none !important; }
   body.solo-lectura .rc-chip, body.solo-lectura .rc-pchip { cursor: default; }
@@ -160,7 +162,7 @@
   .tab {
     --k: 0; --h: 240; position: relative; appearance: none; border: none; background: none; cursor: pointer;
     font: inherit; font-size: var(--fs); color: var(--muted); font-weight: 550;
-    padding: 0 50px 0 30px; margin-right: -30px; min-width: 150px; min-height: 42px; white-space: nowrap;
+    padding: 0 42px 0 22px; margin-right: -28px; min-width: 0; min-height: 42px; white-space: nowrap;
     display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; gap: 6px; transition: color .15s;
   }
   .tab::before {
@@ -225,7 +227,7 @@
   .page-head p { color: var(--muted); margin: 4px 0 0; font-size: var(--fs); max-width: 90ch; }
   /* Cabecera compacta (sin título; explicación tras el icono «i»). */
   .page-head.ph-compacta { margin-bottom: var(--s2); }
-  .page-head.ph-compacta.sb-head-row { align-items: center; margin-bottom: var(--s3); }
+  .page-head.ph-compacta.sb-head-row { align-items: center; justify-content: flex-start; column-gap: 12px; margin-bottom: var(--s3); }
   .ph-info .info-pop { width: min(460px, calc(100vw - 40px)); font-size: var(--fs); }
   .ph-info .info-btn { width: 22px; height: 22px; font-size: 13px; line-height: 20px; }
 
