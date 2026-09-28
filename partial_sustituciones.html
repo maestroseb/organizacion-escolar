@@ -142,7 +142,12 @@
   // Opciones: apoyos y PT/AL del tramo (por la prioridad de Cargos y roles),
   // quien queda libre porque su grupo está con un ausente (excursión), el
   // resto con clase y, al final, quien no está en el centro. Cada opción dice
-  // qué está haciendo (también la elegida: su puesto no debe desaparecer).
+  // qué está haciendo. La elegida se ve solo con el nombre y, al abrir el
+  // desplegable, recupera su puesto (_suSelAbrir / _suSelCerrar).
+  function _suSelAbrir(sel) { Array.prototype.forEach.call(sel.options, function(o) { if (o.dataset.full) o.textContent = o.dataset.full; }); }
+  function _suSelCerrar(sel) {
+    Array.prototype.forEach.call(sel.options, function(o) { if (o.dataset.full) o.textContent = o.selected ? o.dataset.corto : o.dataset.full; });
+  }
   function _suSelect(aus, tramo) {
     var k = aus + '|' + tramo, val = SU_ASIG[k] || '', c = SU.candidatos[tramo] || { apoyos: [], libres: [] };
     // Solo lectura: el nombre de quien cubre, sin desplegable.
@@ -153,7 +158,8 @@
       vistos[id] = true;
       var dis = (usados[id] || SU_AUS.indexOf(id) !== -1) && id !== val;
       var txt = _suNombre(id) + (detalle ? ' · ' + detalle : '') + (usados[id] && id !== val ? ' (ya cubre)' : '');
-      return '<option value="' + _esc(id) + '"' + (id === val ? ' selected' : '') + (dis ? ' disabled' : '') + '>' + _esc(txt) + '</option>';
+      return '<option value="' + _esc(id) + '" data-full="' + _esc(txt) + '" data-corto="' + _esc(_suNombre(id)) + '"' + (id === val ? ' selected' : '') + (dis ? ' disabled' : '') + '>' +
+        _esc(id === val ? _suNombre(id) : txt) + '</option>';
     };
     // Sustituciones que ha hecho en los últimos 30 días (para repartir).
     var carga = function(id) { return ' (' + ((SU._byId[id] || {}).carga || 0) + ' sust.)'; };
@@ -168,7 +174,7 @@
       .map(function(d) { return opt(d.id, _suHace(d.id, tramo)); }).join('');
     var g4 = SU.docentes.filter(function(d) { return disp(d.id) && fuera[d.id]; })
       .map(function(d) { return opt(d.id, ''); }).join('');
-    return '<select class="' + (val ? 'ok' : 'pend') + '" onchange="suAsignar(' + _jsAttr(k) + ', this.value)">' +
+    return '<select class="' + (val ? 'ok' : 'pend') + '" onmousedown="_suSelAbrir(this)" onfocus="_suSelAbrir(this)" onblur="_suSelCerrar(this)" onchange="_suSelCerrar(this); suAsignar(' + _jsAttr(k) + ', this.value)">' +
       '<option value="">— sin cubrir —</option>' +
       (g1 ? '<optgroup label="Apoyos (prioridad)">' + g1 + '</optgroup>' : '') +
       (gLib ? '<optgroup label="Su grupo está con un ausente (¿excursión?)">' + gLib + '</optgroup>' : '') +
