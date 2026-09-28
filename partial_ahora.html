@@ -90,10 +90,11 @@
         '<span class="ah-reloj" id="ah-reloj">' + reloj + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
-    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
-    else html += '<div class="sb-cols ah-cols" style="' + _ahAnchos(t, cont.clientWidth - 2) + '">' +
+    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + _ahZonas(t.zonas || []);
+    else { var an = _ahAnchos(t, cont.clientWidth - 2);
+      html += '<div class="sb-cols ah-cols' + (an.apilar ? ' ah-apilar' : '') + '" style="' + an.estilo + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
-      '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>';
+      '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>'; }
     html += '</div>';
     // Sin cambios (salvo el reloj, que va aparte): no se toca el DOM, sin parpadeo.
     var cmp = html.split(reloj).join('');
@@ -103,7 +104,18 @@
     // La tarjeta mide lo que su contenido (cabecera o columnas, lo mayor); se
     // fija ese ancho y entonces las tablas se estiran hasta los bordes.
     var card = cont.querySelector('.ah-card');
-    if (card && card.querySelector('.ah-cols')) { card.style.width = card.offsetWidth + 'px'; card.classList.add('ah-fill'); }
+    // Apiladas (móvil): a todo el ancho.
+    // Recreo: mismo ancho que la tarjeta de un tramo normal (el más cercano).
+    if (card && tr.es_recreo) {
+      var ref = null;
+      for (var dd = 1; dd < AH.tramos.length && !ref; dd++) [AH_IDX - dd, AH_IDX + dd].forEach(function(j) { var x = AH.tramos[j]; if (!ref && x && !x.tramo.es_recreo) ref = x; });
+      if (ref) {
+        var an = _ahAnchos(ref, cont.clientWidth - 2), px = 2;
+        an.estilo.replace(/--sb-(cw|docw|ocw|lw|dw2|ow2):([\d.]+)px/g, function(_, k, n) { px += +n; });
+        if (an.apilar) card.style.width = '100%'; else card.style.minWidth = Math.min(px, cont.clientWidth) + 'px';
+      }
+    }
+    if (card && card.querySelector('.ah-cols')) { var ap = !!card.querySelector('.ah-apilar'); card.style.width = ap ? '100%' : card.offsetWidth + 'px'; card.classList.add('ah-fill'); card.classList.toggle('ah-card-ap', ap); }
   }
   // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
   function _ahDescanso(cont, tipo) {
@@ -263,19 +275,38 @@
     requestAnimationFrame(frame);
   }
 
-  // Anchos de columna a 14px; si no caben las dos columnas (móvil), se reduce
-  // la letra para que quepan lado a lado a todo el ancho.
+  // Zonas del recreo: una por fila, cada una con su color suave.
+  function _ahZonas(zonas) {
+    if (!zonas.length) return '<div class="ah-zonas"><div class="ah-zona ah-zona-vacia">Sin turnos de vigilancia</div></div>';
+    var tonos = [200, 150, 35, 330, 265, 175, 15, 95];
+    return '<div class="ah-zonas">' + zonas.map(function(z, i) {
+      return '<div class="ah-zona" style="--zh:' + tonos[i % tonos.length] + '"><span class="ah-zona-n">' + _esc(z.zona) + '</span>' +
+        '<span class="ah-zona-d">' + (z.docentes.length ? z.docentes.map(_esc).join(' · ') : '—') + '</span></div>';
+    }).join('') + '</div>';
+  }
+
+  // Anchos de columna a 14px. Si las dos columnas no caben lado a lado
+  // (móvil), se apilan: cursos arriba y cargos abajo con las MISMAS anchuras
+  // de columna, y solo si ni así cabe se reduce algo la letra.
   function _ahAnchos(t, disp) {
-    var suma = function(px) {
+    var vars = function(px) {
       var v = {}; _sbAnchosDe([t], px).replace(/--([\w-]+):([\d.]+)px/g, function(_, k, n) { v[k] = +n; });
-      return v['sb-cw'] + v['sb-docw'] + v['sb-ocw'] + v['sb-lw'] + v['sb-dw2'] + v['sb-ow2'] + 1;
+      return v;
     };
-    var px = 14, w14 = suma(14);
-    if (disp > 0 && w14 > disp) {
-      var w7 = suma(7), a = (w14 - w7) / 7, b = w14 - a * 14;   // ancho ≈ a·px + b
-      px = Math.max(7, Math.floor(((disp - b) / a) * 4) / 4);
+    var v = vars(14);
+    var doble = v['sb-cw'] + v['sb-docw'] + v['sb-ocw'] + v['sb-lw'] + v['sb-dw2'] + v['sb-ow2'] + 1;
+    if (!(disp > 0) || doble <= disp) return { estilo: _sbAnchosDe([t], 14) + '--ah-fs:14px;', apilar: false };
+    var uni = function(v) { return [Math.max(v['sb-cw'], v['sb-lw']), Math.max(v['sb-docw'], v['sb-dw2']), Math.max(v['sb-ocw'], v['sb-ow2'])]; };
+    var ancho = function(u) { return u[0] + u[1] + u[2] + 1; };
+    var px = 14, u = uni(v), w14 = ancho(u);
+    if (w14 > disp) {
+      var w7 = ancho(uni(vars(7))), a = (w14 - w7) / 7, b = w14 - a * 14;   // ancho ≈ a·px + b
+      px = Math.max(9, Math.floor(((disp - b) / a) * 4) / 4);
+      u = uni(vars(px));
     }
-    return _sbAnchosDe([t], px) + '--ah-fs:' + px + 'px;';
+    var est = '--sb-cw:' + u[0] + 'px;--sb-docw:' + u[1] + 'px;--sb-ocw:' + u[2] + 'px;' +
+              '--sb-lw:' + u[0] + 'px;--sb-dw2:' + u[1] + 'px;--sb-ow2:' + u[2] + 'px;--ah-fs:' + px + 'px;';
+    return { estilo: est, apilar: true };
   }
   // Al girar el móvil o cambiar el ancho, se reajusta.
   window.addEventListener('resize', function() {

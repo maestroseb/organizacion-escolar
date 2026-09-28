@@ -558,10 +558,20 @@
   .ah-desc-s { color: var(--muted); margin-top: var(--s1); }
   .ah-aus { font-size: var(--fs-sm); padding: 4px 12px; background: var(--warn-weak, #fff4e0); color: var(--text); border-bottom: 1px solid var(--border); }
   /* Las columnas ocupan todo el ancho de la tarjeta (alineadas con la cabecera)
-     y nunca se apilan: en móvil se reduce la letra (--ah-fs) para que quepan. */
+     lado a lado; si no caben (móvil), se apilan (.ah-apilar). */
   .ah-cols { overflow-x: auto; flex-direction: row !important; }
   .ah-cols .sb-pane { flex: 1 1 auto; }
   .ah-cols .sb-pane + .sb-pane { border-left: 1px solid var(--border-strong) !important; border-top: none !important; }
+  /* Móvil: una columna; cursos arriba y cargos abajo con las mismas anchuras. */
+  .ah-cols.ah-apilar { flex-direction: column !important; }
+  .ah-cols.ah-apilar .sb-pane + .sb-pane { border-left: none !important; border-top: none !important; }
+  /* Apiladas: dos módulos separados (cabecera + cursos arriba, cargos abajo), cada uno redondeado. */
+  .ah-card.ah-card-ap { background: none; border: none; box-shadow: none; overflow: visible; }
+  .ah-card-ap .ah-head { border-radius: var(--radius) var(--radius) 0 0; }
+  .ah-card-ap .ah-cols { overflow: visible; }
+  .ah-card-ap .sb-pane { background: var(--surface); border: 1px solid var(--border-strong); box-shadow: var(--shadow-sm); overflow: hidden; }
+  .ah-card-ap .sb-pane:first-child { border-top: none; border-radius: 0 0 var(--radius) var(--radius); }
+  .ah-card-ap .sb-pane + .sb-pane { border: 1px solid var(--border-strong) !important; border-radius: var(--radius); margin-top: 14px; }
   .ah-cols table.sb { font-size: var(--ah-fs, 14px); }
   .ah-fill .ah-cols table.sb { width: 100%; min-width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw)); }
   .ah-cols table.sb thead th { font-size: .8em; }
@@ -711,6 +721,7 @@
   .su-gtag { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--accent-text); }
   .su-chk { display: inline-flex; vertical-align: middle; margin-right: 4px; }
   .su-cob { border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); padding: 10px 12px; margin-bottom: var(--s3); display: flex; flex-direction: column; gap: 8px; font-family: var(--font-cond); }
+  .su-cob[hidden] { display: none; }
   .su-cob-row { display: flex; gap: 10px; align-items: baseline; }
   .su-cob-row > b { flex: 0 0 70px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
   .su-cob-sep { width: 1px; align-self: stretch; background: var(--border-strong); margin: 0 4px; }
@@ -803,7 +814,16 @@
   .sb-zona { white-space: nowrap; }
   .sb-zona b { color: var(--muted); font-weight: 700; }
   .sb-zona-vacia { color: var(--faint); }
-  .ah-zonas { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; padding: 8px; font-size: 15px; }
+  /* Recreo en Ahora: cada zona en su fila, con un tono suave propio. */
+  .ah-zonas { display: flex; flex-direction: column; gap: 6px; padding: 8px; font-size: 15px; }
+  .ah-zona { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; padding: 7px 12px; border-radius: var(--radius-sm);
+    background: hsl(var(--zh, 220) 75% 94%); border: 1px solid hsl(var(--zh, 220) 55% 85%); }
+  .ah-zona-n { font-weight: 700; color: hsl(var(--zh, 220) 50% 28%); min-width: 7em; }
+  .ah-zona-d { font-weight: 600; color: var(--text); }
+  .ah-zona-vacia { color: var(--faint); background: var(--surface-2); border-color: var(--border); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ah-zona { background: hsl(var(--zh, 220) 30% 17%); border-color: hsl(var(--zh, 220) 30% 26%); } :root:not([data-theme="light"]) .ah-zona-n { color: hsl(var(--zh, 220) 70% 78%); } }
+  :root[data-theme="dark"] .ah-zona { background: hsl(var(--zh, 220) 30% 17%); border-color: hsl(var(--zh, 220) 30% 26%); }
+  :root[data-theme="dark"] .ah-zona-n { color: hsl(var(--zh, 220) 70% 78%); }
   /* ---------- Recreos ---------- */
   .rc-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: var(--s3); }
   .rc-toolbar select { width: auto; }

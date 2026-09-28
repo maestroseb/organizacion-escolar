@@ -281,8 +281,11 @@
   // ---------- Bloques guardables (botón flotante «Guardar cambios») ----------
   // (el módulo vive en app.html, que se evalúa después: se encolan)
   function _regGuardable() { (window._REG_GUARDABLES = window._REG_GUARDABLES || []).push(arguments); }
+  // El formulario está en la página desde el principio: hasta que se cargan
+  // sus datos no cuenta (si no, recargar avisaba de «cambios sin guardar»).
+  var _CENTRO_CARGADO = false;
   function _estadoFormCentro() {
-    const f = document.getElementById('form-centro'); if (!f) return null;
+    const f = document.getElementById('form-centro'); if (!f || !_CENTRO_CARGADO) return null;
     return Array.prototype.map.call(f.elements, function(el) {
       return el.name ? el.name + '=' + ((el.type === 'checkbox' || el.type === 'radio') ? (el.checked ? el.value : '') : el.value) : '';
     }).join('&');
@@ -321,7 +324,7 @@
   // ================= Centro =================
   function cargarCentro() {
     _run()
-      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); _snap('centro'); })
+      .withSuccessHandler(function(res) { if (res && res.centro) rellenarFormCentro(res.centro, res.prefs); _CENTRO_CARGADO = true; _snap('centro'); })
       .withFailureHandler(mostrarErrorGenerico)
       .obtenerCentro();
   }
