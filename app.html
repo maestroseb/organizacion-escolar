@@ -292,6 +292,8 @@
       document.getElementById('brand-sub').textContent = sub.join(' · ') || 'Horarios y sustituciones';
     }
 
+    // Tonos (hue HSL) de las pestañas: violeta, azul cielo, rosa, verde, ámbar, índigo, turquesa.
+    var TAB_TONOS = [265, 200, 330, 150, 35, 235, 175];
     function construirTabs() {
       const nav = document.getElementById('tabs');
       nav.innerHTML = '';
@@ -301,6 +303,7 @@
         b.className = 'tab';
         b.style.zIndex = vis.length - i;          // cada pestaña, por detrás de la anterior
         b.style.setProperty('--k', i);            // y un poco más oscura
+        b.style.setProperty('--h', TAB_TONOS[i % TAB_TONOS.length]); // tono del cristal
         b.id = 'tab-' + t.key;
         b.type = 'button';
         if (t.soon) {
