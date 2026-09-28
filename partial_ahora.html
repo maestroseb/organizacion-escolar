@@ -90,7 +90,7 @@
         '<span class="ah-reloj" id="ah-reloj">' + reloj + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
-    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + ((t.zonas || []).length ? '<div class="ah-zonas">' + _sbZonas(t.zonas) + '</div>' : '');
+    if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + _ahZonas(t.zonas || []);
     else { var an = _ahAnchos(t, cont.clientWidth - 2);
       html += '<div class="sb-cols ah-cols' + (an.apilar ? ' ah-apilar' : '') + '" style="' + an.estilo + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
@@ -105,6 +105,16 @@
     // fija ese ancho y entonces las tablas se estiran hasta los bordes.
     var card = cont.querySelector('.ah-card');
     // Apiladas (móvil): a todo el ancho.
+    // Recreo: mismo ancho que la tarjeta de un tramo normal (el más cercano).
+    if (card && tr.es_recreo) {
+      var ref = null;
+      for (var dd = 1; dd < AH.tramos.length && !ref; dd++) [AH_IDX - dd, AH_IDX + dd].forEach(function(j) { var x = AH.tramos[j]; if (!ref && x && !x.tramo.es_recreo) ref = x; });
+      if (ref) {
+        var an = _ahAnchos(ref, cont.clientWidth - 2), px = 2;
+        an.estilo.replace(/--sb-(cw|docw|ocw|lw|dw2|ow2):([\d.]+)px/g, function(_, k, n) { px += +n; });
+        if (an.apilar) card.style.width = '100%'; else card.style.minWidth = Math.min(px, cont.clientWidth) + 'px';
+      }
+    }
     if (card && card.querySelector('.ah-cols')) { var ap = !!card.querySelector('.ah-apilar'); card.style.width = ap ? '100%' : card.offsetWidth + 'px'; card.classList.add('ah-fill'); card.classList.toggle('ah-card-ap', ap); }
   }
   // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
@@ -263,6 +273,16 @@
       if (!quieto) requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
+  }
+
+  // Zonas del recreo: una por fila, cada una con su color suave.
+  function _ahZonas(zonas) {
+    if (!zonas.length) return '<div class="ah-zonas"><div class="ah-zona ah-zona-vacia">Sin turnos de vigilancia</div></div>';
+    var tonos = [200, 150, 35, 330, 265, 175, 15, 95];
+    return '<div class="ah-zonas">' + zonas.map(function(z, i) {
+      return '<div class="ah-zona" style="--zh:' + tonos[i % tonos.length] + '"><span class="ah-zona-n">' + _esc(z.zona) + '</span>' +
+        '<span class="ah-zona-d">' + (z.docentes.length ? z.docentes.map(_esc).join(' · ') : '—') + '</span></div>';
+    }).join('') + '</div>';
   }
 
   // Anchos de columna a 14px. Si las dos columnas no caben lado a lado

@@ -813,7 +813,16 @@
   .sb-zona { white-space: nowrap; }
   .sb-zona b { color: var(--muted); font-weight: 700; }
   .sb-zona-vacia { color: var(--faint); }
-  .ah-zonas { display: flex; flex-wrap: wrap; gap: 4px 14px; justify-content: center; padding: 8px; font-size: 15px; }
+  /* Recreo en Ahora: cada zona en su fila, con un tono suave propio. */
+  .ah-zonas { display: flex; flex-direction: column; gap: 6px; padding: 8px; font-size: 15px; }
+  .ah-zona { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; padding: 7px 12px; border-radius: var(--radius-sm);
+    background: hsl(var(--zh, 220) 75% 94%); border: 1px solid hsl(var(--zh, 220) 55% 85%); }
+  .ah-zona-n { font-weight: 700; color: hsl(var(--zh, 220) 50% 28%); min-width: 7em; }
+  .ah-zona-d { font-weight: 600; color: var(--text); }
+  .ah-zona-vacia { color: var(--faint); background: var(--surface-2); border-color: var(--border); }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ah-zona { background: hsl(var(--zh, 220) 30% 17%); border-color: hsl(var(--zh, 220) 30% 26%); } :root:not([data-theme="light"]) .ah-zona-n { color: hsl(var(--zh, 220) 70% 78%); } }
+  :root[data-theme="dark"] .ah-zona { background: hsl(var(--zh, 220) 30% 17%); border-color: hsl(var(--zh, 220) 30% 26%); }
+  :root[data-theme="dark"] .ah-zona-n { color: hsl(var(--zh, 220) 70% 78%); }
   /* ---------- Recreos ---------- */
   .rc-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: var(--s3); }
   .rc-toolbar select { width: auto; }
