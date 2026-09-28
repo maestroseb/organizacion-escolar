@@ -105,7 +105,7 @@
     // fija ese ancho y entonces las tablas se estiran hasta los bordes.
     var card = cont.querySelector('.ah-card');
     // Apiladas (móvil): a todo el ancho.
-    if (card && card.querySelector('.ah-cols')) { card.style.width = card.querySelector('.ah-apilar') ? '100%' : card.offsetWidth + 'px'; card.classList.add('ah-fill'); }
+    if (card && card.querySelector('.ah-cols')) { var ap = !!card.querySelector('.ah-apilar'); card.style.width = ap ? '100%' : card.offsetWidth + 'px'; card.classList.add('ah-fill'); card.classList.toggle('ah-card-ap', ap); }
   }
   // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
   function _ahDescanso(cont, tipo) {
