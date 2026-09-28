@@ -261,6 +261,12 @@ function _versionGlobal(c) {
   const v = c.getAll(claves);
   return Object.keys(SCHEMA).map(function(t) { return v['v:' + t] || _versionTabla(c, t); }).join('|');
 }
+/** Clave de caché para datos calculados: cambia con cualquier escritura y cada día. */
+function _claveDatos(prefijo) {
+  const c = _cache();
+  return prefijo + ':' + Utilities.base64Encode(Utilities.computeDigest(
+    Utilities.DigestAlgorithm.MD5, _versionGlobal(c) + '|' + _hoyISO()));
+}
 function _leerCache(sheetName) {
   const c = _cache(); if (!c) return null;
   return _cacheLeerJson(c, 't:' + sheetName + ':' + _versionTabla(c, sheetName));

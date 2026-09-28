@@ -47,9 +47,8 @@ function include(nombre) {
 
 
 /**
- * Datos que viajan DENTRO de la página: estado, sábanas A y B, horarios y
- * docentes. El cliente pinta la sábana sin llamar al servidor y el resto de
- * vistas de consulta son instantáneas. Las lecturas salen de la caché de
+ * Datos que viajan DENTRO de la página: estado, sábana de la semana en curso
+ * y docentes. El cliente pinta la sábana sin llamar al servidor. Las lecturas salen de la caché de
  * datos (03_DataAccess), así que servir la página apenas se retrasa.
  * Si algo falla, null: el cliente lo pide como siempre.
  */
@@ -58,23 +57,11 @@ function _datosIniciales() {
     const estado = estadoApp();
     const ini = { estado: estado };
     if (!estado.configurado) return ini;
-    // Sábanas y lecturas no dependen de quién abre: se guardan ya calculadas
-    // (clave = versión de todas las pestañas + día), así recargar la app no
-    // recalcula las dos semanas ni relee la hoja.
-    const c = _cache();
-    const k = c ? 'ini:' + Utilities.base64Encode(Utilities.computeDigest(
-      Utilities.DigestAlgorithm.MD5, _versionGlobal(c) + '|' + _hoyISO())) : '';
-    let datos = c ? _cacheLeerJson(c, k) : null;
-    if (!datos) {
-      const a = sabanaSemana('');
-      datos = {
-        sabanas: [a, sabanaSemana(a.semana === 'A' ? 'B' : 'A')],
-        lecturas: { datosHorarios: datosHorarios(), listarDocentes: listarDocentes() }
-      };
-      if (c) _cacheGuardarJson(c, k, datos);
-    }
-    ini.sabanas = datos.sabanas;
-    ini.lecturas = datos.lecturas;
+    // Solo la semana en curso y la lista de docentes viajan en la página
+    // (sábana ya calculada en caché). La otra semana y los horarios se
+    // precargan en segundo plano cuando la sábana ya está pintada.
+    ini.sabanas = [sabanaSemana('')];
+    ini.lecturas = { listarDocentes: listarDocentes() };
     return ini;
   } catch (e) {
     return null;

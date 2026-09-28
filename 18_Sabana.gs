@@ -21,9 +21,19 @@
  * cursos, apoyos y libres de ese (día, tramo). Para la vista "semana completa".
  */
 function sabanaSemana(semana) {
-  const ctx = _sabanaContexto();
   const actual = semanaActual();
   semana = (semana === 'A' || semana === 'B') ? semana : actual;
+  // Ya calculada con estos datos hoy: se sirve de la caché (sin recalcular).
+  const c = _cache(), k = c ? _claveDatos('sb:' + semana + ':' + actual) : '';
+  const guardada = c ? _cacheLeerJson(c, k) : null;
+  if (guardada) return guardada;
+  const res = _sabanaSemanaCalc(semana, actual);
+  if (c) _cacheGuardarJson(c, k, res);
+  return res;
+}
+
+function _sabanaSemanaCalc(semana, actual) {
+  const ctx = _sabanaContexto();
   ctx.ocupaciones = ctx.ocupaciones.filter(function(o) {
     const s = String(o.semana || '').trim().toUpperCase();
     return !s || s === semana;
