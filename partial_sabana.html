@@ -221,7 +221,7 @@
       // los límites del canvas (32 767 px por lado y ~250 Mpx de área).
       var w = copia.scrollWidth, h = copia.scrollHeight;
       var esc = Math.max(1, Math.min(4, 32000 / w, 32000 / h, Math.sqrt(250e6 / (w * h))));
-      html2canvas(copia, { scale: esc, backgroundColor: bg, windowWidth: w + 40 })
+      html2canvas(copia, { scale: esc, backgroundColor: bg, windowWidth: w + 40, onclone: _sbColoresCompatibles })
         .then(function(canvas) {
           var a = document.createElement('a');
           a.download = 'localizaciones-semana-' + (SB_SEM || '') + '.png';
@@ -230,6 +230,26 @@
         })
         .catch(function(e) { aviso('No se pudo generar la imagen: ' + ((e && e.message) || e), 'err'); })
         .then(function() { host.remove(); _sbPngFin(); });
+    });
+  }
+
+  // html2canvas no entiende color-mix()/color(): en la copia que captura se
+  // sustituyen por su equivalente rgb (el navegador lo calcula al pintarlo).
+  var _SB_PROPS_COLOR = ['color', 'background-color', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color', 'outline-color', 'text-decoration-color'];
+  function _sbARgb(v, ctx) {
+    ctx.clearRect(0, 0, 1, 1); ctx.fillStyle = '#000'; ctx.fillStyle = v; ctx.fillRect(0, 0, 1, 1);
+    var d = ctx.getImageData(0, 0, 1, 1).data;
+    return 'rgba(' + d[0] + ',' + d[1] + ',' + d[2] + ',' + (d[3] / 255).toFixed(3) + ')';
+  }
+  function _sbColoresCompatibles(doc) {
+    var raro = /color\(|color-mix|oklab|oklch|\blab\(|\blch\(/;
+    var cv = doc.createElement('canvas'); cv.width = cv.height = 1;
+    var ctx = cv.getContext('2d', { willReadFrequently: true }), win = doc.defaultView;
+    doc.querySelectorAll('*').forEach(function(el) {
+      var cs = win.getComputedStyle(el);
+      _SB_PROPS_COLOR.forEach(function(p) { var v = cs.getPropertyValue(p); if (raro.test(v)) el.style.setProperty(p, _sbARgb(v, ctx)); });
+      if (raro.test(cs.boxShadow)) el.style.boxShadow = 'none';
+      if (raro.test(cs.backgroundImage)) el.style.backgroundImage = 'none';
     });
   }
 
