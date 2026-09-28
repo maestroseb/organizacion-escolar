@@ -245,19 +245,33 @@ let _TZ_CACHE = null;
 // Cada llamada desde el navegador es una ejecución nueva: sin esto, cada una
 // relee las pestañas de la hoja. Las tablas se guardan como JSON (troceado,
 // límite 100 KB por clave) bajo una versión por pestaña; cualquier escritura
-// de la app cambia la versión. Caducan a los 10 min por si alguien edita la
-// hoja a mano (o usa «Recargar datos de la hoja» en Ajustes).
-const _CACHE_TTL = 600, _CACHE_TROZO = 90000;
+// de la app cambia la versión. Caducan a las 6 h (máximo de CacheService):
+// si alguien edita la hoja a mano, «Recargar datos de la hoja» en Ajustes.
+// Con 10 min, cada visita tras un rato sin uso releía todas las pestañas.
+const _CACHE_TTL = 21600, _CACHE_TROZO = 90000;
 function _cache() { try { return CacheService.getScriptCache(); } catch (e) { return null; } }
 function _versionTabla(c, sheetName) {
   let v = c.get('v:' + sheetName);
   if (!v) { v = String(Date.now()); c.put('v:' + sheetName, v, 21600); }
   return v;
 }
+/** Versión conjunta de todas las pestañas: cambia con cualquier escritura. */
+function _versionGlobal(c) {
+  const claves = Object.keys(SCHEMA).map(function(t) { return 'v:' + t; });
+  const v = c.getAll(claves);
+  return Object.keys(SCHEMA).map(function(t) { return v['v:' + t] || _versionTabla(c, t); }).join('|');
+}
 function _leerCache(sheetName) {
   const c = _cache(); if (!c) return null;
+  return _cacheLeerJson(c, 't:' + sheetName + ':' + _versionTabla(c, sheetName));
+}
+function _guardarCache(sheetName, filas) {
+  const c = _cache(); if (!c) return;
+  _cacheGuardarJson(c, 't:' + sheetName + ':' + _versionTabla(c, sheetName), filas);
+}
+// JSON troceado en varias claves (límite de 100 KB por clave).
+function _cacheLeerJson(c, k) {
   try {
-    const k = 't:' + sheetName + ':' + _versionTabla(c, sheetName);
     const n = parseInt(c.get(k + ':n'), 10);
     if (!n) return null;
     const claves = []; for (let i = 0; i < n; i++) claves.push(k + ':' + i);
@@ -267,12 +281,11 @@ function _leerCache(sheetName) {
     return JSON.parse(json);
   } catch (e) { return null; }
 }
-function _guardarCache(sheetName, filas) {
-  const c = _cache(); if (!c) return;
+function _cacheGuardarJson(c, k, datos) {
   try {
-    const json = JSON.stringify(filas);
+    const json = JSON.stringify(datos);
     if (json.length > _CACHE_TROZO * 80) return; // demasiado grande: sin caché
-    const k = 't:' + sheetName + ':' + _versionTabla(c, sheetName), obj = {};
+    const obj = {};
     let n = 0;
     for (let i = 0; i < json.length; i += _CACHE_TROZO) obj[k + ':' + (n++)] = json.slice(i, i + _CACHE_TROZO);
     obj[k + ':n'] = String(n);

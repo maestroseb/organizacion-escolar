@@ -58,9 +58,23 @@ function _datosIniciales() {
     const estado = estadoApp();
     const ini = { estado: estado };
     if (!estado.configurado) return ini;
-    const a = sabanaSemana('');
-    ini.sabanas = [a, sabanaSemana(a.semana === 'A' ? 'B' : 'A')];
-    ini.lecturas = { datosHorarios: datosHorarios(), listarDocentes: listarDocentes() };
+    // Sábanas y lecturas no dependen de quién abre: se guardan ya calculadas
+    // (clave = versión de todas las pestañas + día), así recargar la app no
+    // recalcula las dos semanas ni relee la hoja.
+    const c = _cache();
+    const k = c ? 'ini:' + Utilities.base64Encode(Utilities.computeDigest(
+      Utilities.DigestAlgorithm.MD5, _versionGlobal(c) + '|' + _hoyISO())) : '';
+    let datos = c ? _cacheLeerJson(c, k) : null;
+    if (!datos) {
+      const a = sabanaSemana('');
+      datos = {
+        sabanas: [a, sabanaSemana(a.semana === 'A' ? 'B' : 'A')],
+        lecturas: { datosHorarios: datosHorarios(), listarDocentes: listarDocentes() }
+      };
+      if (c) _cacheGuardarJson(c, k, datos);
+    }
+    ini.sabanas = datos.sabanas;
+    ini.lecturas = datos.lecturas;
     return ini;
   } catch (e) {
     return null;
