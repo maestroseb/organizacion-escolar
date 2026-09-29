@@ -1467,9 +1467,24 @@
     if (card && card.querySelector('.ah-cols')) { var ap = !!card.querySelector('.ah-apilar'); card.style.width = ap ? '100%' : card.offsetWidth + 'px'; card.classList.add('ah-fill'); card.classList.toggle('ah-card-ap', ap); }
   }
   // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
+  // Salida y puesta de sol (minutos del día, hora local del navegador) para
+  // Córdoba, con la aproximación de la NOAA (error de ~1-2 min).
+  function _ahSol(d) {
+    var lat = 37.88 * Math.PI / 180, lon = -4.78, rad = Math.PI / 180;
+    var ini = Date.UTC(d.getFullYear(), 0, 1), doy = Math.floor((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - ini) / 864e5);
+    var g = 2 * Math.PI / 365 * doy;
+    var eq = 229.18 * (.000075 + .001868 * Math.cos(g) - .032077 * Math.sin(g) - .014615 * Math.cos(2 * g) - .040849 * Math.sin(2 * g));
+    var dec = .006918 - .399912 * Math.cos(g) + .070257 * Math.sin(g) - .006758 * Math.cos(2 * g) + .000907 * Math.sin(2 * g) - .002697 * Math.cos(3 * g) + .00148 * Math.sin(3 * g);
+    var ha = Math.acos(Math.cos(90.833 * rad) / (Math.cos(lat) * Math.cos(dec)) - Math.tan(lat) * Math.tan(dec)) / rad;
+    var local = function(minUtc) { var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) + minUtc * 6e4); return t.getHours() * 60 + t.getMinutes(); };
+    return { sale: local(720 - 4 * (lon + ha) - eq), pone: local(720 - 4 * (lon - ha) - eq) };
+  }
   function _ahDescanso(cont, tipo) {
     var d = new Date(), h = d.getHours(), dow = d.getDay();
-    var modo = (h >= 21 || h < 7) ? 'noche' : (h >= 16 ? 'tarde' : 'dia');
+    // Según la época del año: atardecer desde 1 h antes de la puesta de sol y
+    // noche desde 40 min después hasta 30 min antes de que salga.
+    var sol = _ahSol(d), min = h * 60 + d.getMinutes();
+    var modo = (min >= sol.pone + 40 || min < sol.sale - 30) ? 'noche' : (min >= sol.pone - 60 ? 'tarde' : 'dia');
     var tit, sub;
     if (tipo === 'pronto') {
       var p0 = String(AH.tramos[0].tramo.horas).split('–')[0].trim();
@@ -1479,6 +1494,10 @@
       tit = modo === 'noche' ? 'El cole duerme… 🌙' : '¡Clases terminadas por hoy!';
       var pri = AH.tramos[0] && String(AH.tramos[0].tramo.horas).split('–')[0];
       sub = (dow === 5 ? 'El lunes' : 'Mañana') + (pri ? ', la primera a las ' + pri.trim() : ' volvemos') + '.';
+    } else if (AH.vacaciones) {
+      var ic = AH.inicioCurso ? AH.inicioCurso.split('-') : null;
+      tit = ic ? '¡Ya queda poco! 🎒' : '¡Felices vacaciones! 🏖️';
+      sub = ic ? 'El curso empieza el ' + (+ic[2]) + '/' + (+ic[1]) + '.' : 'El curso ha terminado. ¡Nos vemos en septiembre!';
     } else if (dow === 0 || dow === 6) {
       tit = '¡Buen fin de semana! ' + (modo === 'noche' ? '🌙' : '☀️'); sub = 'Las clases vuelven el lunes. Toca descansar.';
     } else { tit = 'Hoy no hay clase'; sub = 'Día sin tramos lectivos. ¡A disfrutarlo!'; }
