@@ -20,7 +20,10 @@ function datosAhora() {
   // Fuera del curso (Configuración → Centro: inicio y fin): vacaciones.
   const centro = findById(SHEETS.CENTRO, CENTRO_ID) || {};
   const iso = function(v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v || '').slice(0, 10); };
-  const ini = iso(centro.fecha_inicio), fin = iso(centro.fecha_fin);
+  // Sin fechas en Configuración: curso del 10 de septiembre al 23 de junio.
+  const anio = +fecha.slice(0, 4), mes = +fecha.slice(5, 7);
+  const a0 = mes >= 7 ? anio : anio - 1;                      // año en que empezó este curso
+  const ini = iso(centro.fecha_inicio) || (a0 + '-09-10'), fin = iso(centro.fecha_fin) || ((a0 + 1) + '-06-23');
   if ((fin && fecha > fin) || (ini && fecha < ini))
     return { fecha: fecha, finDeSemana: true, vacaciones: true, inicioCurso: ini && fecha < ini ? ini : '', semana: semana, tramos: [] };
   if (!dia) return { fecha: fecha, finDeSemana: true, semana: semana, tramos: [] };
