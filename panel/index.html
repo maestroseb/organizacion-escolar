@@ -1639,7 +1639,7 @@
       ctx.fillRect(bx - 3 * s, respaldoY - 2 * s, 2.2 * s, gy - respaldoY + 2 * s);
       ctx.fillRect(bx + bw2 + .8 * s, respaldoY - 2 * s, 2.2 * s, gy - respaldoY + 2 * s);
       ctx.fillRect(bx - 3 * s, by, bw2 + 6 * s, 3 * s);
-      if (modo === 'noche') { ctx.fillStyle = 'rgba(20,24,44,.5)'; ctx.fillRect(bx - 3 * s, respaldoY - 2 * s, bw2 + 6 * s, gy - respaldoY + 2 * s); }
+      if (modo === 'noche') { ctx.fillStyle = 'rgba(20,24,44,.5)'; ctx.fillRect(bx, respaldoY, bw2, alto); }   // solo las tablas: bajo el asiento se ve la pared
       // Papelera roja.
       var qx = X(.885); ctx.fillStyle = PAL.papelera;
       ctx.fillRect(qx, gy - 20 * s, 9 * s, 12 * s); ctx.fillRect(qx - 1 * s, gy - 8 * s, 1.5 * s, 10 * s); ctx.fillRect(qx + 8.5 * s, gy - 8 * s, 1.5 * s, 10 * s);
