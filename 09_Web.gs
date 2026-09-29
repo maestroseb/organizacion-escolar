@@ -12,18 +12,28 @@
 
 function doGet(e) {
   asegurarBaseDatos();
+  const par = (e && e.parameter) || {};
+
+  // Panel abierto (conserjería, pantalla de la sala de profesorado): Ahora sin
+  // cuenta, con la clave secreta del enlace. Solo ve el tramo en curso.
+  const publico = par.vista === 'ahora' && _clavePanelValida(par.k);
+  if (publico) _LECTURA = true;
 
   // Lista blanca: solo el administrador y el profesorado dado de alta (con
   // su email, o el del sustituto/a) en Configuración → Docentes.
-  const acceso = _accesoPermitido();
-  if (!acceso.ok) return _paginaSinAcceso(acceso.email);
+  if (!publico) {
+    const acceso = _accesoPermitido();
+    if (!acceso.ok) return _paginaSinAcceso(acceso.email);
+    _LECTURA = true;
+  }
 
-  const page = (e && e.parameter && e.parameter.page) || '';
+  const page = par.page || '';
 
   // Enlace directo para el Site del profesorado: solo el tramo en curso.
-  if (e && e.parameter && e.parameter.vista === 'ahora') {
+  if (par.vista === 'ahora') {
     const ta = HtmlService.createTemplateFromFile('ahora');
     ta.datos = datosAhora();
+    ta.clave = publico ? String(par.k) : '';
     return ta.evaluate()
       .setTitle('Ahora · Localizaciones')
       .addMetaTag('viewport', 'width=device-width, initial-scale=1')
@@ -40,6 +50,43 @@ function doGet(e) {
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setFaviconUrl(FAVICON_URL)
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+// ---------- Acceso de lectura ----------
+// Cada llamada del navegador (google.script.run) es una ejecución nueva: getAll
+// comprueba una vez por ejecución que quien llama está en la lista blanca, así
+// nadie sin acceso puede pedir datos aunque tenga una página de la app.
+var _LECTURA = null;   // null · 'comprobando' · true
+function _exigirLectura() {
+  if (_LECTURA) return;            // ya comprobado (o comprobándose: lectura interna)
+  _LECTURA = 'comprobando';
+  let ok = false;
+  try { ok = _accesoPermitido().ok; } finally { _LECTURA = ok ? true : null; }
+  if (!ok) throw new Error('Sin acceso: tu cuenta no está dada de alta en el profesorado del centro.');
+}
+
+// ---------- Clave del panel abierto (Ahora sin cuenta) ----------
+const PROP_CLAVE_PANEL = 'CLAVE_PANEL_AHORA';
+function _clavePanel() {
+  const props = PropertiesService.getScriptProperties();
+  let k = props.getProperty(PROP_CLAVE_PANEL);
+  if (!k) { k = Utilities.getUuid().replace(/-/g, ''); props.setProperty(PROP_CLAVE_PANEL, k); }
+  return k;
+}
+function _clavePanelValida(k) { return !!k && String(k) === _clavePanel(); }
+/** Clave actual (solo Edición), para montar el enlace del panel. */
+function obtenerClavePanel() { _exigirEdicion(); return _clavePanel(); }
+/** Nueva clave: el enlace anterior del panel deja de funcionar. */
+function regenerarClavePanel() {
+  _exigirEdicion();
+  PropertiesService.getScriptProperties().deleteProperty(PROP_CLAVE_PANEL);
+  return _clavePanel();
+}
+/** Refresco del panel abierto: solo con la clave correcta. */
+function datosAhoraPublico(k) {
+  if (!_clavePanelValida(k)) throw new Error('Enlace del panel no válido o caducado.');
+  _LECTURA = true;
+  return datosAhora();
 }
 
 /** ¿Puede abrir la app quien la visita? Admin o docente activo con ese email. */
