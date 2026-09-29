@@ -1515,13 +1515,16 @@
     var quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var CIELO = { dia: ['#7cc4f4', '#d8efff'], tarde: ['#f59e7b', '#ffd9a0'], noche: ['#141a3a', '#3a3f78'] }[modo];
     var rnd = function(a, b) { return a + Math.random() * (b - a); };
-    var estrellas = [], nubes = [], chispas = [], zzz = [], t0 = performance.now(), sw = 0, sx = 0;
+    var estrellas = [], nubes = [], chispas = [], zzz = [], t0 = performance.now(), sw = 0, sx = 0, HC = 0;
     for (var i = 0; i < 60; i++) estrellas.push({ x: Math.random(), y: Math.random() * .6, r: rnd(.5, 1.6), f: rnd(0, 6) });
     for (i = 0; i < 4; i++) nubes.push({ x: Math.random(), y: rnd(.1, .4), s: rnd(.6, 1.2), v: rnd(.006, .014) });
 
     function medir() {
       var w = cv.clientWidth || 600; if (w === W) return;
-      W = w; H = Math.round(Math.min(260, Math.max(180, w * .38)));
+      // Móvil en vertical: lienzo alto (mucho cielo) y el cole más grande abajo.
+      var vert = w < 520;
+      W = w; H = vert ? Math.round(Math.min(480, w * .95)) : Math.round(Math.min(260, Math.max(180, w * .38)));
+      HC = vert ? Math.round(w * .5) : H;
       cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + 'px'; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     cv.addEventListener('click', function(e) {
@@ -1529,6 +1532,16 @@
       var cols = ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa'];
       for (var k = 0; k < 26; k++) { var a = rnd(0, 6.28), v = rnd(1.5, 4.5); chispas.push({ x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 1.5, v: 1, c: cols[k % 5], r: rnd(2, 4) }); }
     });
+
+    // Minijuego: mientras se pulsa (ratón o dedo), el avión persigue el puntero;
+    // al soltar, vuelve a su vuelo ondulado. Si lo alcanza, confeti.
+    var avion = { x: -80, y: -1, a: 0, estela: [] }, dedo = null, tPrev = 0, proxPremio = 0;
+    var punto = function(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+    cv.style.touchAction = 'none';
+    cv.addEventListener('pointerdown', function(e) { dedo = punto(e); try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
+    cv.addEventListener('pointermove', function(e) { if (dedo) dedo = punto(e); });
+    cv.addEventListener('pointerup', function() { dedo = null; });
+    cv.addEventListener('pointercancel', function() { dedo = null; });
 
     function nube(x, y, s) {
       ctx.beginPath();
@@ -1561,15 +1574,17 @@
     });
     var caidas = [], proxCaida = 3;
 
-    function ventanaReja(x, y, w, h, barras, luz) {
-      ctx.fillStyle = PAL.sombra; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    // Ventana de cristal oscuro con marco y pocos cuarterones (cols × filas).
+    function ventana(x, y, w, h, cols, filas, luz, marco) {
+      var m = Math.max(2, 3 * HC / 260);
+      ctx.fillStyle = marco || PAL.sombra; ctx.fillRect(x - m, y - m, w + 2 * m, h + 2 * m);
       ctx.fillStyle = luz ? '#fde68a' : PAL.vidrio; ctx.fillRect(x, y, w, h);
-      ctx.fillStyle = PAL.reja;
-      for (var i = 1; i < barras; i++) ctx.fillRect(x + w * i / barras - .75, y, 1.5, h);
-      ctx.fillRect(x, y + h * .5 - .75, w, 1.5);
+      ctx.fillStyle = marco || PAL.reja;
+      for (var i = 1; i < cols; i++) ctx.fillRect(x + w * i / cols - m / 2, y, m, h);
+      for (i = 1; i < filas; i++) ctx.fillRect(x, y + h * i / filas - m / 2, w, m);
     }
     function naranjo(n, gy, t) {
-      var s = H / 260, alto = 62 * s, r = 30 * s, x = sx + sw * n.x;
+      var s = HC / 260, alto = 62 * s, r = 30 * s, x = sx + sw * n.x;
       var ang = Math.sin(t * 1.1 + n.f) * .035;
       ctx.fillStyle = 'rgba(0,0,0,.12)';                             // sombra en el patio
       ctx.beginPath(); ctx.ellipse(x + 10 * s, gy + 8 * s, r * 1.1, r * .28, 0, 0, 7); ctx.fill();
@@ -1587,7 +1602,7 @@
     }
     // Árbol grande de hoja (sin naranjas), frente a la ventana de la izquierda.
     function arbolGrande(gy, t) {
-      var s = H / 260, x = sx + sw * .17, alto = 128 * s, r = 60 * s;
+      var s = HC / 260, x = sx + sw * .17, alto = 128 * s, r = 60 * s;
       var ang = Math.sin(t * .8 + 2) * .025;
       ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(x + 14 * s, gy + 9 * s, r * 1.2, r * .3, 0, 0, 7); ctx.fill();
       ctx.save(); ctx.translate(x, gy + 6 * s); ctx.rotate(ang);
@@ -1601,32 +1616,40 @@
       ctx.restore();
     }
     function cole(t) {
-      var gy = H * .8, s = H / 260;
+      var gy = HC * .8, s = HC / 260;
       // Patio.
-      ctx.fillStyle = PAL.suelo; ctx.fillRect(0, gy, W, H - gy);
+      ctx.fillStyle = PAL.suelo; ctx.fillRect(0, gy, W, HC - gy);
       ctx.strokeStyle = PAL.junta; ctx.lineWidth = 1;
-      for (var j = -6; j <= 6; j++) { ctx.beginPath(); ctx.moveTo(W / 2 + j * sw * .09, gy); ctx.lineTo(W / 2 + j * sw * .22, H); ctx.stroke(); }
-      ctx.beginPath(); ctx.moveTo(0, gy + (H - gy) * .45); ctx.lineTo(W, gy + (H - gy) * .45); ctx.stroke();
+      for (var j = -6; j <= 6; j++) { ctx.beginPath(); ctx.moveTo(W / 2 + j * sw * .09, gy); ctx.lineTo(W / 2 + j * sw * .22, HC); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(0, gy + (HC - gy) * .45); ctx.lineTo(W, gy + (HC - gy) * .45); ctx.stroke();
       var X = function(f) { return sx + sw * f; };
       // Bloque del fondo a la derecha (tejadillo inclinado).
-      ctx.fillStyle = PAL.muro; ctx.beginPath(); ctx.moveTo(X(.84), gy); ctx.lineTo(X(.84), H * .32); ctx.lineTo(X(.935), H * .24);
-      ctx.lineTo(Math.max(W, X(1.05)), H * .24); ctx.lineTo(Math.max(W, X(1.05)), gy); ctx.fill();
-      ctx.fillStyle = PAL.alero; ctx.beginPath(); ctx.moveTo(X(.82), H * .31); ctx.lineTo(X(.93), H * .22); ctx.lineTo(Math.max(W, X(1.05)), H * .22); ctx.lineTo(Math.max(W, X(1.05)), H * .25); ctx.lineTo(X(.94), H * .25); ctx.lineTo(X(.84), H * .33); ctx.fill();
+      ctx.fillStyle = PAL.muro; ctx.beginPath(); ctx.moveTo(X(.84), gy); ctx.lineTo(X(.84), HC * .32); ctx.lineTo(X(.935), HC * .24);
+      ctx.lineTo(Math.max(W, X(1.05)), HC * .24); ctx.lineTo(Math.max(W, X(1.05)), gy); ctx.fill();
+      ctx.fillStyle = PAL.alero; ctx.beginPath(); ctx.moveTo(X(.82), HC * .31); ctx.lineTo(X(.93), HC * .22); ctx.lineTo(Math.max(W, X(1.05)), HC * .22); ctx.lineTo(Math.max(W, X(1.05)), HC * .25); ctx.lineTo(X(.94), HC * .25); ctx.lineTo(X(.84), HC * .33); ctx.fill();
+      // Ventanas del bloque del fondo: planta alta y baja.
+      ventana(X(.976), HC * .333, sw * .136, HC * .104, 3, 1, modo === 'noche' && Math.sin(t * .4) > 0);
+      ventana(X(.976), HC * .59, sw * .136, HC * .098, 3, 1, false);
       // Bloque bajo de la derecha, con alero gris.
-      ctx.fillStyle = PAL.muro; ctx.fillRect(X(.44), H * .46, sw * .42, gy - H * .46);
-      ctx.fillStyle = PAL.alero; ctx.fillRect(X(.43), H * .44, sw * .44, H * .03);
-      ventanaReja(X(.505), H * .54, sw * .07, H * .1, 3, modo === 'noche' && Math.sin(t * .6) > -.3);
-      ventanaReja(X(.64), H * .55, sw * .17, H * .13, 9, false);
+      ctx.fillStyle = PAL.muro; ctx.fillRect(X(.44), HC * .46, sw * .42, gy - HC * .46);
+      ctx.fillStyle = PAL.alero; ctx.fillRect(X(.43), HC * .44, sw * .44, HC * .03);
+      ventana(X(.481), HC * .542, sw * .109, HC * .083, 3, 1, modo === 'noche' && Math.sin(t * .6) > -.3);
+      ventana(X(.638), HC * .549, sw * .191, HC * .139, 6, 2, false);
       // Bloque alto de la izquierda (azotea) con su mástil.
-      ctx.fillStyle = PAL.muro; ctx.fillRect(X(.1), H * .36, sw * .34, gy - H * .36);
-      ctx.fillStyle = PAL.sombra; ctx.fillRect(X(.41), H * .36, sw * .03, gy - H * .36);
-      ctx.fillRect(X(.1), H * .36, sw * .34, 2 * s);                   // remate de la azotea
-      ventanaReja(X(.12), H * .52, sw * .1, H * .17, 7, false);
+      ctx.fillStyle = PAL.muro; ctx.fillRect(X(.1), HC * .36, sw * .34, gy - HC * .36);
+      ctx.fillStyle = PAL.sombra; ctx.fillRect(X(.41), HC * .36, sw * .03, gy - HC * .36);
+      // Tejado gris: faldón delantero y, sobre el lateral en sombra, el faldón
+      // del costado (más oscuro) siguiendo el volumen del edificio.
+      ctx.fillStyle = PAL.alero; ctx.beginPath();
+      ctx.moveTo(X(.088), HC * .37); ctx.lineTo(X(.1), HC * .34); ctx.lineTo(X(.41), HC * .34); ctx.lineTo(X(.41), HC * .37); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(X(.41), HC * .34); ctx.lineTo(X(.435), HC * .34); ctx.lineTo(X(.447), HC * .37); ctx.lineTo(X(.41), HC * .37); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.22)'; ctx.fill();
+      ventana(X(.138), HC * .549, sw * .096, HC * .146, 3, 2, false);
       // Puerta verde de dos hojas con ventanillo enrejado y cartel.
-      var px = X(.265), pw = sw * .1, py = H * .5;
+      var px = X(.265), pw = sw * .1, py = HC * .5;
       ctx.fillStyle = PAL.puerta; ctx.fillRect(px, py, pw, gy - py);
       ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(px + pw / 2 - .75, py, 1.5, gy - py);
-      ventanaReja(px + pw * .12, py + (gy - py) * .1, pw * .76, (gy - py) * .3, 6, false);
+      ventana(X(.273), HC * .542, sw * .083, HC * .104, 2, 1, false, PAL.puerta);
       if (!window.AH_SIN_CARTEL) {                                     // (la imagen de vista previa lo omite)
         ctx.fillStyle = modo === 'noche' ? '#e9ebf1' : '#fff'; ctx.fillRect(px + pw * .08, py + (gy - py) * .66, pw * .72, 10 * s);
         ctx.fillStyle = '#7a1f1f'; ctx.font = '700 ' + Math.max(6, 7 * s) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1635,10 +1658,12 @@
       // Pilar naranja (cilindro).
       var cx = X(.375), cw = sw * .03, gr = ctx.createLinearGradient(cx, 0, cx + cw, 0);
       gr.addColorStop(0, PAL.pilar); gr.addColorStop(.45, modo === 'noche' ? '#a4533a' : '#f07a4f'); gr.addColorStop(1, PAL.pilar);
-      ctx.fillStyle = gr; ctx.fillRect(cx, H * .44, cw, gy - H * .44);
+      ctx.fillStyle = gr; ctx.fillRect(cx, HC * .44, cw, gy - HC * .44);
       // Banco del patio: tablas pintadas (mural claro con letras, franjas de
       // colores en diagonal a la izquierda y amarillo a la derecha) y hierro verde.
-      var bx = X(.45), bw2 = sw * .17, by = gy - 16 * s, th = 3 * s, tablas = 5, alto = tablas * (th + .9 * s);
+      ctx.fillStyle = 'rgba(0,0,0,.12)';                             // sombra del banco
+      ctx.beginPath(); ctx.ellipse(X(.45) + sw * .085 + 6 * s, gy + 11 * s, sw * .1, 3.5 * s, 0, 0, 7); ctx.fill();
+      var bg = gy + 8 * s, bx = X(.45), bw2 = sw * .17, by = bg - 16 * s, th = 3 * s, tablas = 5, alto = tablas * (th + .9 * s);
       var respaldoY = by - alto - 2 * s;
       for (var i = 0; i < tablas; i++) {
         var ty = respaldoY + i * (th + .9 * s);
@@ -1655,8 +1680,8 @@
       ctx.fillStyle = gy2; ctx.fillRect(bx + bw2 * .8, respaldoY, bw2 * .2, alto);
       ctx.restore();
       ctx.fillStyle = PAL.puerta;                                       // hierro verde
-      ctx.fillRect(bx - 3 * s, respaldoY - 2 * s, 2.2 * s, gy - respaldoY + 2 * s);
-      ctx.fillRect(bx + bw2 + .8 * s, respaldoY - 2 * s, 2.2 * s, gy - respaldoY + 2 * s);
+      ctx.fillRect(bx - 3 * s, respaldoY - 2 * s, 2.2 * s, bg - respaldoY + 2 * s);
+      ctx.fillRect(bx + bw2 + .8 * s, respaldoY - 2 * s, 2.2 * s, bg - respaldoY + 2 * s);
       ctx.fillRect(bx - 3 * s, by, bw2 + 6 * s, 3 * s);
       if (modo === 'noche') { ctx.fillStyle = 'rgba(20,24,44,.5)'; ctx.fillRect(bx, respaldoY, bw2, alto); }   // solo las tablas: bajo el asiento se ve la pared
       // Papelera roja.
@@ -1722,14 +1747,31 @@
       nubes.forEach(function(n) { n.x += n.v / 60; if (n.x > 1.15) n.x = -.2; nube(n.x * W, n.y * H, n.s); });
 
       // El cole y su patio.
-      sw = Math.min(W * .94, H * 3); sx = (W - sw) / 2 - sw * .09;
-      cole(t);
+      if (HC < H) { sw = HC * 2.6; sx = W / 2 - sw * .42; }           // vertical: se centra en la puerta
+      else { sw = Math.min(W * .94, H * 3); sx = (W - sw) / 2 - sw * .09; }
+      ctx.save(); ctx.translate(0, H - HC); cole(t); ctx.restore();
 
       // Avión de papel con estela de puntos.
-      var px = ((t * 60) % (W + 160)) - 80, py = H * .45 + Math.sin(t * 1.4) * H * .12;
+      // Gira poco a poco hacia su objetivo: el dedo o un punto de la onda por delante.
+      var dt = Math.min(.05, Math.max(0, t - tPrev)); tPrev = t;
+      if (avion.y < 0) avion.y = H * .45;
+      var obj = dedo || { x: avion.x + 120, y: H * .45 + Math.sin(t * 1.4) * H * .12 };
+      var dif = Math.atan2(obj.y - avion.y, obj.x - avion.x) - avion.a;
+      while (dif > Math.PI) dif -= 2 * Math.PI; while (dif < -Math.PI) dif += 2 * Math.PI;
+      var giro = (dedo ? 4.5 : 1.8) * dt, vel = dedo ? 200 : 60;
+      avion.a += Math.max(-giro, Math.min(giro, dif));
+      avion.x += Math.cos(avion.a) * vel * dt; avion.y += Math.sin(avion.a) * vel * dt + Math.sin(t * 2.6) * 10 * dt;   // balanceo de papel
+      if (!dedo && avion.x > W + 80) { avion.x = -80; avion.estela = []; }
+      var ult = avion.estela[avion.estela.length - 1];
+      if (!ult || Math.hypot(avion.x - ult.x, avion.y - ult.y) > 9) { avion.estela.push({ x: avion.x, y: avion.y }); if (avion.estela.length > 14) avion.estela.shift(); }
+      if (dedo && t > proxPremio && Math.hypot(dedo.x - avion.x, dedo.y - avion.y) < 18) {
+        proxPremio = t + .8;
+        for (var k = 0; k < 14; k++) { var ca = rnd(0, 6.28), cvv = rnd(1, 3); chispas.push({ x: avion.x, y: avion.y, vx: Math.cos(ca) * cvv, vy: Math.sin(ca) * cvv - 1, v: 1, c: ['#fbbf24', '#f472b6', '#60a5fa', '#34d399', '#a78bfa'][k % 5], r: rnd(2, 3.5) }); }
+      }
+      var px = avion.x, py = avion.y;
       ctx.fillStyle = modo === 'noche' ? 'rgba(255,255,255,.5)' : 'rgba(255,255,255,.9)';
-      for (var j = 1; j < 14; j++) { var qx = px - j * 9; ctx.beginPath(); ctx.arc(qx, H * .45 + Math.sin(t * 1.4 - j * .15) * H * .12, 1.4, 0, 7); ctx.fill(); }
-      var ang = Math.atan2(Math.cos(t * 1.4) * H * .12 * 1.4, 60);
+      for (var j = 0; j < avion.estela.length - 1; j++) { ctx.beginPath(); ctx.arc(avion.estela[j].x, avion.estela[j].y, 1.4, 0, 7); ctx.fill(); }
+      var ang = avion.a + Math.sin(t * 4.2) * .1;
       ctx.save(); ctx.translate(px, py); ctx.rotate(ang);
       ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-10, -8); ctx.lineTo(-5, 0); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#cbd5e1'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-5, 0); ctx.lineTo(-10, 8); ctx.closePath(); ctx.fill();
