@@ -305,7 +305,8 @@
       if (modo === 'noche') { ctx.fillStyle = 'rgba(20,24,44,.5)'; ctx.fillRect(bx, respaldoY, bw2, alto); }   // solo las tablas: bajo el asiento se ve la pared
       // Papelera roja.
       var qx = X(.885); ctx.fillStyle = PAL.papelera;
-      ctx.fillRect(qx, gy - 20 * s, 9 * s, 12 * s); ctx.fillRect(qx - 1 * s, gy - 8 * s, 1.5 * s, 10 * s); ctx.fillRect(qx + 8.5 * s, gy - 8 * s, 1.5 * s, 10 * s);
+      ctx.fillRect(qx, gy - 30 * s, 14 * s, 18 * s); ctx.fillRect(qx - 1 * s, gy - 31.5 * s, 16 * s, 2 * s);   // cubo con borde
+      ctx.fillRect(qx - 1 * s, gy - 12 * s, 2 * s, 14 * s); ctx.fillRect(qx + 13 * s, gy - 12 * s, 2 * s, 14 * s);   // patas
       // Naranjos (se mecen) y, de vez en cuando, cae una naranja.
       arbolGrande(gy, t);
       var copas = NARANJOS.map(function(n) { return naranjo(n, gy, t); });
