@@ -15,12 +15,18 @@ RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 leer = lambda n: open(os.path.join(RAIZ, n + '.html'), encoding='utf-8').read()
 
 CABECERA = r'''<script>
+  // URL de la implementación sin el dominio: /a/<dominio>/macros/s/ID/exec
+  // obliga a iniciar sesión; /macros/s/ID/exec es la que sirve sin cuenta.
+  function _urlAbierta(u) {
+    var m = String(u || '').match(/\/s\/([A-Za-z0-9_-]+)\/exec/);
+    return m ? 'https://script.google.com/macros/s/' + m[1] + '/exec' : String(u || '').replace(/\?.*$/, '');
+  }
   // ---- Configuración del panel: ?u=<URL /exec>&k=<clave> (se recuerda) ----
   var PANEL = (function() {
     var q = new URLSearchParams(location.search), g = function(k) { try { return localStorage.getItem('panel-' + k) || ''; } catch (e) { return ''; } };
     var u = q.get('u') || g('u'), k = q.get('k') || g('k');
     try { if (u) localStorage.setItem('panel-u', u); if (k) localStorage.setItem('panel-k', k); } catch (e) {}
-    return { u: u.replace(/\?.*$/, ''), k: k };
+    return { u: _urlAbierta(u), k: k };
   })();
   var AH_CLAVE = PANEL.k;
   // JSONP contra la implementación abierta (sin CORS ni sesión).
@@ -30,7 +36,7 @@ CABECERA = r'''<script>
     var t = setTimeout(function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('Sin respuesta del servidor')); } }, 20000);
     function limpiar() { clearTimeout(t); delete window[cb]; s.remove(); }
     window[cb] = function(d) { if (fin) return; fin = true; limpiar(); if (d && d.error) { ko && ko(new Error(d.error)); } else { d._t = Date.now(); ok && ok(d); } };
-    s.onerror = function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('No se pudo conectar')); } };
+    s.onerror = function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('No se pudo conectar. Comprueba que la implementación abierta tiene la última versión del código y acceso «Cualquier usuario».')); } };
     s.src = PANEL.u + '?api=ahora&k=' + encodeURIComponent(PANEL.k) + '&callback=' + cb + '&_=' + Date.now();
     document.head.appendChild(s);
   }
@@ -62,7 +68,9 @@ PIE = r'''<div id="panel-config" class="panel-config" hidden>
   (function arrancar() {
     if (!PANEL.u || !PANEL.k) { document.getElementById('panel-config').hidden = false; document.getElementById('ah-body').innerHTML = ''; return; }
     var reintento = function(err) {
-      document.getElementById('ah-body').innerHTML = _errHtml(err) + '<p class="hint">Se reintentará en un minuto.</p>';
+      var prueba = PANEL.u + '?api=ahora&k=' + encodeURIComponent(PANEL.k);
+      document.getElementById('ah-body').innerHTML = _errHtml(err) + '<p class="hint">Se reintentará en un minuto. Para comprobarlo, abre en una ventana de incógnito: <a href="' + _esc(prueba) + '" target="_blank">' + _esc(prueba) + '</a> (debe mostrar datos, no una página de Google).</p>' +
+        '<p class="hint"><a href="#" onclick="try{localStorage.clear()}catch(e){};location.search=\'\';return false">Cambiar el enlace del panel</a></p>';
       setTimeout(arrancar, 60000);
     };
     _panelPedir(function(d) { ahDatos(d); }, reintento);
