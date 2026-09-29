@@ -6,10 +6,20 @@ Reutiliza los mismos estilos y el mismo código de pintado que la app
 por llamadas JSONP a la implementación abierta (?api=ahora&k=CLAVE).
 Así la pantalla no muestra la banda de Apps Script ni necesita iniciar sesión.
 
-Uso:  python3 tools/generar_panel.py   (desde la raíz del repositorio)
-Después, copia panel/index.html al repositorio con GitHub Pages.
+Uso (desde la raíz del repositorio):
+  python3 tools/generar_panel.py --url https://<usuario>.github.io/<ruta>/panel.html --centro "C.E.I.P. …"
+--url es la dirección final del panel (para la vista previa de WhatsApp/Telegram:
+la imagen panel-preview.png debe estar en la misma carpeta). Sin --url, sin imagen.
+Después, copia panel/index.html (con el nombre que quieras) y panel/panel-preview.png
+al repositorio con GitHub Pages.
 """
-import os, re
+import os, re, argparse, html as _html
+from urllib.parse import urljoin
+
+ap = argparse.ArgumentParser()
+ap.add_argument('--url', default='', help='URL pública final del panel')
+ap.add_argument('--centro', default='', help='Nombre del centro para el título')
+ARGS = ap.parse_args()
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 leer = lambda n: open(os.path.join(RAIZ, n + '.html'), encoding='utf-8').read()
@@ -84,9 +94,23 @@ PIE = r'''<div id="panel-config" class="panel-config" hidden>
   .panel-config input { width: 100%; margin: 8px 0; font-family: var(--font-mono); font-size: 12px; }
 </style>'''
 
+# Vista previa al compartir el enlace (Open Graph: WhatsApp, Telegram…).
+titulo = 'Ahora' + (' · ' + ARGS.centro if ARGS.centro else '')
+desc = 'Quién está en cada clase en el tramo en curso, con las sustituciones de hoy.'
+e = lambda x: _html.escape(x, quote=True)
+og = ('<meta name="description" content="%s">\n<meta property="og:type" content="website">\n'
+      '<meta property="og:title" content="%s">\n<meta property="og:description" content="%s">\n' % (e(desc), e(titulo), e(desc)))
+if ARGS.url:
+    img = urljoin(ARGS.url, 'panel-preview.png')
+    og += ('<meta property="og:url" content="%s">\n<meta property="og:image" content="%s">\n'
+           '<meta property="og:image:width" content="1200">\n<meta property="og:image:height" content="630">\n'
+           '<meta name="twitter:card" content="summary_large_image">\n' % (e(ARGS.url), e(img)))
+else:
+    print('Aviso: sin --url no se incluye imagen en la vista previa.')
+
 html = ('<!DOCTYPE html>\n<html lang="es">\n<head>\n<meta charset="utf-8">\n'
         '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
-        '<title>Ahora · Panel</title>\n'
+        '<title>' + e(titulo) + '</title>\n' + og +
         '<!-- GENERADO por tools/generar_panel.py: no editar a mano. -->\n'
         + CABECERA + '\n' + leer('partial_estilos') + '\n</head>\n<body class="ah-solo">\n<main class="shell">\n'
         '<div id="view-sabana" style="display:none">' + leer('partial_sabana') + '</div>\n'

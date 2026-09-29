@@ -159,7 +159,7 @@
     var quieto = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
     var CIELO = { dia: ['#7cc4f4', '#d8efff'], tarde: ['#f59e7b', '#ffd9a0'], noche: ['#141a3a', '#3a3f78'] }[modo];
     var rnd = function(a, b) { return a + Math.random() * (b - a); };
-    var estrellas = [], nubes = [], chispas = [], zzz = [], t0 = performance.now();
+    var estrellas = [], nubes = [], chispas = [], zzz = [], t0 = performance.now(), sw = 0, sx = 0;
     for (var i = 0; i < 60; i++) estrellas.push({ x: Math.random(), y: Math.random() * .6, r: rnd(.5, 1.6), f: rnd(0, 6) });
     for (i = 0; i < 4; i++) nubes.push({ x: Math.random(), y: rnd(.1, .4), s: rnd(.6, 1.2), v: rnd(.006, .014) });
 
@@ -192,29 +192,137 @@
       ctx.fillStyle = 'rgba(244,114,182,.45)';
       ctx.beginPath(); ctx.arc(x - r * .55, y + r * .15, r * .13, 0, 7); ctx.arc(x + r * .55, y + r * .15, r * .13, 0, 7); ctx.fill();
     }
+    // El cole (C.E.I.P. Carlos III): bloques blancos de azotea, puerta verde,
+    // pilar naranja, ventanas con reja, banco arcoíris y naranjos en el patio.
+    var PAL = {
+      dia:   { muro: '#f5f5f1', sombra: '#dcdfda', alero: '#6b7078', puerta: '#1f9d6b', pilar: '#d9542c', vidrio: '#3a4552', reja: '#eceeea', suelo: '#e8dcc6', junta: '#d3c3a6', hoja: ['#3f8a33', '#5fae45', '#7cc35a'], naranja: '#f39c1f', tronco: '#6b4a2b', papelera: '#d7262e' },
+      tarde: { muro: '#f7e6d3', sombra: '#e3cbb2', alero: '#6d6660', puerta: '#1c8a5e', pilar: '#d24d27', vidrio: '#3d3f4f', reja: '#f1e2d2', suelo: '#e7c9a3', junta: '#cfae87', hoja: ['#3d7a30', '#5a9a3f', '#78b052'], naranja: '#f08a1c', tronco: '#5e3f25', papelera: '#c92229' },
+      noche: { muro: '#4b5169', sombra: '#3d4258', alero: '#2b2f3d', puerta: '#1b5a44', pilar: '#86402c', vidrio: '#1c2030', reja: '#5d6380', suelo: '#2e3446', junta: '#262b3a', hoja: ['#1f3d28', '#2a5033', '#34603c'], naranja: '#b8762a', tronco: '#3a2a1e', papelera: '#7a2a2e' }
+    }[modo];
+    var NARANJOS = [.365, .695, .965].map(function(x, i) {
+      var fr = []; for (var k = 0; k < 9; k++) fr.push({ a: rnd(0, 6.28), r: rnd(.15, .85) });
+      return { x: x, f: i * 1.7, frutas: fr };
+    });
+    var caidas = [], proxCaida = 3;
+
+    function ventanaReja(x, y, w, h, barras, luz) {
+      ctx.fillStyle = PAL.sombra; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+      ctx.fillStyle = luz ? '#fde68a' : PAL.vidrio; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = PAL.reja;
+      for (var i = 1; i < barras; i++) ctx.fillRect(x + w * i / barras - .75, y, 1.5, h);
+      ctx.fillRect(x, y + h * .5 - .75, w, 1.5);
+    }
+    function naranjo(n, gy, t) {
+      var s = H / 260, alto = 62 * s, r = 30 * s, x = sx + sw * n.x;
+      var ang = Math.sin(t * 1.1 + n.f) * .035;
+      ctx.fillStyle = 'rgba(0,0,0,.12)';                             // sombra en el patio
+      ctx.beginPath(); ctx.ellipse(x + 10 * s, gy + 8 * s, r * 1.1, r * .28, 0, 0, 7); ctx.fill();
+      ctx.save(); ctx.translate(x, gy + 6 * s); ctx.rotate(ang);
+      ctx.strokeStyle = PAL.tronco; ctx.lineWidth = 3.2 * s; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(2 * s, -alto * .5, 0, -alto); ctx.stroke();
+      var cy = -alto - r * .55;
+      [[-.55, .1, .75], [.55, .05, .75], [0, -.45, .8], [0, .15, .95], [-.3, -.2, .7], [.35, -.25, .7]].forEach(function(b, i) {
+        ctx.fillStyle = PAL.hoja[i % 3]; ctx.beginPath(); ctx.arc(b[0] * r, cy + b[1] * r, b[2] * r, 0, 7); ctx.fill();
+      });
+      ctx.fillStyle = PAL.naranja;
+      n.frutas.forEach(function(f) { ctx.beginPath(); ctx.arc(Math.cos(f.a) * f.r * r, cy + Math.sin(f.a) * f.r * r * .8, 2.6 * s, 0, 7); ctx.fill(); });
+      ctx.restore();
+      return { x: x, y: gy + 6 * s + cy, r: r };
+    }
+    // Árbol grande de hoja (sin naranjas), frente a la ventana de la izquierda.
+    function arbolGrande(gy, t) {
+      var s = H / 260, x = sx + sw * .17, alto = 128 * s, r = 60 * s;
+      var ang = Math.sin(t * .8 + 2) * .025;
+      ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.beginPath(); ctx.ellipse(x + 14 * s, gy + 9 * s, r * 1.2, r * .3, 0, 0, 7); ctx.fill();
+      ctx.save(); ctx.translate(x, gy + 6 * s); ctx.rotate(ang);
+      ctx.strokeStyle = PAL.tronco; ctx.lineCap = 'round';
+      ctx.lineWidth = 9 * s; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-3 * s, -alto * .5, 2 * s, -alto * .8); ctx.stroke();
+      ctx.lineWidth = 4 * s; ctx.beginPath(); ctx.moveTo(0, -alto * .55); ctx.lineTo(-r * .5, -alto * .85); ctx.moveTo(1 * s, -alto * .6); ctx.lineTo(r * .45, -alto * .9); ctx.stroke();
+      var cy = -alto - r * .2;
+      [[-.7, .25, .6], [.7, .2, .6], [-.35, -.35, .7], [.35, -.4, .7], [0, .1, .85], [-.9, -.1, .5], [.95, -.15, .5], [0, -.7, .55]].forEach(function(b, i) {
+        ctx.fillStyle = PAL.hoja[(i + 1) % 3]; ctx.beginPath(); ctx.arc(b[0] * r, cy + b[1] * r, b[2] * r, 0, 7); ctx.fill();
+      });
+      ctx.restore();
+    }
     function cole(t) {
-      var bw = Math.min(260, W * .42), bh = H * .38, bx = W * .5 - bw / 2, by = H * .8 - bh;
-      var noche = modo === 'noche';
-      ctx.fillStyle = noche ? '#3b3f5c' : '#f3d9b1'; ctx.fillRect(bx, by, bw, bh);
-      ctx.fillStyle = noche ? '#5b3b4a' : '#d9623b';                 // tejado
-      ctx.beginPath(); ctx.moveTo(bx - 12, by); ctx.lineTo(bx + bw / 2, by - bh * .42); ctx.lineTo(bx + bw + 12, by); ctx.fill();
-      ctx.fillStyle = noche ? '#fde68a' : '#fff'; ctx.beginPath(); ctx.arc(bx + bw / 2, by - bh * .16, bh * .11, 0, 7); ctx.fill(); // reloj
-      ctx.strokeStyle = '#333'; ctx.lineWidth = 1.5; ctx.beginPath();
-      var cx = bx + bw / 2, cy = by - bh * .16, rr = bh * .08, ang = t * .5;
-      ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * rr, cy + Math.sin(ang) * rr);
-      ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang / 12) * rr * .6, cy + Math.sin(ang / 12) * rr * .6); ctx.stroke();
-      var cols = 5, ww = bw / (cols * 1.7), wh = bh * .2;           // ventanas
-      for (var f = 0; f < 2; f++) for (var c = 0; c < cols; c++) {
-        if (f === 1 && c === 2) continue;
-        var wx = bx + bw * (c + .5) / cols - ww / 2, wy = by + bh * (.18 + f * .42);
-        var luz = noche && ((c * 7 + f * 3) % 5 === 0) && Math.sin(t * .7 + c) > -.6;
-        ctx.fillStyle = luz ? '#fde68a' : (noche ? '#252841' : '#9fd3f2'); ctx.fillRect(wx, wy, ww, wh);
+      var gy = H * .8, s = H / 260;
+      // Patio.
+      ctx.fillStyle = PAL.suelo; ctx.fillRect(0, gy, W, H - gy);
+      ctx.strokeStyle = PAL.junta; ctx.lineWidth = 1;
+      for (var j = -6; j <= 6; j++) { ctx.beginPath(); ctx.moveTo(W / 2 + j * sw * .09, gy); ctx.lineTo(W / 2 + j * sw * .22, H); ctx.stroke(); }
+      ctx.beginPath(); ctx.moveTo(0, gy + (H - gy) * .45); ctx.lineTo(W, gy + (H - gy) * .45); ctx.stroke();
+      var X = function(f) { return sx + sw * f; };
+      // Bloque del fondo a la derecha (tejadillo inclinado).
+      ctx.fillStyle = PAL.muro; ctx.beginPath(); ctx.moveTo(X(.84), gy); ctx.lineTo(X(.84), H * .32); ctx.lineTo(X(.935), H * .24);
+      ctx.lineTo(Math.max(W, X(1.05)), H * .24); ctx.lineTo(Math.max(W, X(1.05)), gy); ctx.fill();
+      ctx.fillStyle = PAL.alero; ctx.beginPath(); ctx.moveTo(X(.82), H * .31); ctx.lineTo(X(.93), H * .22); ctx.lineTo(Math.max(W, X(1.05)), H * .22); ctx.lineTo(Math.max(W, X(1.05)), H * .25); ctx.lineTo(X(.94), H * .25); ctx.lineTo(X(.84), H * .33); ctx.fill();
+      // Bloque bajo de la derecha, con alero gris.
+      ctx.fillStyle = PAL.muro; ctx.fillRect(X(.44), H * .46, sw * .42, gy - H * .46);
+      ctx.fillStyle = PAL.alero; ctx.fillRect(X(.43), H * .44, sw * .44, H * .03);
+      ventanaReja(X(.505), H * .54, sw * .07, H * .1, 3, modo === 'noche' && Math.sin(t * .6) > -.3);
+      ventanaReja(X(.64), H * .55, sw * .17, H * .13, 9, false);
+      // Bloque alto de la izquierda (azotea) con su mástil.
+      ctx.fillStyle = PAL.muro; ctx.fillRect(X(.1), H * .36, sw * .34, gy - H * .36);
+      ctx.fillStyle = PAL.sombra; ctx.fillRect(X(.41), H * .36, sw * .03, gy - H * .36);
+      ctx.fillRect(X(.1), H * .36, sw * .34, 2 * s);                   // remate de la azotea
+      ventanaReja(X(.12), H * .52, sw * .1, H * .17, 7, false);
+      // Puerta verde de dos hojas con ventanillo enrejado y cartel.
+      var px = X(.265), pw = sw * .1, py = H * .5;
+      ctx.fillStyle = PAL.puerta; ctx.fillRect(px, py, pw, gy - py);
+      ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(px + pw / 2 - .75, py, 1.5, gy - py);
+      ventanaReja(px + pw * .12, py + (gy - py) * .1, pw * .76, (gy - py) * .3, 6, false);
+      if (!window.AH_SIN_CARTEL) {                                     // (la imagen de vista previa lo omite)
+        ctx.fillStyle = modo === 'noche' ? '#e9ebf1' : '#fff'; ctx.fillRect(px + pw * .08, py + (gy - py) * .66, pw * .72, 10 * s);
+        ctx.fillStyle = '#7a1f1f'; ctx.font = '700 ' + Math.max(6, 7 * s) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('CERRADO', px + pw * .44, py + (gy - py) * .66 + 5 * s); ctx.textBaseline = 'alphabetic';
       }
-      ctx.fillStyle = noche ? '#23253a' : '#7a4a2a';                 // puerta
-      var dw = bw * .13, dh = bh * .36; ctx.fillRect(bx + bw / 2 - dw / 2, by + bh - dh, dw, dh);
-      ctx.fillStyle = noche ? '#fff' : '#7a4a2a'; ctx.font = '700 ' + Math.max(8, dh * .16) + 'px system-ui';
-      ctx.textAlign = 'center'; ctx.fillText('CERRADO', bx + bw / 2, by + bh - dh - 5);
-      return { x: bx, y: by, w: bw, h: bh };
+      // Pilar naranja (cilindro).
+      var cx = X(.375), cw = sw * .03, gr = ctx.createLinearGradient(cx, 0, cx + cw, 0);
+      gr.addColorStop(0, PAL.pilar); gr.addColorStop(.45, modo === 'noche' ? '#a4533a' : '#f07a4f'); gr.addColorStop(1, PAL.pilar);
+      ctx.fillStyle = gr; ctx.fillRect(cx, H * .44, cw, gy - H * .44);
+      // Banco del patio: tablas pintadas (mural claro con letras, franjas de
+      // colores en diagonal a la izquierda y amarillo a la derecha) y hierro verde.
+      var bx = X(.45), bw2 = sw * .17, by = gy - 16 * s, th = 3 * s, tablas = 5, alto = tablas * (th + .9 * s);
+      var respaldoY = by - alto - 2 * s;
+      for (var i = 0; i < tablas; i++) {
+        var ty = respaldoY + i * (th + .9 * s);
+        ctx.fillStyle = i % 2 ? '#dfe8ef' : '#c9daea'; ctx.fillRect(bx, ty, bw2, th);
+        ctx.fillStyle = 'rgba(40,60,90,.45)';                          // «letras»
+        for (var k = 0; k < 7; k++) if ((i + k) % 3) ctx.fillRect(bx + bw2 * (.34 + k * .07), ty + th * .35, bw2 * .045, th * .3);
+      }
+      ctx.save(); ctx.beginPath(); ctx.rect(bx, respaldoY, bw2, alto); ctx.clip();
+      ['#e53935', '#fb8c00', '#fdd835', '#1e88e5', '#e53935', '#fdd835'].forEach(function(c, i) {   // franjas izquierda
+        ctx.fillStyle = c; ctx.beginPath(); var x0 = bx + i * 4 * s;
+        ctx.moveTo(x0, respaldoY); ctx.lineTo(x0 + 4.5 * s, respaldoY); ctx.lineTo(x0 + 16 * s, respaldoY + alto); ctx.lineTo(x0 + 11.5 * s, respaldoY + alto); ctx.fill();
+      });
+      var gy2 = ctx.createLinearGradient(bx + bw2 * .82, 0, bx + bw2, 0); gy2.addColorStop(0, 'rgba(253,216,53,0)'); gy2.addColorStop(.3, '#fbc02d'); gy2.addColorStop(1, '#f9a825');
+      ctx.fillStyle = gy2; ctx.fillRect(bx + bw2 * .8, respaldoY, bw2 * .2, alto);
+      ctx.restore();
+      ctx.fillStyle = PAL.puerta;                                       // hierro verde
+      ctx.fillRect(bx - 3 * s, respaldoY - 2 * s, 2.2 * s, gy - respaldoY + 2 * s);
+      ctx.fillRect(bx + bw2 + .8 * s, respaldoY - 2 * s, 2.2 * s, gy - respaldoY + 2 * s);
+      ctx.fillRect(bx - 3 * s, by, bw2 + 6 * s, 3 * s);
+      if (modo === 'noche') { ctx.fillStyle = 'rgba(20,24,44,.5)'; ctx.fillRect(bx, respaldoY, bw2, alto); }   // solo las tablas: bajo el asiento se ve la pared
+      // Papelera roja.
+      var qx = X(.885); ctx.fillStyle = PAL.papelera;
+      ctx.fillRect(qx, gy - 30 * s, 14 * s, 18 * s); ctx.fillRect(qx - 1 * s, gy - 31.5 * s, 16 * s, 2 * s);   // cubo con borde
+      ctx.fillRect(qx - 1 * s, gy - 12 * s, 2 * s, 14 * s); ctx.fillRect(qx + 13 * s, gy - 12 * s, 2 * s, 14 * s);   // patas
+      // Naranjos (se mecen) y, de vez en cuando, cae una naranja.
+      arbolGrande(gy, t);
+      var copas = NARANJOS.map(function(n) { return naranjo(n, gy, t); });
+      if (t > proxCaida) {
+        var c = copas[Math.floor(Math.random() * copas.length)];
+        caidas.push({ x: c.x + rnd(-.5, .5) * c.r, y: c.y + rnd(0, .4) * c.r, vy: 0, vx: rnd(-.3, .3), v: 1, suelo: gy + rnd(4, 14) * s });
+        proxCaida = t + rnd(4, 9);
+      }
+      caidas = caidas.filter(function(o) {
+        if (o.y < o.suelo) { o.vy += .18; o.y += o.vy; o.x += o.vx; if (o.y >= o.suelo) { o.y = o.suelo; o.vy = -o.vy * .35; if (Math.abs(o.vy) < .6) o.vy = 0; } }
+        else { o.v -= .006; o.x += o.vx * .5; }
+        if (o.v <= 0) return false;
+        ctx.globalAlpha = Math.min(1, o.v * 2); ctx.fillStyle = PAL.naranja;
+        ctx.beginPath(); ctx.arc(o.x, Math.min(o.y, o.suelo), 2.8 * s, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+        return true;
+      });
     }
 
     function frame(now) {
@@ -232,8 +340,8 @@
       ctx.globalAlpha = 1;
 
       // Astro: sol que bota (día), sol que se pone (tarde), luna dormida (noche).
-      var ax = W * .8, ay = H * .28, ar = Math.min(34, H * .14);
-      if (modo === 'tarde') ay = H * .32 + Math.sin(t * .4) * 6;
+      var ax = W * .66, ay = H * .2, ar = Math.min(30, H * .12);
+      if (modo === 'tarde') ay = H * .24 + Math.sin(t * .4) * 6;
       else ay += Math.sin(t * 1.6) * 5;
       if (modo !== 'noche') {
         ctx.save(); ctx.translate(ax, ay); ctx.rotate(t * .3); ctx.strokeStyle = '#fcd34d'; ctx.lineWidth = 3; ctx.lineCap = 'round';
@@ -257,14 +365,9 @@
       ctx.fillStyle = modo === 'noche' ? 'rgba(200,210,255,.18)' : 'rgba(255,255,255,.85)';
       nubes.forEach(function(n) { n.x += n.v / 60; if (n.x > 1.15) n.x = -.2; nube(n.x * W, n.y * H, n.s); });
 
-      // Colinas y cole.
-      ctx.fillStyle = modo === 'noche' ? '#1f3b36' : (modo === 'tarde' ? '#7fae6a' : '#86c77a');
-      ctx.beginPath(); ctx.moveTo(0, H);
-      for (var x = 0; x <= W; x += 10) ctx.lineTo(x, H * .82 + Math.sin(x / 70) * 6);
-      ctx.lineTo(W, H); ctx.fill();
+      // El cole y su patio.
+      sw = Math.min(W * .94, H * 3); sx = (W - sw) / 2 - sw * .09;
       cole(t);
-      ctx.fillStyle = modo === 'noche' ? '#18302c' : '#5fa35a';
-      ctx.fillRect(0, H * .9, W, H * .1);
 
       // Avión de papel con estela de puntos.
       var px = ((t * 60) % (W + 160)) - 80, py = H * .45 + Math.sin(t * 1.4) * H * .12;
