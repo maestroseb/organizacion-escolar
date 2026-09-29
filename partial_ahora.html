@@ -200,8 +200,11 @@
     // al soltar, vuelve a su vuelo ondulado. Si lo alcanza, confeti.
     var avion = { x: -80, y: -1, a: 0, estela: [] }, dedo = null, tPrev = 0, proxPremio = 0;
     var punto = function(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-    cv.style.touchAction = 'none';
-    cv.addEventListener('pointerdown', function(e) { dedo = punto(e); try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
+    // Sin selección ni menú al mantener pulsado en el móvil.
+    cv.style.touchAction = 'none'; cv.style.userSelect = cv.style.webkitUserSelect = 'none';
+    cv.style.webkitTouchCallout = 'none'; cv.style.webkitTapHighlightColor = 'transparent';
+    cv.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    cv.addEventListener('pointerdown', function(e) { e.preventDefault(); dedo = punto(e); try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
     cv.addEventListener('pointermove', function(e) { if (dedo) dedo = punto(e); });
     cv.addEventListener('pointerup', function() { dedo = null; });
     cv.addEventListener('pointercancel', function() { dedo = null; });

@@ -612,8 +612,8 @@
   .ah-etq { font-size: 11px; letter-spacing: .08em; background: rgba(0,0,0,.22); color: #fff; border-radius: 999px; padding: 2px 8px; }
   .ah-reloj { margin-left: auto; font-size: 13px; font-weight: 600; letter-spacing: .02em; font-variant-numeric: tabular-nums; opacity: .95; white-space: nowrap; }
   .ah-sem { font-size: 11px; background: rgba(255,255,255,.92); color: #1f2430; border-radius: 4px; padding: 0 6px; line-height: 18px; }
-  .ah-descanso { max-width: 720px; margin: 0 auto; text-align: center; }
-  .ah-escena { display: block; width: 100%; height: 220px; border-radius: 16px; box-shadow: var(--shadow); cursor: pointer; }
+  .ah-descanso { max-width: 720px; margin: 0 auto; text-align: center; -webkit-user-select: none; user-select: none; }
+  .ah-escena { display: block; width: 100%; height: 220px; border-radius: 16px; box-shadow: var(--shadow); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
   .ah-desc-t { font-size: var(--fs-lg); font-weight: 700; margin-top: var(--s4); }
   .ah-desc-s { color: var(--muted); margin-top: var(--s1); }
   .ah-aus { font-size: var(--fs-sm); padding: 4px 12px; background: var(--warn-weak, #fff4e0); color: var(--text); border-bottom: 1px solid var(--border); }
@@ -1537,8 +1537,11 @@
     // al soltar, vuelve a su vuelo ondulado. Si lo alcanza, confeti.
     var avion = { x: -80, y: -1, a: 0, estela: [] }, dedo = null, tPrev = 0, proxPremio = 0;
     var punto = function(e) { var r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
-    cv.style.touchAction = 'none';
-    cv.addEventListener('pointerdown', function(e) { dedo = punto(e); try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
+    // Sin selección ni menú al mantener pulsado en el móvil.
+    cv.style.touchAction = 'none'; cv.style.userSelect = cv.style.webkitUserSelect = 'none';
+    cv.style.webkitTouchCallout = 'none'; cv.style.webkitTapHighlightColor = 'transparent';
+    cv.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+    cv.addEventListener('pointerdown', function(e) { e.preventDefault(); dedo = punto(e); try { cv.setPointerCapture(e.pointerId); } catch (_) {} });
     cv.addEventListener('pointermove', function(e) { if (dedo) dedo = punto(e); });
     cv.addEventListener('pointerup', function() { dedo = null; });
     cv.addEventListener('pointercancel', function() { dedo = null; });
