@@ -14,6 +14,10 @@ function doGet(e) {
   asegurarBaseDatos();
   const par = (e && e.parameter) || {};
 
+  // Datos de Ahora para el panel externo (página fuera de Google, sin banda
+  // ni sesión): JSON/JSONP con la clave del panel y sin ausentes.
+  if (par.api === 'ahora') return _apiAhora(par);
+
   // Panel abierto (conserjería, pantalla de la sala de profesorado): Ahora sin
   // cuenta, con la clave secreta del enlace. Solo ve el tramo en curso.
   const publico = par.vista === 'ahora' && _clavePanelValida(par.k);
@@ -88,6 +92,17 @@ function datosAhoraPublico(k) {
   _LECTURA = true;
   return _ahoraSinAusentes(datosAhora());
 }
+function _apiAhora(par) {
+  let datos;
+  if (_clavePanelValida(par.k)) { _LECTURA = true; datos = _ahoraSinAusentes(datosAhora()); }
+  else datos = { error: 'Enlace del panel no válido o caducado.' };
+  const json = JSON.stringify(datos);
+  // JSONP (?callback=fn): la página del panel lo carga con <script>, sin CORS.
+  if (par.callback && /^[A-Za-z_$][\w$.]*$/.test(par.callback))
+    return ContentService.createTextOutput(par.callback + '(' + json + ');').setMimeType(ContentService.MimeType.JAVASCRIPT);
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
+}
+
 /** Panel abierto: sin la lista de ausentes ni sus nombres (solo quién sustituye). */
 function _ahoraSinAusentes(res) {
   delete res.ausentes;
