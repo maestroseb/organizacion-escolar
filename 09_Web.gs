@@ -32,7 +32,7 @@ function doGet(e) {
   // Enlace directo para el Site del profesorado: solo el tramo en curso.
   if (par.vista === 'ahora') {
     const ta = HtmlService.createTemplateFromFile('ahora');
-    ta.datos = datosAhora();
+    ta.datos = publico ? _ahoraSinAusentes(datosAhora()) : datosAhora();
     ta.clave = publico ? String(par.k) : '';
     return ta.evaluate()
       .setTitle('Ahora · Localizaciones')
@@ -86,7 +86,16 @@ function regenerarClavePanel() {
 function datosAhoraPublico(k) {
   if (!_clavePanelValida(k)) throw new Error('Enlace del panel no válido o caducado.');
   _LECTURA = true;
-  return datosAhora();
+  return _ahoraSinAusentes(datosAhora());
+}
+/** Panel abierto: sin la lista de ausentes ni sus nombres (solo quién sustituye). */
+function _ahoraSinAusentes(res) {
+  delete res.ausentes;
+  (res.tramos || []).forEach(function(t) {
+    (t.cursos || []).forEach(function(c) { (c.ocupantes || []).forEach(function(o) { if (o.ausente) o.ausente = 'otro docente'; }); });
+    (t.apoyos || []).forEach(function(a) { if (a.ausente) a.ausente = 'otro docente'; });
+  });
+  return res;
 }
 
 /** ¿Puede abrir la app quien la visita? Admin o docente activo con ese email. */
