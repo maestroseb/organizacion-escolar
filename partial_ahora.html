@@ -132,7 +132,7 @@
   // ---------- Escena de descanso (fin de semana, tarde, noche) ----------
   function _ahDescanso(cont, tipo) {
     var d = new Date(), h = d.getHours(), dow = d.getDay();
-    var modo = (h >= 21 || h < 7) ? 'noche' : (h >= 16 ? 'tarde' : 'dia');
+    var modo = (h >= 21 || h < 7) ? 'noche' : (h >= 18 ? 'tarde' : 'dia');   // noche 21–7 h · tarde 18–21 h
     var tit, sub;
     if (tipo === 'pronto') {
       var p0 = String(AH.tramos[0].tramo.horas).split('–')[0].trim();
