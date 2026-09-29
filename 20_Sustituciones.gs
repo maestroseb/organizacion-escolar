@@ -17,6 +17,12 @@ function datosAhora() {
   const d = _fechaLocal(fecha).getDay();
   const dia = ['', 'L', 'M', 'X', 'J', 'V', ''][d];
   const semana = semanaActual(fecha);
+  // Fuera del curso (Configuración → Centro: inicio y fin): vacaciones.
+  const centro = findById(SHEETS.CENTRO, CENTRO_ID) || {};
+  const iso = function(v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'yyyy-MM-dd') : String(v || '').slice(0, 10); };
+  const ini = iso(centro.fecha_inicio), fin = iso(centro.fecha_fin);
+  if ((fin && fecha > fin) || (ini && fecha < ini))
+    return { fecha: fecha, finDeSemana: true, vacaciones: true, inicioCurso: ini && fecha < ini ? ini : '', semana: semana, tramos: [] };
   if (!dia) return { fecha: fecha, finDeSemana: true, semana: semana, tramos: [] };
 
   const ctx = _ctxDia(dia, semana);
