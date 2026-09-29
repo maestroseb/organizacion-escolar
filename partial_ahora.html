@@ -14,6 +14,17 @@
     <button type="button" class="primary" onclick="ahCopiarEnlace(true)">Copiar</button>
     <a class="btn-like" id="ah-link-abrir" target="_blank" rel="noopener">Abrir</a>
   </div>
+  <div class="solo-edicion ah-link-pub">
+    <span class="ah-link-t"><b>Pantalla sin cuenta</b> (conserjería, panel de la sala de profesorado). Crea una 2.ª implementación con «Ejecutar como: Yo» y «Quién tiene acceso: Cualquier usuario», pega aquí su URL y usa el enlace resultante. Lleva una clave secreta: si se filtra, pulsa «Nueva clave».</span>
+    <div class="ah-link-row">
+      <input type="text" id="ah-pub-base" placeholder="URL /exec de la implementación pública" oninput="_ahPubPintar()">
+    </div>
+    <div class="ah-link-row">
+      <input type="text" id="ah-pub-url" readonly onclick="this.select()" placeholder="(pega arriba la URL pública)">
+      <button type="button" class="primary" onclick="ahCopiarPub()">Copiar</button>
+      <button type="button" class="secondary" onclick="ahNuevaClave()" title="El enlace anterior deja de funcionar">Nueva clave</button>
+    </div>
+  </div>
 </div>
 <div id="ah-body"><p class="hint"><span class="spinner"></span> Cargando…</p></div>
 
@@ -35,7 +46,8 @@
     if (!AH_TIMER) AH_TIMER = setInterval(function() {
       if (!AH || document.getElementById('ah-body').offsetParent === null) return; // pestaña oculta
       if (!AH_FIJO) _ahPintar();
-      if (Date.now() - (AH._t || 0) > 55000) google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); }).datosAhora();
+      if (Date.now() - (AH._t || 0) > 55000) { var run = google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); });
+        if (window.AH_CLAVE) run.datosAhoraPublico(window.AH_CLAVE); else run.datosAhora(); }
     }, 30000);
     AH._t = Date.now();
   }
@@ -313,13 +325,37 @@
     clearTimeout(window._ahRz); window._ahRz = setTimeout(function() { var b = document.getElementById('ah-body'); if (AH && b && b.offsetParent !== null && b.querySelector('.ah-cols')) _ahPintar(); }, 150);
   });
 
+  // Enlace del panel abierto: URL de la implementación pública + clave secreta.
+  var AH_PUB_K = '';
+  function _ahPubCargar() {
+    if (!puedeEditar()) return;
+    try { document.getElementById('ah-pub-base').value = localStorage.getItem('ah-pub-base') || ''; } catch (e) {}
+    google.script.run.withSuccessHandler(function(k) { AH_PUB_K = k; _ahPubPintar(); }).obtenerClavePanel();
+  }
+  function _ahPubPintar() {
+    var base = document.getElementById('ah-pub-base').value.trim().replace(/\?.*$/, '');
+    try { localStorage.setItem('ah-pub-base', base); } catch (e) {}
+    document.getElementById('ah-pub-url').value = base && AH_PUB_K ? base + '?vista=ahora&k=' + AH_PUB_K : '';
+  }
+  function ahCopiarPub() {
+    var inp = document.getElementById('ah-pub-url'); if (!inp.value) { aviso('Pega primero la URL de la implementación pública', 'err'); return; }
+    inp.focus(); inp.select();
+    try { navigator.clipboard.writeText(inp.value).then(function() { aviso('Enlace del panel copiado'); }); } catch (e) { document.execCommand('copy'); aviso('Enlace del panel copiado'); }
+  }
+  function ahNuevaClave() {
+    confirmar('El enlace actual del panel dejará de funcionar y tendrás que poner el nuevo en la pantalla.', function() {
+      google.script.run.withSuccessHandler(function(k) { AH_PUB_K = k; _ahPubPintar(); aviso('Nueva clave creada'); })
+        .withFailureHandler(function(err) { aviso((err && err.message) || 'Error', 'err'); }).regenerarClavePanel();
+    }, { aceptar: 'Nueva clave', titulo: 'Nueva clave del panel' });
+  }
+
   // Panel con la URL (copiar / abrir) en lugar de un alert del navegador.
   function ahCopiarEnlace(copiar) {
     var url = (ESTADO && ESTADO.urlApp) ? ESTADO.urlApp + '?vista=ahora' : '';
     if (!url) { aviso('No se pudo obtener la URL de la app.', 'err'); return; }
     var panel = document.getElementById('ah-link'), inp = document.getElementById('ah-link-url');
     inp.value = url; document.getElementById('ah-link-abrir').href = url;
-    if (!copiar) { panel.hidden = !panel.hidden; if (panel.hidden) return; }
+    if (!copiar) { panel.hidden = !panel.hidden; if (panel.hidden) return; if (!AH_PUB_K) _ahPubCargar(); }
     var ok = function() { aviso('Enlace copiado'); };
     var manual = function() { inp.focus(); inp.select(); try { document.execCommand('copy'); ok(); } catch (e) { aviso('Selecciónalo y copia con Ctrl+C', 'err'); } };
     try { navigator.clipboard.writeText(url).then(ok, manual); } catch (e) { manual(); }

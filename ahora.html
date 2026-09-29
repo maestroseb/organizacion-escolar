@@ -18,6 +18,7 @@
     function _errHtml(err) { return '<div class="result err">✗ ' + _esc((err && err.message) || err || 'Error') + '</div>'; }
     function aviso(msg) { console.log(msg); }
     var ESTADO = null, DATOS_VERSION = 0;
+    var AH_CLAVE = <?!= JSON.stringify(clave || '') ?>;   // panel abierto: refresca con la clave
     ahDatos(<?!= JSON.stringify(datos).replace(/</g, '\\u003c') ?>);
   </script>
 </body>

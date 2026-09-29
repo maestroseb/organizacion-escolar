@@ -20,6 +20,7 @@
  * Si la pestaña está vacía, devuelve [].
  */
 function getAll(sheetName) {
+  _exigirLectura();
   // Caché por ejecución: una misma petición (estadoApp, sábana, importación…)
   // suele leer la misma pestaña varias veces. Se lee UNA vez y se devuelven
   // copias, para que los llamantes puedan ordenar/mutar sin afectar a otros.
