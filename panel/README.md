@@ -15,5 +15,16 @@ archivos de la app; vuelve a generarlo cuando cambie el aspecto de Ahora.
 4. En la pantalla, abre la página de Pages. La primera vez pide el enlace del
    paso 2 y lo recuerda. Doble clic: pantalla completa.
 
+## Vista previa al compartir (WhatsApp, Telegram)
+
+El panel lleva título, descripción e imagen (`panel-preview.png`, 1200×630). Para que
+salga la imagen, genera el panel con su URL final y sube la imagen a la misma carpeta:
+
+    python3 tools/generar_panel.py --url https://ceip-carlos-iii.github.io/public/localizacion.html --centro "C.E.I.P. Carlos III"
+    node tools/generar_preview.js "C.E.I.P. Carlos III"     # solo si quieres regenerar la imagen
+
+WhatsApp guarda la vista previa un tiempo: si compartiste el enlace antes, puede
+tardar en actualizarse. La vista previa es fija (no muestra el tramo en curso).
+
 La página pide los datos cada minuto. Si la clave cambia («Nueva clave»), vuelve a
 pegar el enlace nuevo en cada pantalla.
