@@ -13,7 +13,7 @@ if (!m) throw new Error('No encuentro _ahEscena en partial_ahora.html');
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 const html = (`<!doctype html><meta charset="utf-8"><style>
   html,body{margin:0;width:1200px;height:630px;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif}
-  #cv{position:absolute;left:50%;top:50%;width:560px;transform:translate(-50%,-50%) scale(2.98);transform-origin:center;display:block}
+  #cv{position:absolute;left:66%;top:50%;width:560px;transform:translate(-50%,-50%) scale(2.98);transform-origin:center;display:block}
   .t{position:absolute;left:44px;top:36px;background:rgba(255,255,255,.92);border-radius:24px;padding:18px 30px;box-shadow:0 10px 40px rgba(0,0,0,.16)}
   .t b{display:block;font-size:66px;line-height:1;color:#1e3a5f;letter-spacing:-.02em}
   .t span{display:block;margin-top:8px;font-size:26px;color:#3b4252;font-weight:600}
