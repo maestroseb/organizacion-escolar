@@ -217,9 +217,9 @@
     // El cole (C.E.I.P. Carlos III): bloques blancos de azotea, puerta verde,
     // pilar naranja, ventanas con reja, banco arcoíris y naranjos en el patio.
     var PAL = {
-      dia:   { muro: '#f5f5f1', sombra: '#dcdfda', alero: '#6b7078', puerta: '#1f9d6b', pilar: '#d9542c', vidrio: ['#b6daf2', '#5a86a8'], marco: '#c3c8ce', suelo: '#e8dcc6', junta: '#d3c3a6', hoja: ['#3f8a33', '#5fae45', '#7cc35a'], naranja: '#f39c1f', tronco: '#6b4a2b', papelera: '#d7262e' },
-      tarde: { muro: '#f7e6d3', sombra: '#e3cbb2', alero: '#6d6660', puerta: '#1c8a5e', pilar: '#d24d27', vidrio: ['#f7c7a4', '#8a6a78'], marco: '#c9b8a8', suelo: '#e7c9a3', junta: '#cfae87', hoja: ['#3d7a30', '#5a9a3f', '#78b052'], naranja: '#f08a1c', tronco: '#5e3f25', papelera: '#c92229' },
-      noche: { muro: '#4b5169', sombra: '#3d4258', alero: '#2b2f3d', puerta: '#1b5a44', pilar: '#86402c', vidrio: ['#2e3558', '#171b2c'], marco: '#6a7090', suelo: '#2e3446', junta: '#262b3a', hoja: ['#1f3d28', '#2a5033', '#34603c'], naranja: '#b8762a', tronco: '#3a2a1e', papelera: '#7a2a2e' }
+      dia:   { muro: '#f5f5f1', sombra: '#dcdfda', alero: '#6b7078', puerta: '#1f9d6b', pilar: '#d9542c', vidrio: '#3a4552', reja: '#eceeea', suelo: '#e8dcc6', junta: '#d3c3a6', hoja: ['#3f8a33', '#5fae45', '#7cc35a'], naranja: '#f39c1f', tronco: '#6b4a2b', papelera: '#d7262e' },
+      tarde: { muro: '#f7e6d3', sombra: '#e3cbb2', alero: '#6d6660', puerta: '#1c8a5e', pilar: '#d24d27', vidrio: '#3d3f4f', reja: '#f1e2d2', suelo: '#e7c9a3', junta: '#cfae87', hoja: ['#3d7a30', '#5a9a3f', '#78b052'], naranja: '#f08a1c', tronco: '#5e3f25', papelera: '#c92229' },
+      noche: { muro: '#4b5169', sombra: '#3d4258', alero: '#2b2f3d', puerta: '#1b5a44', pilar: '#86402c', vidrio: '#1c2030', reja: '#5d6380', suelo: '#2e3446', junta: '#262b3a', hoja: ['#1f3d28', '#2a5033', '#34603c'], naranja: '#b8762a', tronco: '#3a2a1e', papelera: '#7a2a2e' }
     }[modo];
     var NARANJOS = [.365, .695, .965].map(function(x, i) {
       var fr = []; for (var k = 0; k < 9; k++) fr.push({ a: rnd(0, 6.28), r: rnd(.15, .85) });
@@ -227,19 +227,14 @@
     });
     var caidas = [], proxCaida = 3;
 
-    // Ventana de aluminio sin reja: marco claro, cristal con reflejo, hojas y alféizar.
-    function ventana(x, y, w, h, hojas, luz) {
-      ctx.fillStyle = PAL.sombra; ctx.fillRect(x - 3, y + h + 1, w + 6, 3);            // alféizar
-      ctx.fillStyle = PAL.marco; ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
-      var g = ctx.createLinearGradient(0, y, 0, y + h);
-      if (luz) { g.addColorStop(0, '#fff3c4'); g.addColorStop(1, '#fbbf24'); } else { g.addColorStop(0, PAL.vidrio[0]); g.addColorStop(1, PAL.vidrio[1]); }
-      ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
-      ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();                 // reflejo en diagonal
-      ctx.fillStyle = luz ? 'rgba(255,255,255,.25)' : 'rgba(255,255,255,.22)';
-      for (var k = 0; k < 2; k++) { var rx = x + w * (.15 + k * .5); ctx.beginPath(); ctx.moveTo(rx, y + h); ctx.lineTo(rx + h * .45, y); ctx.lineTo(rx + h * .45 + w * .12, y); ctx.lineTo(rx + w * .12, y + h); ctx.fill(); }
-      ctx.restore();
-      ctx.fillStyle = PAL.marco;
-      for (var i = 1; i < hojas; i++) ctx.fillRect(x + w * i / hojas - 1, y, 2, h);
+    // Ventana de cristal oscuro con marco y pocos cuarterones (cols × filas).
+    function ventana(x, y, w, h, cols, filas, luz, marco) {
+      var m = Math.max(2, 3 * HC / 260);
+      ctx.fillStyle = marco || PAL.sombra; ctx.fillRect(x - m, y - m, w + 2 * m, h + 2 * m);
+      ctx.fillStyle = luz ? '#fde68a' : PAL.vidrio; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = marco || PAL.reja;
+      for (var i = 1; i < cols; i++) ctx.fillRect(x + w * i / cols - m / 2, y, m, h);
+      for (i = 1; i < filas; i++) ctx.fillRect(x, y + h * i / filas - m / 2, w, m);
     }
     function naranjo(n, gy, t) {
       var s = HC / 260, alto = 62 * s, r = 30 * s, x = sx + sw * n.x;
@@ -286,26 +281,24 @@
       ctx.lineTo(Math.max(W, X(1.05)), HC * .24); ctx.lineTo(Math.max(W, X(1.05)), gy); ctx.fill();
       ctx.fillStyle = PAL.alero; ctx.beginPath(); ctx.moveTo(X(.82), HC * .31); ctx.lineTo(X(.93), HC * .22); ctx.lineTo(Math.max(W, X(1.05)), HC * .22); ctx.lineTo(Math.max(W, X(1.05)), HC * .25); ctx.lineTo(X(.94), HC * .25); ctx.lineTo(X(.84), HC * .33); ctx.fill();
       // Ventanas del bloque del fondo: planta alta y baja.
-      [.875, .96, 1.045].forEach(function(f, i) {
-        ventana(X(f), HC * .3, sw * .055, HC * .09, 2, modo === 'noche' && i === 1 && Math.sin(t * .4) > 0);
-        ventana(X(f), HC * .52, sw * .055, HC * .11, 2, false);
-      });
+      ventana(X(.87), HC * .33, sw * .16, HC * .1, 3, 1, modo === 'noche' && Math.sin(t * .4) > 0);
+      ventana(X(.87), HC * .6, sw * .16, HC * .1, 3, 1, false);
       // Bloque bajo de la derecha, con alero gris.
       ctx.fillStyle = PAL.muro; ctx.fillRect(X(.44), HC * .46, sw * .42, gy - HC * .46);
       ctx.fillStyle = PAL.alero; ctx.fillRect(X(.43), HC * .44, sw * .44, HC * .03);
-      ventana(X(.505), HC * .54, sw * .07, HC * .1, 3, modo === 'noche' && Math.sin(t * .6) > -.3);
-      ventana(X(.64), HC * .55, sw * .17, HC * .13, 4, false);
+      ventana(X(.505), HC * .54, sw * .07, HC * .1, 3, 1, modo === 'noche' && Math.sin(t * .6) > -.3);
+      ventana(X(.64), HC * .55, sw * .17, HC * .13, 5, 2, false);
       // Bloque alto de la izquierda (azotea) con su mástil.
       ctx.fillStyle = PAL.muro; ctx.fillRect(X(.1), HC * .36, sw * .34, gy - HC * .36);
       ctx.fillStyle = PAL.sombra; ctx.fillRect(X(.41), HC * .36, sw * .03, gy - HC * .36);
       ctx.fillStyle = PAL.alero; ctx.beginPath();                       // tejado gris
       ctx.moveTo(X(.085), HC * .37); ctx.lineTo(X(.11), HC * .32); ctx.lineTo(X(.43), HC * .32); ctx.lineTo(X(.455), HC * .37); ctx.fill();
-      ventana(X(.12), HC * .52, sw * .1, HC * .17, 3, false);
+      ventana(X(.12), HC * .52, sw * .1, HC * .17, 3, 2, false);
       // Puerta verde de dos hojas con ventanillo enrejado y cartel.
       var px = X(.265), pw = sw * .1, py = HC * .5;
       ctx.fillStyle = PAL.puerta; ctx.fillRect(px, py, pw, gy - py);
       ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(px + pw / 2 - .75, py, 1.5, gy - py);
-      ventana(px + pw * .12, py + (gy - py) * .1, pw * .76, (gy - py) * .3, 2, false);
+      ventana(px + pw * .12, py + (gy - py) * .1, pw * .76, (gy - py) * .3, 2, 1, false, PAL.puerta);
       if (!window.AH_SIN_CARTEL) {                                     // (la imagen de vista previa lo omite)
         ctx.fillStyle = modo === 'noche' ? '#e9ebf1' : '#fff'; ctx.fillRect(px + pw * .08, py + (gy - py) * .66, pw * .72, 10 * s);
         ctx.fillStyle = '#7a1f1f'; ctx.font = '700 ' + Math.max(6, 7 * s) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
