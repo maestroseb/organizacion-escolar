@@ -271,9 +271,11 @@
       ctx.fillStyle = PAL.puerta; ctx.fillRect(px, py, pw, gy - py);
       ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(px + pw / 2 - .75, py, 1.5, gy - py);
       ventanaReja(px + pw * .12, py + (gy - py) * .1, pw * .76, (gy - py) * .3, 6, false);
-      ctx.fillStyle = modo === 'noche' ? '#e9ebf1' : '#fff'; ctx.fillRect(px + pw * .08, py + (gy - py) * .66, pw * .72, 10 * s);
-      ctx.fillStyle = '#7a1f1f'; ctx.font = '700 ' + Math.max(6, 7 * s) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('CERRADO', px + pw * .44, py + (gy - py) * .66 + 5 * s); ctx.textBaseline = 'alphabetic';
+      if (!window.AH_SIN_CARTEL) {                                     // (la imagen de vista previa lo omite)
+        ctx.fillStyle = modo === 'noche' ? '#e9ebf1' : '#fff'; ctx.fillRect(px + pw * .08, py + (gy - py) * .66, pw * .72, 10 * s);
+        ctx.fillStyle = '#7a1f1f'; ctx.font = '700 ' + Math.max(6, 7 * s) + 'px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('CERRADO', px + pw * .44, py + (gy - py) * .66 + 5 * s); ctx.textBaseline = 'alphabetic';
+      }
       // Pilar naranja (cilindro).
       var cx = X(.375), cw = sw * .03, gr = ctx.createLinearGradient(cx, 0, cx + cw, 0);
       gr.addColorStop(0, PAL.pilar); gr.addColorStop(.45, modo === 'noche' ? '#a4533a' : '#f07a4f'); gr.addColorStop(1, PAL.pilar);

@@ -19,7 +19,7 @@ const html = (`<!doctype html><meta charset="utf-8"><style>
   .t span{display:block;margin-top:8px;font-size:26px;color:#3b4252;font-weight:600}
 </style><canvas id="cv"></canvas>
 <div class="t"><b>Ahora</b><span>${esc(centro ? centro + ' · ' : '')}quién está en cada clase</span></div>
-<script>(function(){var a=SEMILLA;Math.random=function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};})();window.matchMedia=function(){return{matches:true}};${m[0]};_ahEscena(document.getElementById('cv'),'dia');</script>`).replace('SEMILLA', semilla);
+<script>(function(){var a=SEMILLA;Math.random=function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};})();window.matchMedia=function(){return{matches:true}};window.AH_SIN_CARTEL=true;${m[0]};_ahEscena(document.getElementById('cv'),'dia');</script>`).replace('SEMILLA', semilla);
 (async () => {
   const b = await chromium.launch();
   const p = await b.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 4 });
