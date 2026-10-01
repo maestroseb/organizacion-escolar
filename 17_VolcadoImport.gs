@@ -57,13 +57,23 @@ function extraerEntidadesVolcado(texto, fuente) {
   });
 
   // Catálogo existente para marcar novedades.
-  const exDoc = _claves(listarDocentes(), 'nombre_corto');
+  // Un docente ya existe si coincide su nombre corto o el completo (así no
+  // se duplica al reimportar con nombre corto + completo).
+  const listaDoc = listarDocentes();
+  const exDoc = _claves(listaDoc, 'nombre_corto');
+  const exDocCompleto = _claves(listaDoc, 'nombre_completo');
   const exGru = _claves(listarGrupos(), 'nombre_corto');
   const exMat = _claves(listarMaterias(), 'nombre');
   const exRol = _claves(listarRoles(), 'nombre');
   const exTramos = listarTramos().length;
 
-  const docentes = docSet.lista().map(function(n) { return { nombre: n, completo: completoDe[_keyNorm(n)] || '', existe: exDoc[_keyNorm(n)] === true }; });
+  const docentes = docSet.lista().map(function(n) {
+    const completo = completoDe[_keyNorm(n)] || '';
+    const kc = _keyNorm(completo);
+    const existe = exDoc[_keyNorm(n)] === true || exDocCompleto[_keyNorm(n)] === true ||
+      (!!kc && (exDoc[kc] === true || exDocCompleto[kc] === true));
+    return { nombre: n, completo: completo, existe: existe };
+  });
   const grupos = gruSet.lista().map(function(n) { return { nombre: n, nivel: _detectarNivel(n), existe: exGru[_keyNorm(n)] === true }; });
   const materias = matSet.lista().map(function(n) { return { nombre: n, abreviatura: abrevDe[_keyNorm(n)] || '', existe: exMat[_keyNorm(n)] === true }; });
   const roles = rolSet.lista().map(function(n) { return { nombre: n, existe: exRol[_keyNorm(n)] === true }; });
@@ -103,11 +113,12 @@ function crearEntidadesVolcado(seleccion, modo) {
   const resumen = {};
 
   if (seleccion.docentes && seleccion.docentes.length) {
-    guardarDocentes(seleccion.docentes.map(function(d) {
+    const lista = _docentesSinDuplicar(seleccion.docentes.map(function(d) {
       const o = typeof d === 'object' && d ? d : { nombre: d };
       return { nombre_corto: String(o.nombre).trim(), nombre_completo: String(o.completo || '').trim(), activo: true };
-    }), modo);
-    resumen.docentes = seleccion.docentes.length;
+    }));
+    if (lista.length) guardarDocentes(lista, modo);
+    resumen.docentes = lista.length;
   }
 
   if (seleccion.grupos && seleccion.grupos.length) {
@@ -145,6 +156,42 @@ function crearEntidadesVolcado(seleccion, modo) {
 }
 
 // ---------- Internos ----------
+
+/**
+ * Evita duplicar docentes al crear el catálogo. Si el docente entrante ya
+ * existe por su nombre completo (como nombre corto o completo de otro), no
+ * se crea. Si existe uno cuyo nombre corto ES su nombre completo y aún no
+ * tiene nombre completo (importación anterior con el nombre largo), se
+ * corrige ese docente: pasa a tener el nombre corto y el completo nuevos.
+ */
+function _docentesSinDuplicar(entrantes) {
+  const docs = getAll(SHEETS.DOCENTES);
+  const porCorto = {}, porCompleto = {};
+  docs.forEach(function(d) {
+    porCorto[_keyNorm(d.nombre_corto)] = d;
+    const k = _keyNorm(d.nombre_completo); if (k) porCompleto[k] = d;
+  });
+  let renombrados = false;
+  const quedan = entrantes.filter(function(e) {
+    const kn = _keyNorm(e.nombre_corto), kc = _keyNorm(e.nombre_completo);
+    if (porCorto[kn]) return true; // existe por nombre corto: el modo combinar lo actualiza
+    if (!kc) return !porCompleto[kn];
+    if (porCompleto[kc]) return false;
+    const viejo = porCorto[kc];
+    if (viejo) {
+      if (!String(viejo.nombre_completo || '').trim()) {
+        delete porCorto[kc];
+        viejo.nombre_corto = e.nombre_corto; viejo.nombre_completo = e.nombre_completo;
+        porCorto[kn] = viejo; porCompleto[kc] = viejo;
+        renombrados = true;
+      }
+      return false;
+    }
+    return true;
+  });
+  if (renombrados) bulkReplace_(SHEETS.DOCENTES, docs);
+  return quedan;
+}
 
 /** Parte el volcado en filas crudas según la fuente (csv/texto/auto). */
 function _crudasVolcado(texto, fuente) {

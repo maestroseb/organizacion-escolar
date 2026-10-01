@@ -194,7 +194,7 @@
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en Localizaciones, Sustituciones y demás vistas; debe ser único. Solo puede abrir la app quien tenga aquí su <strong>email</strong> (o el de su sustituto/a) y esté activo.</p>
   </div>
   <div class="doc-tabla">
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><button class="secondary" onclick="docPasarACompleto()" title="Si el nombre corto es el nombre completo (p. ej. al crear el catálogo desde un CSV), lo copia a «Nombre completo» y deja un nombre corto más breve">⇄ Nombre largo → completo</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><button class="secondary" onclick="docFusionarDuplicados()" title="Une los docentes repetidos (uno con el nombre largo como nombre corto y otro con ese mismo nombre como «Nombre completo»): pasa su horario, tutorías y sustituciones al segundo y borra el primero">⧉ Fusionar duplicados</button><button class="secondary" onclick="docPasarACompleto()" title="Si el nombre corto es el nombre completo (p. ej. al crear el catálogo desde un CSV), lo copia a «Nombre completo» y deja un nombre corto más breve">⇄ Nombre largo → completo</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
@@ -542,6 +542,15 @@
     p.pop();
     while (p.length > 2 && /^(de|del|la|las|los|y)$/i.test(p[p.length - 1])) p.pop();
     return p.join(' ');
+  }
+  function docFusionarDuplicados() {
+    if (typeof hayCambios === 'function' && hayCambios('docentes')) { aviso('Guarda antes los cambios de Docentes', 'err'); return; }
+    confirmar('Se unirán los docentes repetidos: su horario, tutorías y sustituciones pasan al que tiene «Nombre completo» y el otro se borra. ¿Continuar?', function() {
+      _run().withSuccessHandler(function(r) {
+        aviso(r.fusionados ? r.fusionados + ' docente(s) fusionados' + (r.descartadas ? ' (' + r.descartadas + ' horas repetidas descartadas)' : '') + '.' : 'No hay docentes duplicados.', r.fusionados ? 'ok' : '');
+        cargarDocentes();
+      }).withFailureHandler(mostrarErrorGenerico).fusionarDocentesDuplicados();
+    });
   }
   function docPasarACompleto() {
     var usados = {};

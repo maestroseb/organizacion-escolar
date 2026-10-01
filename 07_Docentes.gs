@@ -69,3 +69,67 @@ function marcarDocenteParcial(id, parcial) {
   return { ok: true };
 }
 
+
+/**
+ * Fusiona docentes duplicados: el docente A (sin nombre completo) cuyo
+ * nombre corto coincide con el nombre completo de otro docente B. Pasa a B
+ * todo lo de A (horario, tutorías, sustituciones y los datos que B no
+ * tenga) y borra A. Las ocupaciones de A que choquen con una de B en el
+ * mismo día/tramo se descartan (B ya tiene ese hueco).
+ * Pasa al reimportar un CSV con nombre corto + completo tras otro que solo
+ * traía el nombre largo.
+ */
+function fusionarDocentesDuplicados() {
+  _exigirEdicion();
+  const docs = getAll(SHEETS.DOCENTES);
+  const porCompleto = {};
+  docs.forEach(function(d) { const k = _keyNorm(d.nombre_completo); if (k) porCompleto[k] = d; });
+  const destino = {}; // id de A → B
+  docs.forEach(function(a) {
+    if (String(a.nombre_completo || '').trim()) return;
+    const b = porCompleto[_keyNorm(a.nombre_corto)];
+    if (b && b.id !== a.id) destino[a.id] = b;
+  });
+  const ids = Object.keys(destino);
+  if (!ids.length) return { ok: true, fusionados: 0 };
+
+  // Datos que B no tenga se toman de A.
+  ids.forEach(function(idA) {
+    const a = docs.filter(function(d) { return d.id === idA; })[0];
+    const b = destino[idA];
+    ['puesto', 'email', 'telefono', 'color', 'sustituto', 'sustituto_email'].forEach(function(c) {
+      if (!String(b[c] || '').trim() && String(a[c] || '').trim()) b[c] = a[c];
+    });
+    if (String(a.activo).toUpperCase() !== 'FALSE' && a.activo !== false) b.activo = true;
+  });
+  const nuevoId = function(id) { return destino[id] ? destino[id].id : id; };
+
+  // Ocupaciones: reasignar, sin duplicar huecos que B ya ocupa.
+  const ocs = getAll(SHEETS.OCUPACIONES);
+  const clave = function(o) { return [o.docente_id, o.dia, o.tramo_id, o.mitad || '', o.semana || ''].join('|'); };
+  const ocupado = {};
+  ocs.forEach(function(o) { if (!destino[o.docente_id]) ocupado[clave(o)] = true; });
+  let descartadas = 0;
+  const ocsFinal = [];
+  ocs.forEach(function(o) {
+    if (!destino[o.docente_id]) { ocsFinal.push(o); return; }
+    o.docente_id = nuevoId(o.docente_id);
+    if (ocupado[clave(o)]) { descartadas++; return; }
+    ocupado[clave(o)] = true;
+    ocsFinal.push(o);
+  });
+  bulkReplace_(SHEETS.OCUPACIONES, ocsFinal);
+
+  const grupos = getAll(SHEETS.GRUPOS);
+  if (grupos.some(function(g) { return destino[g.tutor_id]; })) {
+    grupos.forEach(function(g) { g.tutor_id = nuevoId(g.tutor_id); });
+    bulkReplace_(SHEETS.GRUPOS, grupos);
+  }
+  const sus = getAll(SHEETS.SUSTITUCIONES);
+  if (sus.some(function(s) { return destino[s.ausente_id] || destino[s.sustituto_id]; })) {
+    sus.forEach(function(s) { s.ausente_id = nuevoId(s.ausente_id); s.sustituto_id = nuevoId(s.sustituto_id); });
+    bulkReplace_(SHEETS.SUSTITUCIONES, sus);
+  }
+  bulkReplace_(SHEETS.DOCENTES, docs.filter(function(d) { return !destino[d.id]; }));
+  return { ok: true, fusionados: ids.length, descartadas: descartadas };
+}
