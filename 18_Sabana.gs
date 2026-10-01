@@ -10,7 +10,8 @@
  *     (DIR, coordinaciones, RH…), ordenadas por la prioridad de sustitución
  *     (el `orden` de la pestaña Cargos) y numeradas #01, #02… Cada una lleva
  *     su color (el del rol; configurable por el usuario).
- *   - libres: docentes activos sin ninguna ocupación ese tramo.
+ *   - libres: docentes activos sin ninguna ocupación ese tramo, más los que
+ *     están fuera del centro por un rol de ausencia (guarda legal…).
  *
  * Alternancia semanal: se muestra una semana (A o B). Las ocupaciones sin
  * semana valen para ambas. Los desdobles (a/b) se muestran juntos.
@@ -220,8 +221,18 @@ function _sabanaTramoData(t, ocupDia, ctx) {
   });
 
   // --- Apoyos y cargos (panel derecho) ---
+  // Guarda legal, itinerancia…: no están en el centro. No ocupan localización;
+  // salen en «No en el centro» con el motivo.
+  const fuera = [];
   const apoyos = ocs
     .filter(function(o) { return o.tipo === 'localizacion' || o.tipo === 'especial'; })
+    .filter(function(o) {
+      const rol = ctx.rolById[o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id] || { nombre: o.notas };
+      if (!rolEsAusencia(rol)) return true;
+      const t = (String(rol.nombre || '') + ' ' + String(rol.nombre_largo || '')).toLowerCase();
+      fuera.push(nombreDoc(o.docente_id) + ' (' + (/guarda/.test(t) ? 'guarda legal' : /itiner/.test(t) ? 'itinerancia' : (rol.nombre || 'fuera')) + ')');
+      return false;
+    })
     .map(function(o) {
       const rolId = o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id;
       const rol = ctx.rolById[rolId] || null;
@@ -262,7 +273,8 @@ function _sabanaTramoData(t, ocupDia, ctx) {
   ocs.forEach(function(o) { if (o.docente_id) ocupados[o.docente_id] = true; });
   const libres = ctx.docentes
     .filter(function(d) { return !ocupados[d.id]; })
-    .map(function(d) { return String(d.sustituto || '').trim() || d.nombre_corto; });
+    .map(function(d) { return String(d.sustituto || '').trim() || d.nombre_corto; })
+    .concat(fuera);
 
   return {
     tramo: {
