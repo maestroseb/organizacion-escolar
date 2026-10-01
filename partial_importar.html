@@ -244,7 +244,9 @@
       grupos: res.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
       materias: res.materias.map(function(x){return { nombre:x.nombre, abreviatura:x.abreviatura || '' };}),
       roles: res.roles.map(function(x){return x.nombre;}),
-      tramosOrdenes: res.tramos.ordenes
+      tramosOrdenes: res.tramos.ordenes,
+      tramosHoras: res.tramos.horas || {},
+      tramosRecreo: res.tramos.recreos || []
     };
     const btn = document.getElementById('btn-crear-catalogo'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
     google.script.run

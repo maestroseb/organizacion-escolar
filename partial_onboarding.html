@@ -318,11 +318,13 @@
     if (!obEntidades) return;
     const texto = document.getElementById('ob-paste-texto').value;
     const sel = {
-      docentes: obEntidades.docentes.map(function(x){return x.nombre;}),
+      docentes: obEntidades.docentes.map(function(x){return { nombre:x.nombre, completo:x.completo || '' };}),
       grupos: obEntidades.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
-      materias: obEntidades.materias.map(function(x){return x.nombre;}),
+      materias: obEntidades.materias.map(function(x){return { nombre:x.nombre, abreviatura:x.abreviatura || '' };}),
       roles: obEntidades.roles.map(function(x){return x.nombre;}),
-      tramosOrdenes: obEntidades.tramos.ordenes
+      tramosOrdenes: obEntidades.tramos.ordenes,
+      tramosHoras: obEntidades.tramos.horas || {},
+      tramosRecreo: obEntidades.tramos.recreos || []
     };
     const btn = document.getElementById('ob-btn-crear'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
     google.script.run
