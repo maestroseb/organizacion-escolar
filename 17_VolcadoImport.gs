@@ -63,7 +63,13 @@ function extraerEntidadesVolcado(texto, fuente) {
   const exDoc = _claves(listaDoc, 'nombre_corto');
   const exDocCompleto = _claves(listaDoc, 'nombre_completo');
   const exGru = _claves(listarGrupos(), 'nombre_corto');
-  const exMat = _claves(listarMaterias(), 'nombre');
+  const listaMat = listarMaterias();
+  const exMat = _claves(listaMat, 'nombre');
+  // Existentes a los que el CSV puede completar algo vacío (nombre completo
+  // del docente, abreviatura de la materia).
+  const docVacio = {}, matVacia = {};
+  listaDoc.forEach(function(d) { if (!String(d.nombre_completo || '').trim()) docVacio[_keyNorm(d.nombre_corto)] = true; });
+  listaMat.forEach(function(m) { if (!String(m.abreviatura || '').trim()) matVacia[_keyNorm(m.nombre)] = true; });
   const exRol = _claves(listarRoles(), 'nombre');
   const exTramos = listarTramos().length;
 
@@ -72,10 +78,14 @@ function extraerEntidadesVolcado(texto, fuente) {
     const kc = _keyNorm(completo);
     const existe = exDoc[_keyNorm(n)] === true || exDocCompleto[_keyNorm(n)] === true ||
       (!!kc && (exDoc[kc] === true || exDocCompleto[kc] === true));
-    return { nombre: n, completo: completo, existe: existe };
+    return { nombre: n, completo: completo, existe: existe, completar: existe && !!completo && docVacio[_keyNorm(n)] === true };
   });
   const grupos = gruSet.lista().map(function(n) { return { nombre: n, nivel: _detectarNivel(n), existe: exGru[_keyNorm(n)] === true }; });
-  const materias = matSet.lista().map(function(n) { return { nombre: n, abreviatura: abrevDe[_keyNorm(n)] || '', existe: exMat[_keyNorm(n)] === true }; });
+  const materias = matSet.lista().map(function(n) {
+    const abreviatura = abrevDe[_keyNorm(n)] || '';
+    const existe = exMat[_keyNorm(n)] === true;
+    return { nombre: n, abreviatura: abreviatura, existe: existe, completar: existe && !!abreviatura && matVacia[_keyNorm(n)] === true };
+  });
   const roles = rolSet.lista().map(function(n) { return { nombre: n, existe: exRol[_keyNorm(n)] === true }; });
 
   const listaOrdenes = Object.keys(ordenes).map(Number).sort(function(a, b) { return a - b; });
@@ -96,6 +106,10 @@ function extraerEntidadesVolcado(texto, fuente) {
       materias: nuevos(materias),
       roles: nuevos(roles),
       tramos: tramos.existe ? 0 : listaOrdenes.length
+    },
+    completar: {
+      docentes: docentes.filter(function(x) { return x.completar; }).length,
+      materias: materias.filter(function(x) { return x.completar; }).length
     }
   };
 }
@@ -158,8 +172,8 @@ function crearEntidadesVolcado(seleccion, modo) {
 // ---------- Internos ----------
 
 /**
- * Evita duplicar docentes al crear el catálogo. Si el docente entrante ya
- * existe por su nombre completo (como nombre corto o completo de otro), no
+ * Evita duplicar docentes al crear el catálogo. Si ya existe por su nombre
+ * corto, solo se le completa el nombre completo vacío. Si existe por su nombre completo (como nombre corto o completo de otro), no
  * se crea. Si existe uno cuyo nombre corto ES su nombre completo y aún no
  * tiene nombre completo (importación anterior con el nombre largo), se
  * corrige ese docente: pasa a tener el nombre corto y el completo nuevos.
@@ -174,7 +188,13 @@ function _docentesSinDuplicar(entrantes) {
   let renombrados = false;
   const quedan = entrantes.filter(function(e) {
     const kn = _keyNorm(e.nombre_corto), kc = _keyNorm(e.nombre_completo);
-    if (porCorto[kn]) return true; // existe por nombre corto: el modo combinar lo actualiza
+    if (porCorto[kn]) {
+      // Ya existe: solo se completa el nombre completo si lo tenía vacío (no
+      // se pasa por guardarDocentes, que reescribiría permisos y orden).
+      const d = porCorto[kn];
+      if (kc && !String(d.nombre_completo || '').trim()) { d.nombre_completo = e.nombre_completo; porCompleto[kc] = d; renombrados = true; }
+      return false;
+    }
     if (!kc) return !porCompleto[kn];
     if (porCompleto[kc]) return false;
     const viejo = porCorto[kc];

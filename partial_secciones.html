@@ -194,7 +194,7 @@
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en Localizaciones, Sustituciones y demás vistas; debe ser único. Solo puede abrir la app quien tenga aquí su <strong>email</strong> (o el de su sustituto/a) y esté activo.</p>
   </div>
   <div class="doc-tabla">
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><button class="secondary" id="btn-doc-fusionar" hidden onclick="docFusionarDuplicados()" title="Une los docentes repetidos (uno con el nombre largo como nombre corto y otro con ese mismo nombre como «Nombre completo»): pasa su horario, tutorías y sustituciones al segundo y borra el primero">⧉ Fusionar duplicados</button><button class="secondary" id="btn-doc-completo" hidden onclick="docPasarACompleto()" title="Si el nombre corto es el nombre completo (p. ej. al crear el catálogo desde un CSV), lo copia a «Nombre completo» y deja un nombre corto más breve">⇄ Nombre largo → completo</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><button class="secondary" id="btn-doc-fusionar" hidden onclick="docFusionarDuplicados()" title="Une los docentes repetidos (uno con el nombre largo como nombre corto y otro con ese mismo nombre como «Nombre completo»): pasa su horario, tutorías y sustituciones al segundo y borra el primero">⧉ Fusionar duplicados</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
@@ -532,17 +532,6 @@
     if (abrir) { var inp = document.querySelectorAll('#docentes-body tr')[i].querySelector('.doc-sust input'); if (inp) inp.focus(); }
   }
   function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
-  // Nombre corto largo («Francisco Javier Bermúdez Espinosa») sin nombre
-  // completo: lo copia a «Nombre completo» y acorta el corto quitando el
-  // segundo apellido («Francisco Javier Bermúdez»). No toca a quien ya tenga
-  // nombre completo ni deja dos docentes con el mismo nombre corto.
-  function _docAcortar(n) {
-    var p = String(n || '').trim().split(/\s+/);
-    if (p.length < 3) return '';
-    p.pop();
-    while (p.length > 2 && /^(de|del|la|las|los|y)$/i.test(p[p.length - 1])) p.pop();
-    return p.join(' ');
-  }
   function docFusionarDuplicados() {
     if (typeof hayCambios === 'function' && hayCambios('docentes')) { aviso('Guarda antes los cambios de Docentes', 'err'); return; }
     confirmar('Se unirán los docentes repetidos: su horario, tutorías y sustituciones pasan al que tiene «Nombre completo» y el otro se borra. ¿Continuar?', function() {
@@ -552,21 +541,7 @@
       }).withFailureHandler(mostrarErrorGenerico).fusionarDocentesDuplicados();
     });
   }
-  function docPasarACompleto() {
-    var usados = {};
-    docentesLocal.forEach(function(d) { usados[_docNorm(d.nombre_corto)] = 1; });
-    var n = 0;
-    docentesLocal.forEach(function(d) {
-      if (String(d.nombre_completo || '').trim()) return;
-      var corto = _docAcortar(d.nombre_corto);
-      if (!corto) return;
-      d.nombre_completo = d.nombre_corto;
-      if (!usados[_docNorm(corto)]) { delete usados[_docNorm(d.nombre_corto)]; d.nombre_corto = corto; usados[_docNorm(corto)] = 1; }
-      n++;
-    });
-    renderDocentes();
-    aviso(n ? n + ' docente(s) actualizados. Revisa y pulsa Guardar.' : 'No hay docentes con nombre largo y sin nombre completo.', n ? 'ok' : '');
-  }
+
   function eliminarDocente(i) { docentesLocal.splice(i,1); renderDocentes(); }
   function actualizarDocente(i, c, v) { docentesLocal[i][c] = v; }
   function renderDocentes() {
@@ -589,14 +564,13 @@
     filtrarDocentes();
     _docBotonesNombres();
   }
-  // Los botones de nombres solo aparecen cuando hay algo que hacer.
+  // «Fusionar duplicados» solo aparece cuando hay docentes repetidos.
   function _docBotonesNombres() {
     var completos = {};
     docentesLocal.forEach(function(d) { if (String(d.nombre_completo || '').trim()) completos[_docNorm(d.nombre_completo).trim()] = 1; });
     var sinCompleto = docentesLocal.filter(function(d) { return !String(d.nombre_completo || '').trim(); });
-    var fus = document.getElementById('btn-doc-fusionar'), com = document.getElementById('btn-doc-completo');
+    var fus = document.getElementById('btn-doc-fusionar');
     if (fus) fus.hidden = !sinCompleto.some(function(d) { return completos[_docNorm(d.nombre_corto).trim()]; });
-    if (com) com.hidden = !sinCompleto.some(function(d) { return _docAcortar(d.nombre_corto); });
   }
   // Búsqueda: oculta las filas que no coinciden (sin tildes ni mayúsculas).
   // Solo afecta a la vista; al guardar se envían todos.
