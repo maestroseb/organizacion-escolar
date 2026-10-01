@@ -413,13 +413,31 @@ function _detectarConflictos(filas) {
   const existentes = getAll(SHEETS.OCUPACIONES);
   const ocupado = {};
   existentes.forEach(function(o) {
-    ocupado[[o.docente_id, o.dia, o.tramo_id, o.mitad || '', o.semana || ''].join('|')] = true;
+    ocupado[[o.docente_id, o.dia, o.tramo_id, o.mitad || '', o.semana || ''].join('|')] = o;
   });
   filas.forEach(function(f) {
     if (f.omitir || !f.docente.id || !f.tramoId) return;
     const k = [f.docente.id, f.dia, f.tramoId, f.mitad, f.semana].join('|');
-    if (ocupado[k]) f.avisos.push('CONFLICTO: el docente ya tiene algo en ese tramo (ya existe en _Ocupaciones)');
+    const o = ocupado[k];
+    if (!o) return;
+    // Si lo existente es lo mismo que se importa, no es conflicto (pasa al
+    // reimportar el mismo horario): aplicar no cambia nada.
+    if (_mismaOcupacion(o, f)) f.avisos.push(AVISO_IGUAL);
+    else f.avisos.push('CONFLICTO: el docente ya tiene otra cosa en ese tramo (Combinar la sustituye; Añadir mantiene la que hay)');
   });
+}
+
+const AVISO_IGUAL = 'Ya está igual en el horario';
+
+/** Ocupación existente `o` equivalente a la fila analizada `f`. */
+function _mismaOcupacion(o, f) {
+  if (o.tipo !== f.tipo) return false;
+  const ids = function(v) { return String(v || '').split(',').map(function(x) { return x.trim(); }).filter(String).sort().join(','); };
+  const gruposF = ids((f.gruposMatch || []).map(function(g) { return g && g.id; }).filter(String).join(','));
+  if (f.tipo === 'grupo') return o.materia_id === (f.materia && f.materia.id) && ids(o.grupo_id) === gruposF;
+  if (f.tipo === 'localizacion') return o.rol_loc_id === (f.rol && f.rol.id) && ids(o.grupo_destino_id) === gruposF;
+  if (f.tipo === 'especial') return o.rol_especial_id === (f.rol && f.rol.id);
+  return false;
 }
 
 function _calcularEstadoFila(f) {
@@ -439,7 +457,7 @@ function _calcularEstadoFila(f) {
   const faltaTramo = !f.tramoId;
 
   if (tieneConflicto) f.estadoFila = 'conflicto';
-  else if (hayNomatch || faltaTramo || f.avisos.length > 0) f.estadoFila = 'revisar';
+  else if (hayNomatch || faltaTramo || f.avisos.some(function(a) { return a !== AVISO_IGUAL; })) f.estadoFila = 'revisar';
   else if (hayDudoso) f.estadoFila = 'dudoso';
   else f.estadoFila = 'ok';
 }
