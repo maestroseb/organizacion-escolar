@@ -291,8 +291,8 @@
     }).join('&');
   }
   _regGuardable('centro', 'centro', _estadoFormCentro, function() { enviarCentro({ preventDefault: function() {} }); });
-  _regGuardable('centro', 'tramos', function() { return tramosLocal; }, function() { enviarTramos(); });
-  _regGuardable('centro', 'semanas', function() { return semanasLocal; }, function() { enviarSemanas(); });
+  _regGuardable('tramos', 'tramos', function() { return tramosLocal; }, function() { enviarTramos(); });
+  _regGuardable('tramos', 'semanas', function() { return semanasLocal; }, function() { enviarSemanas(); });
   _regGuardable('grupos', 'grupos', function() { return gruposLocal; }, function() { enviarGrupos(); });
   _regGuardable('grupos', 'localizaciones', function() { return locsLocal; }, function() { enviarLocalizaciones(); });
   _regGuardable('docentes', 'docentes', function() { return docentesLocal; }, function() { enviarDocentes(); });
