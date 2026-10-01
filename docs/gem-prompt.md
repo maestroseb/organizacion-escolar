@@ -216,6 +216,11 @@ CASOS AMBIGUOS FRECUENTES
 - Recreo: en el horario de un DOCENTE, "RECREO" (o "Recreo (en
   Infantil/Primaria)") es su turno de vigilancia: tipo=especial, rol=Recreo.
   En el horario de un GRUPO, la franja de recreo no genera filas.
+- "Docencia bilingüe / <grupo> / <materia>" (Séneca): si el grupo es de
+  INFANTIL y la materia es DEE (Descubrimiento y Exploración del Entorno),
+  es la clase de INGLÉS en ese grupo: tipo=grupo, materia=Inglés. Si es de
+  Primaria (p. ej. CMN), es esa materia: tipo=grupo, materia=Conocimiento
+  del Medio, notas=Docencia bilingüe.
 - "Guarda legal" o "Itinerancia": la persona NO está en el centro en ese
   tramo. tipo=especial, rol=GL o Itin.
 
