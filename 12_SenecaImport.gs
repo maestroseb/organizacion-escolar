@@ -298,7 +298,8 @@ function _parsearActividades(seccion) {
     /pedagog/i, /pt\b/i, /audici/i, /al\b/i,
     /refuerzo/i, /atedu/i, /apoyo/i,
     /tutor/i, /guardia/i, /recreo/i, /biblioteca/i,
-    /convivencia/i, /coeduca/i, /prl/i, /salud/i
+    /convivencia/i, /coeduca/i, /prl/i, /salud/i,
+    /guarda legal/i, /itineran/i, /steam/i, /mayores de 55/i
   ];
   const items = [];
   const vistasLargo = {};
@@ -378,7 +379,12 @@ function _siglaActividad(nombre) {
     [/ciclo/i, 'CIC'],
     [/biling|plurilig/i, 'BIL'],
     [/erasmus/i, 'ERA'],
+    [/steam/i, 'STEAM'],
     [/tic|tecnolog/i, 'TIC'],
+    [/apoyo a (las )?familias/i, 'PAF'],
+    [/guarda legal/i, 'GL'],
+    [/itineran/i, 'Itin.'],
+    [/mayores de 55/i, 'RH'],
     [/igualdad/i, 'IGU'],
     [/paz/i, 'PAZ'],
     [/pedagog|^pt/i, 'PT'],
@@ -387,7 +393,7 @@ function _siglaActividad(nombre) {
     [/atedu/i, 'ATEDU'],
     [/apoyo/i, 'Apoyo'],
     [/tutor/i, 'Tut.'],
-    [/guardia.*recreo|recreo.*guardia/i, 'Gua.'],
+    [/recreo/i, 'Recreo'],
     [/guardia/i, 'Gua.']
   ];
   for (let i = 0; i < map.length; i++) {

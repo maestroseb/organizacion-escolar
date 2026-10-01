@@ -194,7 +194,7 @@
     <p>El claustro. El <strong>nombre corto</strong> es el que aparece en Localizaciones, Sustituciones y demás vistas; debe ser único. Solo puede abrir la app quien tenga aquí su <strong>email</strong> (o el de su sustituto/a) y esté activo.</p>
   </div>
   <div class="doc-tabla">
-  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
+  <div class="toolbar"><button class="secondary" onclick="anadirDocente()">+ Añadir docente</button><button class="secondary" onclick="abrirClaustro()">📋 Pegar lista del claustro</button><button class="secondary" onclick="docPasarACompleto()" title="Si el nombre corto es el nombre completo (p. ej. al crear el catálogo desde un CSV), lo copia a «Nombre completo» y deja un nombre corto más breve">⇄ Nombre largo → completo</button><span class="hint">Consejo: copia una o varias columnas de una hoja de cálculo y pégalas (Ctrl+V) en la primera celda.</span><input type="search" id="doc-buscar" class="doc-buscar" placeholder="🔍 Buscar docente…" oninput="filtrarDocentes()" title="Busca en nombre, nombre completo, puesto, email y sustituto/a"></div>
   <div class="tablewrap">
     <table class="data fit">
       <thead><tr>
@@ -532,6 +532,32 @@
     if (abrir) { var inp = document.querySelectorAll('#docentes-body tr')[i].querySelector('.doc-sust input'); if (inp) inp.focus(); }
   }
   function anadirDocente() { docentesLocal.push(_mapearDocente({})); renderDocentes(); }
+  // Nombre corto largo («Francisco Javier Bermúdez Espinosa») sin nombre
+  // completo: lo copia a «Nombre completo» y acorta el corto quitando el
+  // segundo apellido («Francisco Javier Bermúdez»). No toca a quien ya tenga
+  // nombre completo ni deja dos docentes con el mismo nombre corto.
+  function _docAcortar(n) {
+    var p = String(n || '').trim().split(/\s+/);
+    if (p.length < 3) return '';
+    p.pop();
+    while (p.length > 2 && /^(de|del|la|las|los|y)$/i.test(p[p.length - 1])) p.pop();
+    return p.join(' ');
+  }
+  function docPasarACompleto() {
+    var usados = {};
+    docentesLocal.forEach(function(d) { usados[_docNorm(d.nombre_corto)] = 1; });
+    var n = 0;
+    docentesLocal.forEach(function(d) {
+      if (String(d.nombre_completo || '').trim()) return;
+      var corto = _docAcortar(d.nombre_corto);
+      if (!corto) return;
+      d.nombre_completo = d.nombre_corto;
+      if (!usados[_docNorm(corto)]) { delete usados[_docNorm(d.nombre_corto)]; d.nombre_corto = corto; usados[_docNorm(corto)] = 1; }
+      n++;
+    });
+    renderDocentes();
+    aviso(n ? n + ' docente(s) actualizados. Revisa y pulsa Guardar.' : 'No hay docentes con nombre largo y sin nombre completo.', n ? 'ok' : '');
+  }
   function eliminarDocente(i) { docentesLocal.splice(i,1); renderDocentes(); }
   function actualizarDocente(i, c, v) { docentesLocal[i][c] = v; }
   function renderDocentes() {
@@ -970,7 +996,8 @@
     const tb = document.getElementById('roles-body'); tb.innerHTML = '';
     rolesLocal.forEach(function(r, i) {
       const tr = document.createElement('tr');
-      tr.setAttribute('draggable', 'true');
+      // Arrastrable solo desde el asa ⠿ (si toda la fila lo fuera, no se
+      // podría seleccionar ni copiar el texto de sus campos).
       tr.setAttribute('data-i', i);
       tr.innerHTML =
         '<td class="col-num"><span class="drag" title="Arrastrar para reordenar">⠿</span> ' + (i+1) + '</td>' +
@@ -990,13 +1017,17 @@
   (function() {
     const tb = document.getElementById('roles-body');
     const fila = function(e) { return e.target.closest ? e.target.closest('tr[data-i]') : null; };
+    tb.addEventListener('mousedown', function(e) {
+      const tr = fila(e); if (!tr) return;
+      if (e.target.closest('.drag')) tr.setAttribute('draggable', 'true'); else tr.removeAttribute('draggable');
+    });
     tb.addEventListener('dragstart', function(e) {
       const tr = fila(e); if (!tr) return;
       _dragFrom = +tr.getAttribute('data-i'); tr.classList.add('dragging');
       try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', String(_dragFrom)); } catch (err) {}
     });
     tb.addEventListener('dragend', function() {
-      tb.querySelectorAll('tr').forEach(function(x){ x.classList.remove('dragging', 'drop-target'); });
+      tb.querySelectorAll('tr').forEach(function(x){ x.classList.remove('dragging', 'drop-target'); x.removeAttribute('draggable'); });
     });
     tb.addEventListener('dragover', function(e) { const tr = fila(e); if (!tr) return; e.preventDefault(); tr.classList.add('drop-target'); });
     tb.addEventListener('dragleave', function(e) { const tr = fila(e); if (tr) tr.classList.remove('drop-target'); });

@@ -11,6 +11,8 @@
  *
  * Cabecera esperada del CSV:
  *   docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas
+ * Columnas opcionales al final (solo se usan al crear el catálogo):
+ *   abreviatura (de la materia), docente_completo (nombre completo)
  */
 
 const UMBRAL_OK = 0.88;      // match automático fiable
@@ -202,7 +204,9 @@ function _parsearFilasCSV(texto) {
       grupo: (campos[5] || '').trim(),
       rol: (campos[6] || '').trim(),
       grupo_destino: (campos[7] || '').trim(),
-      notas: (campos[8] || '').trim()
+      notas: (campos[8] || '').trim(),
+      abreviatura: (campos[9] || '').trim(),
+      docente_completo: (campos[10] || '').trim()
     });
   }
   return filas;

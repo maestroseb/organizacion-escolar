@@ -16,6 +16,10 @@
  *   - 'atencion': PT, AL, aula TEA… Son clases (a 1-2 alumnos), van en la
  *                 columna derecha y solo sustituyen por fuerza mayor.
  *   - 'cargo':    dirección, coordinaciones, reducciones…
+ *
+ * Aparte de la categoría, un rol puede ser de AUSENCIA (guarda legal,
+ * itinerancia…): esa persona no está en el centro en ese tramo, así que no
+ * se ofrece para sustituir ni cuenta como libre. Ver rolEsAusencia().
  */
 
 const CATEGORIAS_ROL = ['apoyo', 'atencion', 'cargo'];
@@ -26,14 +30,25 @@ function categoriaRol(r) {
   if (CATEGORIAS_ROL.indexOf(c) !== -1) return c;
   const n = (String((r && r.nombre) || '') + ' ' + String((r && r.nombre_largo) || '')).toLowerCase();
   if (/^(pt|al)\b|audici|pedag|\btea\b|aula espec/.test(n)) return 'atencion';
+  // Coordinaciones antes que apoyos: «Coord. Plan de Apoyo a las Familias» es cargo.
+  if (/coordin|coord\./.test(n)) return 'cargo';
   // Palabras completas: «Gua.» sí, pero no «Coord. Lengua».
-  if (/(^|\s)(ref|gua)\.?(\s|$)|refuerzo|apoyo|atedu|atenci[oó]n educ|guardia/.test(n)) return 'apoyo';
+  if (/(^|\s)(ref|gua)\.?(\s|$)|refuerzo|apoyo|guardia/.test(n)) return 'apoyo';
   return 'cargo';
+}
+
+/** El rol saca a la persona del centro (guarda legal, itinerancia…). */
+function rolEsAusencia(r) {
+  const n = (String((r && r.nombre) || '') + ' ' + String((r && r.nombre_largo) || '')).toLowerCase();
+  return /guarda legal|itineran|ausen|fuera del centro/.test(n);
 }
 
 const ROLES_PLANTILLA = [
   // Apoyos y refuerzos (primeros: son los que antes entran a sustituir)
   { nombre: 'Ref.',  nombre_largo: 'Refuerzo educativo',              color: '#e7b23c' },
+  { nombre: 'Ref. Inf.', nombre_largo: 'Refuerzo Infantil',           color: '#e7b23c' },
+  // La tutora de Infantil se queda en el aula mientras la especialista da Inglés.
+  { nombre: 'Ref. Ing.', nombre_largo: 'Refuerzo Inglés',             color: '#e7b23c' },
   { nombre: 'PT',    nombre_largo: 'Pedagogía Terapéutica',           color: '#d9e7f5' },
   { nombre: 'AL',    nombre_largo: 'Audición y Lenguaje',             color: '#d9e7f5' },
   { nombre: 'ATEDU', nombre_largo: 'Atención Educativa Domiciliaria', color: '#6a51a6' },
@@ -41,18 +56,24 @@ const ROLES_PLANTILLA = [
   { nombre: 'TDE',  nombre_largo: 'Coordinación TDE',            color: '#2f6fd0' },
   { nombre: 'COE',  nombre_largo: 'Coordinación Coeducación',    color: '#2f6fd0' },
   { nombre: 'CON',  nombre_largo: 'Coordinación Convivencia',    color: '#2f6fd0' },
-  { nombre: 'BIB',  nombre_largo: 'Coordinación Biblioteca',     color: '#2f6fd0' },
+  { nombre: 'BIB',  nombre_largo: 'Coordinación Biblioteca',     color: '#3a9d5d' },
   { nombre: 'PRL',  nombre_largo: 'Coordinación PRL',            color: '#2f6fd0' },
   { nombre: 'SAL',  nombre_largo: 'Coordinación Plan de Salud',  color: '#2f6fd0' },
   { nombre: 'CIC',  nombre_largo: 'Coordinación de Ciclo',       color: '#2f6fd0' },
+  { nombre: 'BIL',  nombre_largo: 'Coordinación Bilingüe',       color: '#2f6fd0' },
+  { nombre: 'STEAM', nombre_largo: 'Coordinación STEAM',         color: '#2f6fd0' },
+  { nombre: 'PAF',  nombre_largo: 'Coordinación Plan de Apoyo a las Familias', color: '#2f6fd0' },
   // Equipo directivo
-  { nombre: 'DIR',  nombre_largo: 'Dirección',            color: '#e0863a' },
-  { nombre: 'JE',   nombre_largo: 'Jefatura de Estudios', color: '#e0863a' },
-  { nombre: 'SEC',  nombre_largo: 'Secretaría',           color: '#e0863a' },
+  { nombre: 'DIR',  nombre_largo: 'Dirección',            color: '#d64545' },
+  { nombre: 'JE',   nombre_largo: 'Jefatura de Estudios', color: '#d64545' },
+  { nombre: 'SEC',  nombre_largo: 'Secretaría',           color: '#d64545' },
   // Otros
   { nombre: 'Tut.',  nombre_largo: 'Tutoría',                     color: '' },
-  { nombre: 'Gua.',  nombre_largo: 'Recreo de guardia',           color: '#9b9ba3' },
-  { nombre: 'RH',    nombre_largo: 'Reducción Horaria (mayor de 55)', color: '#9b9ba3' }
+  { nombre: 'Recreo', nombre_largo: 'Vigilancia de recreo',       color: '#9b9ba3' },
+  { nombre: 'RH',    nombre_largo: 'Reducción Horaria (mayor de 55)', color: '#9b9ba3' },
+  // Ausencias: la persona no está en el centro en ese tramo.
+  { nombre: 'GL',    nombre_largo: 'Reducción por guarda legal',  color: '#c9c9cf' },
+  { nombre: 'Itin.', nombre_largo: 'Itinerancia',                 color: '#c9c9cf' }
 ];
 
 function listarRoles() {
@@ -99,14 +120,23 @@ function guardarRoles(roles, modo) {
   });
 
   // El orden viene dado por la posición en la lista (drag & drop en la UI).
+  // Lo que falte se completa: nombre largo de la plantilla y color por defecto.
+  const largoPlantilla = {};
+  ROLES_PLANTILLA.forEach(function(p) { largoPlantilla[p.nombre.toLowerCase()] = p.nombre_largo; });
+  // Al combinar no se pisa lo que ya tenga el rol existente con un valor por defecto.
+  const previos = {};
+  if (modo === 'combinar') getAll(SHEETS.ROLES).forEach(function(x) { previos[String(x.nombre).trim().toLowerCase()] = x; });
   const filas = roles.map(function(r, i) {
+    const nombre = String(r.nombre).trim();
+    const prev = previos[nombre.toLowerCase()] || {};
+    const largo = String(r.nombre_largo || '').trim() || prev.nombre_largo || largoPlantilla[nombre.toLowerCase()] || '';
     return {
       id: r.id || undefined,
-      nombre: String(r.nombre).trim(),
-      nombre_largo: r.nombre_largo || '',
-      color: r.color || '',
+      nombre: nombre,
+      nombre_largo: largo,
+      color: r.color || prev.color || _colorPorNombreRol(nombre, largo),
       orden: i + 1,
-      categoria: categoriaRol(r)
+      categoria: categoriaRol({ nombre: nombre, nombre_largo: largo, categoria: r.categoria || prev.categoria })
     };
   });
   const resumen = bulkMerge_(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');

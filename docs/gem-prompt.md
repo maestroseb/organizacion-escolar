@@ -113,7 +113,7 @@ Tres tipos de fila (campo `tipo`):
                   (PT, AL, Ref., ATEDU…).
                   usa: docente, dia, tramo, rol, grupo_destino
 - especial      → un cargo/coordinación sin grupo (DIR, JE, TDE, TIC,
-                  Tut., Gua.).
+                  Tut., Recreo).
                   usa: docente, dia, tramo, rol
 
 EJEMPLOS GUÍA (razona por analogía, no los memorices al pie de la letra):
@@ -148,15 +148,17 @@ VOCABULARIOS CERRADOS (valores fijos; no inventes fuera de aquí)
 - tipo: grupo | localizacion | especial
 - rol (si nada encaja, pon rol=?? y el texto literal en notas):
     Dirección:     DIR, JE, SEC
-    Coordinaciones: TDE, TIC, BIB, COE, CON, PRL, SAL, CIC, BIL, ERA,
-                    IGU, PAZ, ECO, LEC, PRO
-    Apoyos:        PT, AL, Ref., ATEDU, Apoyo
-    Otros:         Tut., Gua.
+    Coordinaciones: TDE, TIC, STEAM, BIB, COE, CON, PRL, SAL, CIC, BIL,
+                    PAF, ERA, IGU, PAZ, ECO, LEC, PRO
+    Apoyos:        Ref., Ref. Inf., Ref. Ing., Apoyo
+    PT/AL:         PT, AL
+    Otros:         Tut., Recreo, RH (mayores de 55), ATEDU
+    Ausencias:     GL (guarda legal), Itin. (itinerancia)
 
   TDE ≠ TIC (no los confundas):
     celda "TDE"        → rol=TDE  (notas vacío)
     celda "TIC"        → rol=TIC  (notas vacío)
-    celda "STEAM 4.0"  → rol=TIC  (notas: STEAM 4.0)
+    celda "STEAM 4.0"  → rol=STEAM
     celda "Robótica"   → rol=TIC  (notas: Robótica)
 
 ═══════════════════════════════════════════════════════════════════
@@ -211,8 +213,16 @@ CASOS AMBIGUOS FRECUENTES
     3) "ATEDU <grupo>" a secas en horario de DOCENTE ("ATEDU 2º") → es el ROL
        de apoyo domiciliario: tipo=localizacion, rol=ATEDU, grupo_destino=2º.
 
-- Recreo: si la celda solo dice "RECREO", no generes fila. Si hay un docente
-  de guardia, tipo=especial, rol=Gua.
+- Recreo: en el horario de un DOCENTE, "RECREO" (o "Recreo (en
+  Infantil/Primaria)") es su turno de vigilancia: tipo=especial, rol=Recreo.
+  En el horario de un GRUPO, la franja de recreo no genera filas.
+- "Docencia bilingüe / <grupo> / <materia>" (Séneca): si el grupo es de
+  INFANTIL y la materia es DEE (Descubrimiento y Exploración del Entorno),
+  es la clase de INGLÉS en ese grupo: tipo=grupo, materia=Inglés. Si es de
+  Primaria (p. ej. CMN), es esa materia: tipo=grupo, materia=Conocimiento
+  del Medio, notas=Docencia bilingüe.
+- "Guarda legal" o "Itinerancia": la persona NO está en el centro en ese
+  tramo. tipo=especial, rol=GL o Itin.
 
 ═══════════════════════════════════════════════════════════════════
 TRAMOS PARTIDOS Y UNIFICADOS

@@ -227,7 +227,7 @@ Cargos/actividades no pegadas a un grupo: DIR, JE, TDE, Coordinaciones…
 - Editable
 
 **Paso 8 — Cargos y roles especiales**
-- Precargados (subset relevante de los 107 de Séneca): Dirección, Jefatura, Secretaría, TDE, Coordinaciones (Coeducación, Convivencia, Biblioteca, PRL, Plan de Salud, Ciclo), PT, AL, Refuerzo educativo, ATEDU, Tutoría, Recreo de guardia
+- Precargados (subset relevante de los 107 de Séneca): Dirección, Jefatura, Secretaría, TDE, Coordinaciones (Coeducación, Convivencia, Biblioteca, PRL, Plan de Salud, Ciclo), PT, AL, Refuerzo educativo (también Infantil e Inglés), ATEDU, Tutoría, Recreo, y ausencias (guarda legal, itinerancia)
 - Editable
 
 **Paso 9 — Confirmación**

@@ -116,6 +116,8 @@ function datosSustituciones(fecha) {
     ctx.ocupDia.filter(function(o) { return o.tramo_id === t.id && (o.tipo === 'localizacion' || o.tipo === 'especial'); })
       .forEach(function(o) {
         const rol = ctx.rolById[o.tipo === 'localizacion' ? o.rol_loc_id : o.rol_especial_id];
+        // Guarda legal, itinerancia…: no está en el centro (ni libre ni candidato).
+        if (rolEsAusencia(rol)) return;
         apoyos.push({ id: o.docente_id, prio: rol ? (rol.orden || 999) : 999, rol: rol ? rol.nombre : '', cat: categoriaRol(rol || { nombre: o.notas }) });
       });
     apoyos.sort(function(a, b) { return a.prio - b.prio; });

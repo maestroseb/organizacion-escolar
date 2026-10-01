@@ -5,7 +5,7 @@
  * una, cada día. Cada turno se guarda como una ocupación normal para que
  * aparezca sola en el horario individual, la sábana y Ahora:
  *
- *   tipo 'especial', tramo = el recreo, rol = «Gua.» (Recreo de guardia),
+ *   tipo 'especial', tramo = el recreo, rol = «Recreo» (Vigilancia de recreo; «Gua.» en centros antiguos),
  *   localizacion_id = id de la zona, semana '' (todas) | 'A' | 'B'.
  *
  * La pestaña Recreos es la única que edita estas filas.
@@ -107,12 +107,12 @@ function _esTurnoRecreo(o) {
   return o.tipo === 'especial' && /^zona/.test(String(o.localizacion_id || ''));
 }
 
-/** Id del rol «Gua.» (Recreo de guardia); si no existe, se crea. */
+/** Id del rol de recreo («Recreo» o el antiguo «Gua.»); si no existe, se crea. */
 function _rolGuardia() {
   const roles = getAll(SHEETS.ROLES);
   const r = roles.filter(function(x) { return /^gua|guardia|recreo/i.test(String(x.nombre) + ' ' + String(x.nombre_largo || '')); })[0];
   if (r) return r.id;
-  const nuevo = insert_(SHEETS.ROLES, { nombre: 'Gua.', nombre_largo: 'Recreo de guardia', color: '#9b9ba3', categoria: 'cargo',
+  const nuevo = insert_(SHEETS.ROLES, { nombre: 'Recreo', nombre_largo: 'Vigilancia de recreo', color: '#9b9ba3', categoria: 'cargo',
     orden: roles.reduce(function(m, x) { return Math.max(m, x.orden || 0); }, 0) + 1 });
   return nuevo.id;
 }

@@ -238,9 +238,9 @@
     const fuente = DETECT_ENTIDADES.fuente;
     const analizarTras = !!DETECT_ENTIDADES.analizarTras;
     const sel = {
-      docentes: res.docentes.map(function(x){return x.nombre;}),
+      docentes: res.docentes.map(function(x){return { nombre:x.nombre, completo:x.completo || '' };}),
       grupos: res.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
-      materias: res.materias.map(function(x){return x.nombre;}),
+      materias: res.materias.map(function(x){return { nombre:x.nombre, abreviatura:x.abreviatura || '' };}),
       roles: res.roles.map(function(x){return x.nombre;}),
       tramosOrdenes: res.tramos.ordenes
     };
