@@ -29,6 +29,8 @@ function extraerEntidadesVolcado(texto, fuente) {
   const ordenes = {};
   // Columnas opcionales del CSV: nombre completo del docente y abreviatura.
   const completoDe = {};
+  const horas = {};       // orden → [inicio, fin]
+  const soloRecreo = {};  // orden → true si todas sus filas son de recreo
   const abrevDe = {};
 
   crudas.forEach(function(c) {
@@ -42,7 +44,17 @@ function extraerEntidadesVolcado(texto, fuente) {
 
     // Tramo (número, ignorando el sufijo a/b de mitades).
     const dec = _decodificarTramo(c.tramo);
-    if (dec.orden) ordenes[dec.orden] = true;
+    if (dec.orden) {
+      ordenes[dec.orden] = true;
+      // Horas del tramo (columnas opcionales); en tramos partidos (5a/5b) no
+      // valen para el tramo entero.
+      if (!dec.mitad && /^\d{1,2}:\d{2}$/.test(c.hora_inicio || '') && /^\d{1,2}:\d{2}$/.test(c.hora_fin || '') && !horas[dec.orden]) {
+        horas[dec.orden] = [c.hora_inicio, c.hora_fin];
+      }
+      // Recreo: tramo en el que todo lo que hay es vigilancia de recreo.
+      const esRec = tipo === 'especial' && /recreo|^gua/i.test(c.rol || '');
+      soloRecreo[dec.orden] = (soloRecreo[dec.orden] !== false) && esRec;
+    }
 
     if (tipo === 'grupo') {
       if (c.materia && !_basura(c.materia)) matSet.add(c.materia);
@@ -89,7 +101,11 @@ function extraerEntidadesVolcado(texto, fuente) {
   const roles = rolSet.lista().map(function(n) { return { nombre: n, existe: exRol[_keyNorm(n)] === true }; });
 
   const listaOrdenes = Object.keys(ordenes).map(Number).sort(function(a, b) { return a - b; });
-  const tramos = { ordenes: listaOrdenes, existe: exTramos > 0, total: listaOrdenes.length };
+  const tramos = {
+    ordenes: listaOrdenes, existe: exTramos > 0, total: listaOrdenes.length,
+    horas: horas,
+    recreos: listaOrdenes.filter(function(o) { return soloRecreo[o] === true; })
+  };
 
   const nuevos = function(arr) { return arr.filter(function(x) { return !x.existe; }).length; };
 
@@ -118,7 +134,8 @@ function extraerEntidadesVolcado(texto, fuente) {
  * Crea las entidades seleccionadas. `seleccion` trae, por tipo, las listas
  * completas detectadas (el modo "combinar" evita duplicados):
  *   { docentes:[nombre | {nombre,completo}], grupos:[{nombre,nivel}],
- *     materias:[nombre | {nombre,abreviatura}], roles:[nombre], tramosOrdenes:[n] }
+ *     materias:[nombre | {nombre,abreviatura}], roles:[nombre], tramosOrdenes:[n],
+ *     tramosHoras:{orden:[inicio,fin]}, tramosRecreo:[orden] }
  */
 function crearEntidadesVolcado(seleccion, modo) {
   _exigirEdicion();
@@ -161,7 +178,7 @@ function crearEntidadesVolcado(seleccion, modo) {
   // horas reales, así que generamos una rejilla por defecto que el usuario
   // podrá ajustar; el tramo que falte en la secuencia se marca como recreo).
   if (seleccion.tramosOrdenes && seleccion.tramosOrdenes.length && listarTramos().length === 0) {
-    const filas = _generarTramosDesdeOrdenes(seleccion.tramosOrdenes);
+    const filas = _generarTramosDesdeOrdenes(seleccion.tramosOrdenes, seleccion.tramosHoras, seleccion.tramosRecreo);
     guardarTramos(filas, 'reemplazar');
     resumen.tramos = filas.length;
   }
@@ -262,25 +279,36 @@ function _partirGrupos(v) {
  * Rejilla de 45 min desde las 09:00. Los huecos de la secuencia (p.ej. el 4,
  * si hay 1,2,3,5,6) se marcan como recreo.
  */
-function _generarTramosDesdeOrdenes(ordenes) {
+function _generarTramosDesdeOrdenes(ordenes, horas, recreos) {
+  horas = horas || {};
+  const rec = {};
+  (recreos || []).forEach(function(o) { rec[parseInt(o, 10)] = true; });
   const set = {};
   ordenes.forEach(function(o) { const n = parseInt(o, 10); if (n) set[n] = true; });
   let max = 0;
   Object.keys(set).forEach(function(k) { const n = parseInt(k, 10); if (n > max) max = n; });
   if (max === 0) return [];
 
+  // Sin horas en el volcado: rejilla de 45 min desde las 09:00 (recreo 30).
   const filas = [];
-  let hora = 9 * 60; // 09:00 en minutos
+  let hora = 9 * 60;
   for (let orden = 1; orden <= max; orden++) {
-    const esRecreo = !set[orden];
-    const dur = esRecreo ? 30 : 45;
+    const esRecreo = !set[orden] || rec[orden] === true;
+    const h = horas[orden];
+    const ini = h ? _horaAMins(h[0]) : hora;
+    const fin = h ? _horaAMins(h[1]) : hora + (esRecreo ? 30 : 45);
     filas.push({
-      hora_inicio: _minsAHora(hora),
-      hora_fin: _minsAHora(hora + dur),
+      hora_inicio: _minsAHora(ini),
+      hora_fin: _minsAHora(fin),
       es_recreo: esRecreo,
       etiqueta: esRecreo ? 'Recreo' : ('TR' + String(orden).padStart(2, '0'))
     });
-    hora += dur;
+    hora = fin;
   }
   return filas;
+}
+
+function _horaAMins(h) {
+  const m = String(h || '').match(/^(\d{1,2}):(\d{2})$/);
+  return m ? parseInt(m[1], 10) * 60 + parseInt(m[2], 10) : 0;
 }
