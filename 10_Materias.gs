@@ -40,6 +40,45 @@ const MATERIAS_BILINGUE_FRANCES = [
   { nombre: 'Francés',                           abreviatura: 'FRA' }
 ];
 
+/**
+ * Abreviatura y color por defecto de una materia, por su nombre (Séneca o
+ * forma corta). El orden importa: los ámbitos y áreas de Infantil/Aula
+ * Específica van antes que «lengua», «medio»… para no confundirlos.
+ */
+const MATERIAS_POR_DEFECTO = [
+  [/lenguajes.*comunicaci|^alcr$/,               'ALCR',  '#74a9e8'],
+  [/ling[uü][ií]stica.*transversal|^alct$/,      'ALCT',  '#5c7cfa'],
+  [/[aá]mbito de comunicaci[oó]n|^acl$/,         'ACL',   '#74a9e8'],
+  [/corporal.*identidad|^accci$/,                'ACCCI', '#f4a259'],
+  [/participaci[oó]n en el medio|^acpmf$/,       'ACPMF', '#69b578'],
+  [/s[ií] mismo.*autonom|^acmap$/,               'ACMAP', '#f4a259'],
+  [/[aá]rea de conocimiento del entorno|^acoen$/,'ACOEN', '#69b578'],
+  [/crecimiento en armon|^ca$/,                  'CA',    '#f4a259'],
+  [/representaci[oó]n de la realidad|comunicaci[oó]n y representaci|^crr$/, 'CRR', '#4dabf7'],
+  [/descubrimiento|exploraci[oó]n del entorno|^dee$/, 'DEE', '#69b578'],
+  [/lengua|^lcl$/,                               'LCL',   '#2f6fd0'],
+  [/matem|^mat$/,                                'MAT',   '#d64545'],
+  [/conocimiento del medio|natural science|social science|^cmn$|^ccn$/, 'CMN', '#3a9d5d'],
+  [/ingl[eé]s|^ing$/,                            'ING',   '#8e5cc4'],
+  [/franc[eé]s|^fr[a2]$/,                        'FRA',   '#b07cd8'],
+  [/educaci[oó]n f[ií]sica|^efi?$/,              'EF',    '#f08a24'],
+  [/m[uú]sica|^mus$/,                            'MUS',   '#e05fa0'],
+  [/pl[aá]stica|arts and crafts|^pla$/,          'PLA',   '#e05fa0'],
+  [/art[ií]stica|^ear?$/,                        'EA',    '#e05fa0'],
+  [/religi[oó]n|^rel$/,                          'REL',   '#8d6e63'],
+  [/atenci[oó]n educativa|^atedu$|^ae$/,         'AE',    '#a1887f'],
+  [/valores|^vce$|^val$/,                        'VAL',   '#26a69a'],
+  [/recreo/,                                     'REC',   '#9b9ba3']
+];
+
+function infoMateriaPorDefecto(nombre) {
+  const n = String(nombre || '').trim().toLowerCase();
+  for (let i = 0; i < MATERIAS_POR_DEFECTO.length; i++) {
+    if (MATERIAS_POR_DEFECTO[i][0].test(n)) return { abreviatura: MATERIAS_POR_DEFECTO[i][1], color: MATERIAS_POR_DEFECTO[i][2] };
+  }
+  return { abreviatura: '', color: '' };
+}
+
 function listarMaterias() {
   const materias = getAll(SHEETS.MATERIAS);
   return materias;
@@ -93,12 +132,19 @@ function guardarMaterias(materias, modo) {
     nombres[k] = true;
   });
 
+  // Lo que falte (abreviatura, color) se completa con el valor por defecto;
+  // al combinar, sin pisar lo que ya tenga la materia existente.
+  const previas = {};
+  if (modo === 'combinar') getAll(SHEETS.MATERIAS).forEach(function(x) { previas[String(x.nombre).trim().toLowerCase()] = x; });
   const filas = materias.map(function(m) {
+    const nombre = String(m.nombre).trim();
+    const prev = previas[nombre.toLowerCase()] || {};
+    const def = infoMateriaPorDefecto(nombre);
     return {
       id: m.id || undefined,
-      nombre: String(m.nombre).trim(),
-      abreviatura: m.abreviatura || '',
-      color: m.color || '',
+      nombre: nombre,
+      abreviatura: String(m.abreviatura || '').trim() || prev.abreviatura || def.abreviatura,
+      color: m.color || prev.color || def.color,
       es_recreo: !!m.es_recreo
     };
   });

@@ -56,7 +56,7 @@ const ROLES_PLANTILLA = [
   { nombre: 'TDE',  nombre_largo: 'Coordinación TDE',            color: '#2f6fd0' },
   { nombre: 'COE',  nombre_largo: 'Coordinación Coeducación',    color: '#2f6fd0' },
   { nombre: 'CON',  nombre_largo: 'Coordinación Convivencia',    color: '#2f6fd0' },
-  { nombre: 'BIB',  nombre_largo: 'Coordinación Biblioteca',     color: '#2f6fd0' },
+  { nombre: 'BIB',  nombre_largo: 'Coordinación Biblioteca',     color: '#3a9d5d' },
   { nombre: 'PRL',  nombre_largo: 'Coordinación PRL',            color: '#2f6fd0' },
   { nombre: 'SAL',  nombre_largo: 'Coordinación Plan de Salud',  color: '#2f6fd0' },
   { nombre: 'CIC',  nombre_largo: 'Coordinación de Ciclo',       color: '#2f6fd0' },
@@ -64,9 +64,9 @@ const ROLES_PLANTILLA = [
   { nombre: 'STEAM', nombre_largo: 'Coordinación STEAM',         color: '#2f6fd0' },
   { nombre: 'PAF',  nombre_largo: 'Coordinación Plan de Apoyo a las Familias', color: '#2f6fd0' },
   // Equipo directivo
-  { nombre: 'DIR',  nombre_largo: 'Dirección',            color: '#e0863a' },
-  { nombre: 'JE',   nombre_largo: 'Jefatura de Estudios', color: '#e0863a' },
-  { nombre: 'SEC',  nombre_largo: 'Secretaría',           color: '#e0863a' },
+  { nombre: 'DIR',  nombre_largo: 'Dirección',            color: '#d64545' },
+  { nombre: 'JE',   nombre_largo: 'Jefatura de Estudios', color: '#d64545' },
+  { nombre: 'SEC',  nombre_largo: 'Secretaría',           color: '#d64545' },
   // Otros
   { nombre: 'Tut.',  nombre_largo: 'Tutoría',                     color: '' },
   { nombre: 'Recreo', nombre_largo: 'Vigilancia de recreo',       color: '#9b9ba3' },
@@ -120,14 +120,23 @@ function guardarRoles(roles, modo) {
   });
 
   // El orden viene dado por la posición en la lista (drag & drop en la UI).
+  // Lo que falte se completa: nombre largo de la plantilla y color por defecto.
+  const largoPlantilla = {};
+  ROLES_PLANTILLA.forEach(function(p) { largoPlantilla[p.nombre.toLowerCase()] = p.nombre_largo; });
+  // Al combinar no se pisa lo que ya tenga el rol existente con un valor por defecto.
+  const previos = {};
+  if (modo === 'combinar') getAll(SHEETS.ROLES).forEach(function(x) { previos[String(x.nombre).trim().toLowerCase()] = x; });
   const filas = roles.map(function(r, i) {
+    const nombre = String(r.nombre).trim();
+    const prev = previos[nombre.toLowerCase()] || {};
+    const largo = String(r.nombre_largo || '').trim() || prev.nombre_largo || largoPlantilla[nombre.toLowerCase()] || '';
     return {
       id: r.id || undefined,
-      nombre: String(r.nombre).trim(),
-      nombre_largo: r.nombre_largo || '',
-      color: r.color || '',
+      nombre: nombre,
+      nombre_largo: largo,
+      color: r.color || prev.color || _colorPorNombreRol(nombre, largo),
       orden: i + 1,
-      categoria: categoriaRol(r)
+      categoria: categoriaRol({ nombre: nombre, nombre_largo: largo, categoria: r.categoria || prev.categoria })
     };
   });
   const resumen = bulkMerge_(SHEETS.ROLES, filas, ['nombre'], modo || 'reemplazar');

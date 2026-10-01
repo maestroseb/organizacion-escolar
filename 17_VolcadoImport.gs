@@ -27,11 +27,18 @@ function extraerEntidadesVolcado(texto, fuente) {
   const matSet = _acumulador();
   const rolSet = _acumulador();
   const ordenes = {};
+  // Columnas opcionales del CSV: nombre completo del docente y abreviatura.
+  const completoDe = {};
+  const abrevDe = {};
 
   crudas.forEach(function(c) {
     const tipo = (c.tipo || '').trim().toLowerCase();
 
-    if (c.docente && !_basura(c.docente)) docSet.add(c.docente);
+    if (c.docente && !_basura(c.docente)) {
+      docSet.add(c.docente);
+      if (c.docente_completo) completoDe[_keyNorm(c.docente)] = c.docente_completo;
+    }
+    if (tipo === 'grupo' && c.materia && c.abreviatura) abrevDe[_keyNorm(c.materia)] = c.abreviatura;
 
     // Tramo (número, ignorando el sufijo a/b de mitades).
     const dec = _decodificarTramo(c.tramo);
@@ -56,9 +63,9 @@ function extraerEntidadesVolcado(texto, fuente) {
   const exRol = _claves(listarRoles(), 'nombre');
   const exTramos = listarTramos().length;
 
-  const docentes = docSet.lista().map(function(n) { return { nombre: n, existe: exDoc[_keyNorm(n)] === true }; });
+  const docentes = docSet.lista().map(function(n) { return { nombre: n, completo: completoDe[_keyNorm(n)] || '', existe: exDoc[_keyNorm(n)] === true }; });
   const grupos = gruSet.lista().map(function(n) { return { nombre: n, nivel: _detectarNivel(n), existe: exGru[_keyNorm(n)] === true }; });
-  const materias = matSet.lista().map(function(n) { return { nombre: n, existe: exMat[_keyNorm(n)] === true }; });
+  const materias = matSet.lista().map(function(n) { return { nombre: n, abreviatura: abrevDe[_keyNorm(n)] || '', existe: exMat[_keyNorm(n)] === true }; });
   const roles = rolSet.lista().map(function(n) { return { nombre: n, existe: exRol[_keyNorm(n)] === true }; });
 
   const listaOrdenes = Object.keys(ordenes).map(Number).sort(function(a, b) { return a - b; });
@@ -86,8 +93,8 @@ function extraerEntidadesVolcado(texto, fuente) {
 /**
  * Crea las entidades seleccionadas. `seleccion` trae, por tipo, las listas
  * completas detectadas (el modo "combinar" evita duplicados):
- *   { docentes:[nombre], grupos:[{nombre,nivel}], materias:[nombre],
- *     roles:[nombre], tramosOrdenes:[n] }
+ *   { docentes:[nombre | {nombre,completo}], grupos:[{nombre,nivel}],
+ *     materias:[nombre | {nombre,abreviatura}], roles:[nombre], tramosOrdenes:[n] }
  */
 function crearEntidadesVolcado(seleccion, modo) {
   _exigirEdicion();
@@ -96,8 +103,9 @@ function crearEntidadesVolcado(seleccion, modo) {
   const resumen = {};
 
   if (seleccion.docentes && seleccion.docentes.length) {
-    guardarDocentes(seleccion.docentes.map(function(n) {
-      return { nombre_corto: String(n).trim(), activo: true };
+    guardarDocentes(seleccion.docentes.map(function(d) {
+      const o = typeof d === 'object' && d ? d : { nombre: d };
+      return { nombre_corto: String(o.nombre).trim(), nombre_completo: String(o.completo || '').trim(), activo: true };
     }), modo);
     resumen.docentes = seleccion.docentes.length;
   }
@@ -110,8 +118,9 @@ function crearEntidadesVolcado(seleccion, modo) {
   }
 
   if (seleccion.materias && seleccion.materias.length) {
-    guardarMaterias(seleccion.materias.map(function(n) {
-      return { nombre: String(n).trim() };
+    guardarMaterias(seleccion.materias.map(function(m) {
+      const o = typeof m === 'object' && m ? m : { nombre: m };
+      return { nombre: String(o.nombre).trim(), abreviatura: String(o.abreviatura || '').trim() };
     }), modo);
     resumen.materias = seleccion.materias.length;
   }

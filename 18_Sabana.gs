@@ -307,13 +307,22 @@ function _hhmm(v) {
   return String(v);
 }
 
-/** Color por defecto de un rol cuando no tiene uno asignado (por nombre). */
-function _colorPorNombreRol(nombre) {
-  const n = String(nombre || '').toLowerCase();
-  if (/ref/.test(n)) return '#e7b23c';
-  if (/atedu/.test(n)) return '#6a51a6';
-  if (/^al$|^pt$|audici|pedagog/.test(n)) return '#d9e7f5';
-  if (/dir|jefatura|^je$|secretar|^sec$/.test(n)) return '#e0863a';
-  if (/coord|tde|coe|con|bib|prl|sal|cic/.test(n)) return '#2f6fd0';
+/**
+ * Color por defecto de un rol cuando no tiene uno asignado (por nombre y,
+ * si se pasa, nombre largo): refuerzos amarillo, PT/AL azul claro,
+ * biblioteca verde, equipo directivo rojo, coordinaciones azul, RH gris,
+ * ausencias gris claro.
+ */
+function _colorPorNombreRol(nombre, largo) {
+  const n = String(nombre || '').trim().toLowerCase();
+  const t = (n + ' ' + String(largo || '').toLowerCase()).trim();
+  if (/guarda legal|itineran|^gl$|^itin/.test(t)) return '#c9c9cf';
+  if (/^ref|refuerzo/.test(t)) return '#e7b23c';
+  if (/atedu|domiciliaria/.test(t)) return '#6a51a6';
+  if (/^al$|^pt$|audici|pedagog/.test(t)) return '#d9e7f5';
+  if (/^bib|biblioteca/.test(t)) return '#3a9d5d';
+  if (/^dir$|^je$|^sec$|direcci|jefatura|secretar|directiva/.test(t)) return '#d64545';
+  if (/^rh$|mayor(es)? de 55|\+55|reducci/.test(t)) return '#9b9ba3';
+  if (/coordinaci|^coord/.test(t) || /^(tde|tic|steam|coe|con|prl|sal|cic|bil|paf|era|igu|paz|eco|lec|pro)$/.test(n)) return '#2f6fd0';
   return '#9b9ba3';
 }
