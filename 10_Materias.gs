@@ -143,9 +143,9 @@ function guardarMaterias(materias, modo) {
     return {
       id: m.id || undefined,
       nombre: nombre,
-      abreviatura: String(m.abreviatura || '').trim() || prev.abreviatura || def.abreviatura,
+      abreviatura: (modo === 'combinar' && prev.abreviatura) || String(m.abreviatura || '').trim() || prev.abreviatura || def.abreviatura,
       color: m.color || prev.color || def.color,
-      es_recreo: !!m.es_recreo
+      es_recreo: !!(m.es_recreo || prev.es_recreo)
     };
   });
   const resumen = bulkMerge_(SHEETS.MATERIAS, filas, ['nombre'], modo || 'reemplazar');

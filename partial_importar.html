@@ -177,7 +177,8 @@
       .withSuccessHandler(function(res) {
         btn.disabled = false; btn.textContent = _labelAnalizar(fuente);
         const n = res.nuevos || {};
-        const nuevos = (n.docentes||0) + (n.grupos||0) + (n.materias||0) + (n.roles||0) + (n.tramos||0);
+        const c = res.completar || {};
+        const nuevos = (n.docentes||0) + (n.grupos||0) + (n.materias||0) + (n.roles||0) + (n.tramos||0) + (c.docentes||0) + (c.materias||0);
         if (nuevos > 0) {
           DETECT_ENTIDADES = { res: res, fuente: fuente, analizarTras: true };
           document.getElementById('detect-catalogo').style.display = 'block';
@@ -203,7 +204,7 @@
       { k:'roles', t:'Cargos y roles', arr:res.roles }
     ];
     let html = '<div class="page-head" style="margin-bottom:8px;"><h2 style="font-size:18px;">Catálogo detectado en el volcado</h2>' +
-      '<p>Se crearán en tu centro (modo combinar: no duplica lo que ya exista).</p></div>';
+      '<p>Se crearán en tu centro (modo combinar: no duplica lo que ya exista y completa lo que esté vacío).</p></div>';
     html += '<div class="seneca-cards">';
     filas.forEach(function(f) {
       const total=f.arr.length, nuevos=res.nuevos[f.k];
@@ -211,6 +212,7 @@
         '<div class="titulo">' + f.t + '<span class="contador">' + total + '</span></div>' +
         '<div class="muestra">' + _esc(f.arr.slice(0,6).map(function(x){return x.nombre;}).join(', ')) + (total>6?'…':'') + '</div>' +
         (nuevos?('<div class="muestra" style="color:var(--ok)">' + nuevos + ' nuevo(s)</div>'):'') +
+        (((res.completar||{})[f.k])?('<div class="muestra" style="color:var(--ok)">' + res.completar[f.k] + ' a completar (' + (f.k==='docentes'?'nombre completo':'abreviatura') + ')</div>'):'') +
         '</div></div>';
     });
     const tt=res.tramos.total, tn=res.nuevos.tramos;
