@@ -844,6 +844,12 @@
   .sb-zona-vacia { color: var(--faint); }
   /* Recreo en Ahora: cada zona en su fila, con un tono suave propio. */
   .ah-zonas { display: flex; flex-direction: column; gap: 6px; padding: 8px; font-size: 15px; }
+  /* Ahora: vigilancia del recreo del día, a la derecha (PC) o debajo (móvil). */
+  .ah-wrap { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .ah-wrap > .ah-card { flex: 0 1 auto; }
+  .ah-vig { flex: 1 1 240px; min-width: 240px; max-width: 380px; font-family: var(--font-cond); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .ah-vig-h { padding: 8px 12px; font-weight: 700; font-size: 14px; letter-spacing: .02em; background: var(--surface-3); color: var(--text); }
+  @media (max-width: 899px) { .ah-vig { max-width: none; flex-basis: 100%; } }
   .ah-zona { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; padding: 7px 12px; border-radius: var(--radius-sm);
     background: hsl(var(--zh, 220) 75% 94%); border: 1px solid hsl(var(--zh, 220) 55% 85%); }
   .ah-zona-n { font-weight: 700; color: hsl(var(--zh, 220) 50% 28%); min-width: 7em; }

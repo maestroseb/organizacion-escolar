@@ -306,6 +306,7 @@
   button.ghost { background: transparent; color: var(--muted); padding: 0 8px; min-height: 30px; }
   button.ghost:hover:not(:disabled) { background: var(--surface-3); color: var(--text); }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  button[hidden] { display: none; }
   .btn-icon {
     background: transparent; border: none; color: var(--faint); padding: 0 6px; min-height: 24px;
     font-size: 16px; line-height: 1; border-radius: var(--radius-xs); cursor: pointer;
@@ -897,6 +898,12 @@
   .sb-zona-vacia { color: var(--faint); }
   /* Recreo en Ahora: cada zona en su fila, con un tono suave propio. */
   .ah-zonas { display: flex; flex-direction: column; gap: 6px; padding: 8px; font-size: 15px; }
+  /* Ahora: vigilancia del recreo del día, a la derecha (PC) o debajo (móvil). */
+  .ah-wrap { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .ah-wrap > .ah-card { flex: 0 1 auto; }
+  .ah-vig { flex: 1 1 240px; min-width: 240px; max-width: 380px; font-family: var(--font-cond); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow-sm); }
+  .ah-vig-h { padding: 8px 12px; font-weight: 700; font-size: 14px; letter-spacing: .02em; background: var(--surface-3); color: var(--text); }
+  @media (max-width: 899px) { .ah-vig { max-width: none; flex-basis: 100%; } }
   .ah-zona { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; padding: 7px 12px; border-radius: var(--radius-sm);
     background: hsl(var(--zh, 220) 75% 94%); border: 1px solid hsl(var(--zh, 220) 55% 85%); }
   .ah-zona-n { font-weight: 700; color: hsl(var(--zh, 220) 50% 28%); min-width: 7em; }
@@ -1439,12 +1446,16 @@
         '<span class="ah-reloj" id="ah-reloj">' + reloj + '</span>' +
         '<span class="ah-sem" title="Semana alterna">' + _esc(AH.semana) + '</span></div>';
     if (AH.ausentes && AH.ausentes.length) html += '<div class="ah-aus"><b>Ausentes hoy:</b> ' + AH.ausentes.map(_esc).join(' · ') + '</div>';
+    // Fuera del recreo: módulo con quién vigila hoy (a la derecha en PC, debajo en móvil).
+    var vig = tr.es_recreo ? '' : _ahVigilancia();
+    var reserva = vig && cont.clientWidth >= 900 ? 300 : 0;
     if (tr.es_recreo) html += '<div class="sb-recreo ah-recreo">RECREO</div>' + _ahZonas(t.zonas || []);
-    else { var an = _ahAnchos(t, cont.clientWidth - 2);
+    else { var an = _ahAnchos(t, cont.clientWidth - 2 - reserva);
       html += '<div class="sb-cols ah-cols' + (an.apilar ? ' ah-apilar' : '') + '" style="' + an.estilo + '">' +
       '<div class="sb-pane">' + _sbTablaCursos(t.cursos) + '</div>' +
       '<div class="sb-pane sb-pane-ap">' + _sbTablaApoyos(t.apoyos) + _sbLibres(t.libres) + '</div></div>'; }
     html += '</div>';
+    if (vig) html = '<div class="ah-wrap">' + html + vig + '</div>';
     // Sin cambios (salvo el reloj, que va aparte): no se toca el DOM, sin parpadeo.
     var cmp = html.split(reloj).join('');
     if (cont._ahCmp === cmp && cont.querySelector('.ah-card')) return;
@@ -1789,6 +1800,15 @@
       if (!quieto) requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
+  }
+
+  // Quién vigila el recreo (o los recreos) del día; '' si no hay turnos.
+  function _ahVigilancia() {
+    var rs = (AH.tramos || []).filter(function(x) { return x.tramo.es_recreo && (x.zonas || []).length; });
+    if (!rs.length) return '';
+    return '<aside class="ah-vig">' + rs.map(function(x) {
+      return '<div class="ah-vig-h">Vigilancia del recreo · ' + _esc(x.tramo.horas) + '</div>' + _ahZonas(x.zonas);
+    }).join('') + '</aside>';
   }
 
   // Zonas del recreo: una por fila, cada una con su color suave.
