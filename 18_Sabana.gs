@@ -264,6 +264,9 @@ function _sabanaTramoData(t, ocupDia, ctx) {
       if (!porZona[a.zona]) { porZona[a.zona] = []; zonas.push({ zona: a.zona, docentes: porZona[a.zona] }); }
       porZona[a.zona].push(a.docente);
     });
+    // Vigilancia sin zona asignada (p. ej. importada de Séneca/CSV).
+    const sinZona = apoyos.filter(function(a) { return !a.zona && /recreo|^gua/i.test(a.rol); }).map(function(a) { return a.docente; });
+    if (sinZona.length) zonas.push({ zona: 'Vigilancia', docentes: sinZona });
     zonas.forEach(function(z) { z.docentes.sort(function(a, b) { return String(a).localeCompare(String(b), 'es', { sensitivity: 'base' }); }); });
   }
   apoyos.forEach(function(a) { delete a._zonaOrden; });
