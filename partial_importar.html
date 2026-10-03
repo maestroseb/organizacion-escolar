@@ -35,7 +35,7 @@
 
 <!-- Fuente: CSV -->
 <div class="panelbox src-panel" id="src-csv" style="display:none;">
-  <p class="hint" style="margin-top:0;">Pega el CSV o sube el archivo: el generado por el Gem (cabecera <code>docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas</code>) o el de actividades que exporta <b>FET</b> (se reconoce solo).</p>
+  <p class="hint" style="margin-top:0;">Pega el CSV o sube el archivo: el generado por el Gem (cabecera <code>docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas</code>) o el de actividades que exporta <b>FET</b> (se reconocen solos). Con <b>cualquier otro CSV</b> te mostraré sus columnas para que confirmes qué es cada una.</p>
   <textarea id="csv-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Sebastián,L,1,grupo,Lengua,3º B,,,"></textarea>
   <div class="toolbar">
     <label class="btn-like" for="csv-file">Subir .csv…</label>
@@ -151,6 +151,8 @@
   function _labelAnalizar(fuente) { return fuente === 'texto' ? 'Interpretar horarios' : 'Analizar horarios'; }
 
   function detectarCatalogoUI(fuente) {
+    // CSV de otro programa: primero se asignan sus columnas.
+    if (fuente === 'csv' && mapeoInterceptar('csv-texto', 'res-csv', function() { detectarCatalogoUI(fuente); })) return;
     const texto = document.getElementById(fuente === 'texto' ? 'texto-libre' : 'csv-texto').value;
     if (!texto.trim()) { document.getElementById('res-' + (fuente==='texto'?'texto':'csv')).innerHTML = '<div class="result err">Pega algún dato primero.</div>'; return; }
     const cont = document.getElementById('detect-catalogo');
@@ -167,6 +169,7 @@
   // si hay entidades nuevas, se ofrece crearlas de un clic y encadenar el
   // análisis. Si no hay nada nuevo, se analiza directamente.
   function autoDetectarYAnalizar(fuente) {
+    if (fuente === 'csv' && mapeoInterceptar('csv-texto', 'res-csv', function() { autoDetectarYAnalizar(fuente); })) return;
     const texto = document.getElementById(fuente === 'texto' ? 'texto-libre' : 'csv-texto').value;
     const resId = 'res-' + (fuente === 'texto' ? 'texto' : 'csv');
     if (!texto.trim()) { document.getElementById(resId).innerHTML = '<div class="result err">Pega algún dato primero.</div>'; return; }
@@ -371,6 +374,7 @@
     input.value = ''; // permite volver a elegir el mismo archivo
   }
   function analizarCSVUI() {
+    if (mapeoInterceptar('csv-texto', 'res-csv', analizarCSVUI)) return;
     const texto = document.getElementById('csv-texto').value;
     if (!texto.trim()) { document.getElementById('res-csv').innerHTML = '<div class="result err">Pega el CSV o sube un archivo primero.</div>'; return; }
     const btn = document.getElementById('btn-analizar-csv'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Analizando…';
