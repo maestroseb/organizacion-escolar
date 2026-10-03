@@ -350,12 +350,17 @@
       var max = Math.max.apply(null, t.ordenes), hay = {}, rec = {};
       t.ordenes.forEach(function(o) { hay[o] = 1; });
       (t.recreos || []).forEach(function(o) { rec[o] = 1; });
+      // Sin ninguna hora: jornada por defecto si encaja (como en el servidor).
+      var DEF = [['09:00', '10:00'], ['10:00', '11:00'], ['11:00', '11:30'], ['11:30', '12:00', 1], ['12:00', '13:00'], ['13:00', '14:00']];
+      var sinHoras = !Object.keys(t.horas || {}).length, encaja = sinHoras && max <= DEF.length;
+      for (var r = 1; encaja && r <= max; r++) if (!!(!hay[r] || rec[r]) !== !!DEF[r - 1][2]) encaja = false;
       var hora = 9 * 60;
       OB_TR = [];
       for (var o = 1; o <= max; o++) {
-        var h = (t.horas || {})[o], esRec = !hay[o] || !!rec[o];
-        var ini = h ? _obMin(h[0]) : hora, fin = h ? _obMin(h[1]) : hora + (esRec ? 30 : 45);
-        OB_TR.push({ orden: o, ini: _obHora(ini), fin: _obHora(fin), recreo: esRec, conHora: !!h });
+        var d = encaja ? DEF[o - 1] : null;
+        var h = (t.horas || {})[o] || (d ? [d[0], d[1]] : null), esRec = !hay[o] || !!rec[o] || !!(d && d[2]);
+        var ini = h ? _obMin(h[0]) : hora, fin = h ? _obMin(h[1]) : hora + (esRec ? 30 : 60);
+        OB_TR.push({ orden: o, ini: _obHora(ini), fin: _obHora(fin), recreo: esRec, conHora: !!(t.horas || {})[o] });
         hora = fin;
       }
     }
@@ -371,7 +376,7 @@
     if (OB_TR && OB_TR.length) {
       var sinHoras = OB_TR.some(function(x) { return !x.conHora; });
       h += '<h3 style="margin:18px 0 4px;">Tramos horarios</h3><p class="hint" style="margin:0 0 6px;">' +
-        (sinHoras ? 'El archivo no trae las horas de todos los tramos: complétalas (he propuesto 45 min desde las 9:00).' : 'Comprueba las horas y marca el recreo.') + '</p>' +
+        (sinHoras ? 'El archivo no trae las horas de todos los tramos: compruébalas (he propuesto la jornada habitual, de 9:00 a 14:00 con tramos de una hora o media hora y recreo de 11:30 a 12:00).' : 'Comprueba las horas y marca el recreo.') + '</p>' +
         '<div class="tablewrap"><table class="data fit"><thead><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Recreo</th></tr></thead><tbody>' +
         OB_TR.map(function(x, i) {
           return '<tr' + (x.conHora ? '' : ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"') + '><td class="col-num">' + x.orden + '</td>' +
