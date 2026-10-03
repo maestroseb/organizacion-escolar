@@ -47,8 +47,8 @@ function extraerEntidadesVolcado(texto, fuente) {
     if (dec.orden) {
       ordenes[dec.orden] = true;
       // Horas del tramo (columnas opcionales); en tramos partidos (5a/5b) no
-      // valen para el tramo entero.
-      if (!dec.mitad && /^\d{1,2}:\d{2}$/.test(c.hora_inicio || '') && /^\d{1,2}:\d{2}$/.test(c.hora_fin || '') && !horas[dec.orden]) {
+      // valen para el tramo entero, salvo que vengan ya del tramo (FET).
+      if ((!dec.mitad || c.horas_tramo) && /^\d{1,2}:\d{2}$/.test(c.hora_inicio || '') && /^\d{1,2}:\d{2}$/.test(c.hora_fin || '') && !horas[dec.orden]) {
         horas[dec.orden] = [c.hora_inicio, c.hora_fin];
       }
       // Recreo: tramo en el que todo lo que hay es vigilancia de recreo.
@@ -58,7 +58,8 @@ function extraerEntidadesVolcado(texto, fuente) {
 
     if (tipo === 'grupo') {
       if (c.materia && !_basura(c.materia)) matSet.add(c.materia);
-      if (c.grupo && !_basura(c.grupo)) gruSet.add(c.grupo);
+      // Una clase puede ser a varios grupos a la vez: "2º A y 2º B".
+      _partirGrupos(c.grupo).forEach(function(g) { if (!_basura(g)) gruSet.add(g); });
     } else if (tipo === 'localizacion') {
       if (c.rol && !_basura(c.rol)) rolSet.add(c.rol);
       // grupo_destino puede venir combinado: "6º B y 6º C".
@@ -233,6 +234,9 @@ function _docentesSinDuplicar(entrantes) {
 /** Parte el volcado en filas crudas según la fuente (csv/texto/auto). */
 function _crudasVolcado(texto, fuente) {
   if (!texto || !String(texto).trim()) throw new Error('Pega algún dato primero.');
+  // El CSV de FET se reconoce por su cabecera, se haya elegido la fuente que sea.
+  const l0 = String(texto).replace(/\r/g, '').split('\n').filter(function(l) { return l.trim(); })[0] || '';
+  if (_esCabeceraFET(_split(l0))) return _parsearFilasCSV(texto);
   if (fuente === 'texto') return _crudasDesdeTexto(texto);
   if (fuente === 'csv') return _parsearFilasCSV(texto);
   // Auto: si la primera línea parece CSV (cabecera o varias comas), CSV.

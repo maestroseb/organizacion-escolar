@@ -59,6 +59,8 @@ function analizarCSV(csvText) {
  * CSV como el de texto libre (16_TextoLibreImport.gs).
  */
 function _analizarFilasCrudas(crudas) {
+  // Filas que solo aportan catálogo (p. ej. docentes sin actividad en FET).
+  crudas = crudas.filter(function(c) { return !c.soloCatalogo; });
   const cat = catalogoImportacion();
   const catDoc = cat.docentes.map(function(d) { return { id: d.id, nombre: d.nombre, alt: d.extra }; });
   const catGru = cat.grupos.map(function(g) { return { id: g.id, nombre: g.nombre, alt: g.extra }; });
@@ -190,6 +192,8 @@ function _parsearFilasCSV(texto) {
   // Detectar y saltar cabecera si está.
   let inicio = 0;
   const prim = _split(lineas[0]).map(function(s) { return s.trim().toLowerCase(); });
+  // CSV de actividades de FET: formato propio (25_FETImport.gs).
+  if (_esCabeceraFET(prim)) return _crudasDesdeFET(lineas);
   if (prim[0] === 'docente' && prim.indexOf('tramo') !== -1) inicio = 1;
 
   const filas = [];

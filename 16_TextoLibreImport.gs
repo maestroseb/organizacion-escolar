@@ -15,7 +15,7 @@ function analizarTextoLibre(texto) {
   if (!texto || !String(texto).trim()) {
     throw new Error('Pega algún texto primero.');
   }
-  const crudas = _crudasDesdeTexto(texto);
+  const crudas = _crudasVolcado(texto, 'texto'); // reconoce también el CSV de FET
   if (!crudas.length) {
     throw new Error('No se ha podido interpretar ninguna línea. Revisa el formato o usa el CSV del Gem.');
   }
