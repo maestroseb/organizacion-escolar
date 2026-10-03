@@ -25,17 +25,17 @@ function _crudasDesdeFET(lineas) {
   const cab = _split(lineas[0]).map(function(s) { return s.trim().toLowerCase(); });
   const col = function(re) { for (let i = 0; i < cab.length; i++) if (re.test(cab[i])) return i; return -1; };
   const iDia = col(/^(day|d[ií]a)$/), iHora = col(/^(hour|hora)$/), iGru = col(/student|alumn|grupo/),
-        iMat = col(/subject|asignatura|materia/), iDoc = col(/teacher|profesor|docente/);
+        iMat = col(/subject|asignatura|materia/), iDoc = col(/teacher|profesor|docente/), iNot = col(/^(notes|notas)$/);
 
   const filas = lineas.slice(1).map(function(l) {
     const c = _split(l);
     const v = function(i) { return i < 0 ? '' : String(c[i] || '').trim(); };
-    return { dia: v(iDia), hora: v(iHora), grupos: v(iGru), materia: v(iMat), docentes: v(iDoc) };
+    return { dia: v(iDia), hora: v(iHora), grupos: v(iGru), materia: v(iMat), docentes: v(iDoc), notas: v(iNot) };
   });
 
   const tramoDe = _tramosFET(filas.map(function(f) { return f.hora; }));
   const crudas = [];
-  const fila = function(o) {
+  const filaBase = function(o) {
     crudas.push({
       docente: o.docente || '', dia: o.dia || '', tramo: o.tramo || '', tipo: o.tipo || '',
       materia: o.materia || '', grupo: o.grupo || '', rol: o.rol || '', grupo_destino: o.grupo_destino || '',
@@ -46,13 +46,15 @@ function _crudasDesdeFET(lineas) {
   };
 
   filas.forEach(function(f) {
+    const fila = function(o) { if (f.notas) o.notas = o.notas ? o.notas + ' · ' + f.notas : f.notas; filaBase(o); };
     const docentes = f.docentes.split('+').map(function(s) { return s.trim(); }).filter(String);
     if (!docentes.length) return;
     // Docente sin actividad: solo para el catálogo.
     if (!f.dia && !f.hora) { docentes.forEach(function(d) { fila({ docente: d, soloCatalogo: true }); }); return; }
 
     const dia = _diaFET(f.dia);
-    const t = tramoDe[f.hora] || {};
+    // Hour puede ser también el nº de tramo (CSV convertido por el mapeador).
+    const t = tramoDe[f.hora] || (/^\d{1,2}[ab]?$/.test(f.hora) ? { tramo: f.hora } : {});
     const base = { dia: dia, tramo: t.tramo || '', hora_inicio: t.inicio || '', hora_fin: t.fin || '' };
     const conjuntos = f.grupos.split('+').map(function(s) { return s.trim(); }).filter(String);
     const grupos = conjuntos.filter(function(g) { return !/^refuerzo$/i.test(g); }).map(_grupoFET);
@@ -97,6 +99,16 @@ function _tramosFET(horas) {
     const m = String(h || '').match(/^\s*(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})\s*$/);
     if (m) rangos[h] = { h: h, a: +m[1] * 60 + +m[2], b: +m[3] * 60 + +m[4] };
   });
+  // Solo hora de inicio («09:00»): cada tramo acaba donde empieza el siguiente.
+  const inicios = horas.filter(function(h) { return /^\s*\d{1,2}:\d{2}\s*$/.test(h || ''); })
+    .map(function(h) { const m = h.trim().split(':'); return { h: h, a: +m[0] * 60 + +m[1] }; })
+    .sort(function(x, y) { return x.a - y.a; })
+    .filter(function(r, i, arr) { return !i || arr[i - 1].a !== r.a; });
+  inicios.forEach(function(r, i) {
+    const sig = inicios[i + 1];
+    const dur = sig ? sig.a - r.a : (i ? r.a - inicios[i - 1].a : 60);
+    horas.forEach(function(h) { if (String(h).trim() === r.h.trim()) rangos[h] = { h: h, a: r.a, b: r.a + dur }; });
+  });
   const lista = Object.keys(rangos).map(function(k) { return rangos[k]; });
   if (!lista.length) return {};
   const cuenta = {};
@@ -114,6 +126,11 @@ function _tramosFET(horas) {
     t.partes.push(r);
   });
   tramos.sort(function(x, y) { return x.a - y.a; });
+  // Huecos sin actividad (p. ej. un recreo que no viene en el archivo):
+  // ocupan su número de tramo para no descolocar los siguientes.
+  for (let i = tramos.length - 1; i > 0; i--) {
+    if (tramos[i].a - tramos[i - 1].b >= 10) tramos.splice(i, 0, { a: tramos[i - 1].b, b: tramos[i].a, partes: [] });
+  }
 
   const hhmm = function(n) { return ('0' + Math.floor(n / 60)).slice(-2) + ':' + ('0' + n % 60).slice(-2); };
   const res = {};

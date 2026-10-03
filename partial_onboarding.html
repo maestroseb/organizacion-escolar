@@ -80,7 +80,7 @@
       <div id="ob-paste" style="display:none;">
         <label id="ob-paste-label">Pega aquí tus horarios</label>
         <textarea id="ob-paste-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Beatriz A.,L,1,grupo,Lengua,3º B,,,"></textarea>
-        <p class="hint" style="margin:6px 0 0;">También vale el CSV de actividades que exporta FET.</p>
+        <p class="hint" style="margin:6px 0 0;">También vale el CSV de FET o el de cualquier otro programa: si no lo reconozco, te preguntaré qué es cada columna.</p>
         <div class="actions">
           <button class="secondary" onclick="obCancelarPaste()">← Atrás</button>
           <label class="btn-like" for="ob-file">Subir archivo…</label>
@@ -284,6 +284,7 @@
     input.value = '';
   }
   function obDetectar() {
+    if (mapeoInterceptar('ob-paste-texto', 'ob-detect-res', obDetectar)) return;
     const texto = document.getElementById('ob-paste-texto').value;
     if (!texto.trim()) { document.getElementById('ob-detect-res').innerHTML = '<div class="result err">Pega algún dato primero.</div>'; return; }
     const btn = document.getElementById('ob-btn-detectar'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Detectando…';

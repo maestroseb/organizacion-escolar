@@ -1,0 +1,189 @@
+<script>
+  // MAPEADOR DE COLUMNAS para CSV de cualquier programa.
+  // Si el CSV no es el propio (Gem) ni el de FET, se adivina qué columna es
+  // cada dato (por el nombre y por el contenido), se muestra con un
+  // desplegable para confirmar y solo se pregunta lo que falte. Al aceptar,
+  // se convierte al formato de FET, que el servidor ya sabe interpretar.
+
+  var MAP_CAMPOS = [
+    ['', '— ignorar —'],
+    ['docente', 'Docente'], ['dia', 'Día'], ['hora', 'Hora (09:00-09:30)'],
+    ['hora_inicio', 'Hora de inicio'], ['hora_fin', 'Hora de fin'], ['tramo', 'Nº de tramo'],
+    ['grupo', 'Grupo / curso'], ['materia', 'Materia / área'], ['rol', 'Cargo / actividad'],
+    ['notas', 'Notas']
+  ];
+  var MAP_DIAS = { l: 'L', lun: 'L', lunes: 'L', mon: 'L', monday: 'L', d1: 'L',
+    m: 'M', mar: 'M', martes: 'M', tue: 'M', tuesday: 'M', d2: 'M',
+    x: 'X', mie: 'X', mié: 'X', miercoles: 'X', miércoles: 'X', wed: 'X', wednesday: 'X', d3: 'X',
+    j: 'J', jue: 'J', jueves: 'J', thu: 'J', thursday: 'J', d4: 'J',
+    v: 'V', vie: 'V', viernes: 'V', fri: 'V', friday: 'V', d5: 'V',
+    lu: 'L', ma: 'M', mi: 'X', ju: 'J', vi: 'V', mo: 'L', tu: 'M', we: 'X', th: 'J', fr: 'V',
+    '1': 'L', '2': 'M', '3': 'X', '4': 'J', '5': 'V' };
+  // Día reconocido sin preguntar (también «Lun.», «MIÉRCOLES»…).
+  function _mapDia(v) { var n = _mapNorm(v).replace(/\.$/, ''); return MAP_DIAS[n] || (n.length >= 3 && MAP_DIAS[n.slice(0, 3)]) || ''; }
+  var MAP_EST = null;   // estado del mapeo abierto
+
+  // Separador más probable de la primera línea.
+  function _mapSep(l) {
+    var c = { ',': 0, ';': 0, '\t': 0 };
+    var dentro = false;
+    for (var i = 0; i < l.length; i++) { var ch = l[i]; if (ch === '"') dentro = !dentro; else if (!dentro && c[ch] != null) c[ch]++; }
+    return Object.keys(c).sort(function(a, b) { return c[b] - c[a]; })[0];
+  }
+  function _mapSplit(l, sep) {
+    var out = [], cur = '', dentro = false;
+    for (var i = 0; i < l.length; i++) {
+      var ch = l[i];
+      if (ch === '"') { if (dentro && l[i + 1] === '"') { cur += '"'; i++; } else dentro = !dentro; continue; }
+      if (ch === sep && !dentro) { out.push(cur.trim()); cur = ''; continue; }
+      cur += ch;
+    }
+    out.push(cur.trim());
+    return out;
+  }
+  function _mapNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
+
+  // ¿Hace falta mapear? Solo si la 1ª línea parece una cabecera ajena.
+  function mapeoNecesario(texto) {
+    var lin = String(texto || '').replace(/\r/g, '').split('\n').filter(function(l) { return l.trim(); });
+    if (lin.length < 2) return false;
+    var sep = _mapSep(lin[0]);
+    var cab = _mapSplit(lin[0], sep).map(_mapNorm);
+    if (cab.length < 3) return false;
+    if (cab[0] === 'docente' && cab.indexOf('tramo') !== -1) return false;                     // CSV propio
+    if (cab.some(function(c) { return /^(activity id|id de actividad|id actividad)$/.test(c); })) return false; // FET
+    // Cabecera: casi todo texto, sin horas ni días sueltos.
+    var pareceDato = cab.filter(function(c) { return /\d{1,2}:\d{2}/.test(c) || MAP_DIAS[c]; }).length;
+    return pareceDato === 0;
+  }
+
+  // Propuesta de campo para una columna: por nombre y por contenido.
+  function _mapAdivinar(nombre, valores) {
+    var n = _mapNorm(nombre), v = valores.filter(function(x) { return x; }).slice(0, 60);
+    var frac = function(re) { return v.length ? v.filter(function(x) { return re.test(_mapNorm(x)); }).length / v.length : 0; };
+    var porNombre = /docen|profe|teacher|maestr/.test(n) ? 'docente'
+      : /^d[i]a$|^day|^dia /.test(n) ? 'dia'
+      : /inicio|desde|start|comienzo/.test(n) ? 'hora_inicio'
+      : /fin$|hasta|end/.test(n) ? 'hora_fin'
+      : /^hora|hour|franja|horario/.test(n) ? 'hora'
+      : /tramo|sesion|periodo|period|slot|modulo/.test(n) ? 'tramo'
+      : /grupo|curso|clase|unidad|student|alumn/.test(n) ? 'grupo'
+      : /materia|asignatura|area|subject|disciplina/.test(n) ? 'materia'
+      : /^rol|cargo|actividad|funcion/.test(n) ? 'rol'
+      : /nota|observ|coment/.test(n) ? 'notas'
+      : /aula|room|espacio|^id\b|^id$|codigo/.test(n) ? '' : null;
+    var porDatos = v.length && v.filter(function(x) { return _mapDia(x); }).length / v.length > .7 && !/^\d/.test(v[0]) ? 'dia'
+      : frac(/^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$/) > .7 ? 'hora'
+      : frac(/^\d{1,2}:\d{2}$/) > .7 ? 'hora_inicio'
+      : frac(/^\d{1,2}[ab]?$/) > .8 ? 'tramo'
+      : frac(/^(\d\s*º?\s*[a-z]|inf|i\d|\d\s*(º|anos))/) > .6 ? 'grupo'
+      : frac(/mat|leng|ingl|engl|cono|educ|music|relig|franc|plast|^e\.?f|valores|ciencias/) > .4 ? 'materia'
+      : null;
+    var campo = porNombre != null ? porNombre : (porDatos || '');
+    var casa = porDatos == null || porDatos === porNombre || porNombre === '' ||
+      (porDatos === 'hora_inicio' && porNombre === 'hora_fin') || (porDatos === 'tramo' && porNombre === 'dia');
+    return { campo: campo, seguro: porNombre != null && casa };
+  }
+
+  /**
+   * Abre el mapeador si el texto de `idTexto` lo necesita. Al aceptar,
+   * sustituye el texto por su versión convertida y llama a `seguir`.
+   * Devuelve true si lo ha abierto (el que llama debe esperar).
+   */
+  function mapeoInterceptar(idTexto, idDestino, seguir) {
+    var texto = document.getElementById(idTexto).value;
+    if (!mapeoNecesario(texto)) return false;
+    var lin = texto.replace(/\r/g, '').split('\n').filter(function(l) { return l.trim(); });
+    var sep = _mapSep(lin[0]);
+    var cab = _mapSplit(lin[0], sep);
+    var filas = lin.slice(1).map(function(l) { return _mapSplit(l, sep); });
+    var guardado = null;
+    try { guardado = JSON.parse(localStorage.getItem('mapeo:' + cab.join('|')) || 'null'); } catch (e) {}
+    var cols = cab.map(function(c, i) {
+      var vals = filas.map(function(f) { return f[i] || ''; });
+      var g = guardado && guardado[i] != null ? { campo: guardado[i], seguro: true } : _mapAdivinar(c, vals);
+      return { nombre: c, campo: g.campo, seguro: g.seguro, muestra: vals.filter(String).slice(0, 3) };
+    });
+    // Un campo, una columna: si se repite, se queda la primera y las demás dudan.
+    var vistos = {};
+    cols.forEach(function(c) { if (c.campo && vistos[c.campo]) { c.campo = ''; c.seguro = false; } else if (c.campo) vistos[c.campo] = 1; });
+    MAP_EST = { idTexto: idTexto, idDestino: idDestino, seguir: seguir, cab: cab, filas: filas, cols: cols, dias: {} };
+    _mapPintar();
+    return true;
+  }
+
+  function _mapColDe(campo) { for (var i = 0; i < MAP_EST.cols.length; i++) if (MAP_EST.cols[i].campo === campo) return i; return -1; }
+
+  function _mapPintar() {
+    var E = MAP_EST, dest = document.getElementById(E.idDestino);
+    var filasCol = E.cols.map(function(c, i) {
+      var opts = MAP_CAMPOS.map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === c.campo ? ' selected' : '') + '>' + _esc(o[1]) + '</option>'; }).join('');
+      return '<tr' + (c.seguro ? '' : ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"') + '>' +
+        '<td><b>' + _esc(c.nombre || '(sin nombre)') + '</b></td>' +
+        '<td class="hint">' + _esc(c.muestra.join(' · ')) + '</td>' +
+        '<td><div style="display:flex;gap:6px;align-items:center;"><select onchange="mapSetCampo(' + i + ', this.value)">' + opts + '</select>' + (c.seguro ? '' : '<b title="Revisa esta columna" style="color:var(--warn,#b7791f)">¿?</b>') + '</div></td></tr>';
+    }).join('');
+
+    // Lo que falta para poder seguir.
+    var falta = [];
+    if (_mapColDe('docente') < 0) falta.push('qué columna es el <b>docente</b>');
+    if (_mapColDe('dia') < 0) falta.push('qué columna es el <b>día</b>');
+    if (_mapColDe('hora') < 0 && _mapColDe('tramo') < 0 && _mapColDe('hora_inicio') < 0) falta.push('qué columna indica la <b>hora o el tramo</b>');
+    if (_mapColDe('grupo') < 0 && _mapColDe('materia') < 0 && _mapColDe('rol') < 0) falta.push('al menos el <b>grupo</b>, la <b>materia</b> o el <b>cargo</b>');
+
+    // Días que no se reconocen: se pregunta cuál es cada uno.
+    var diasHtml = '', iDia = _mapColDe('dia');
+    if (iDia >= 0) {
+      var raros = {};
+      E.filas.forEach(function(f) { var v = (f[iDia] || '').trim(); if (v && !_mapDia(v) && !E.dias[v]) raros[v] = 1; });
+      Object.keys(E.dias).forEach(function(v) { raros[v] = 1; });
+      var lista = Object.keys(raros);
+      if (lista.length) {
+        diasHtml = '<p style="margin:12px 0 6px;"><b>¿Qué día es cada uno de estos valores?</b></p><div class="toolbar">' + lista.map(function(v) {
+          return '<label>' + _esc(v) + ' <select onchange="mapSetDia(\'' + _esc(v).replace(/'/g, "\\'") + '\', this.value)">' +
+            [['', '—'], ['L', 'Lunes'], ['M', 'Martes'], ['X', 'Miércoles'], ['J', 'Jueves'], ['V', 'Viernes']].map(function(o) {
+              return '<option value="' + o[0] + '"' + (E.dias[v] === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>';
+        }).join('') + '</div>';
+        if (lista.some(function(v) { return !E.dias[v]; })) falta.push('a qué <b>día</b> corresponde cada valor de abajo');
+      }
+    }
+
+    dest.innerHTML = '<div class="panelbox" style="margin-top:10px;">' +
+      '<h3 style="margin:0 0 4px;">Columnas del archivo</h3>' +
+      '<p class="hint" style="margin:0 0 8px;">No es un formato conocido. He intentado adivinar qué es cada columna: revisa sobre todo las marcadas en amarillo.</p>' +
+      '<div class="tablewrap"><table class="data"><thead><tr><th>Columna</th><th>Ejemplos</th><th>Es…</th></tr></thead><tbody>' + filasCol + '</tbody></table></div>' +
+      diasHtml +
+      (falta.length ? '<div class="result err" style="margin-top:10px;">Falta indicar ' + falta.join(', ') + '.</div>' : '') +
+      '<div class="actions"><button class="primary" onclick="mapAceptar()"' + (falta.length ? ' disabled' : '') + '>Usar estas columnas →</button></div></div>';
+  }
+  function mapSetCampo(i, v) {
+    MAP_EST.cols.forEach(function(c, j) { if (j !== i && v && c.campo === v) { c.campo = ''; c.seguro = false; } });
+    MAP_EST.cols[i].campo = v; MAP_EST.cols[i].seguro = true;
+    _mapPintar();
+  }
+  function mapSetDia(v, d) { MAP_EST.dias[v] = d; _mapPintar(); }
+
+  // Convierte al CSV de FET (que el servidor ya interpreta) y sigue.
+  function mapAceptar() {
+    var E = MAP_EST, col = function(k) { return _mapColDe(k); };
+    var c = { doc: col('docente'), dia: col('dia'), hora: col('hora'), ini: col('hora_inicio'), fin: col('hora_fin'),
+              tramo: col('tramo'), gru: col('grupo'), mat: col('materia'), rol: col('rol'), notas: col('notas') };
+    var v = function(f, i) { return i < 0 ? '' : String(f[i] || '').trim(); };
+    var q = function(s) { s = String(s || ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    var out = ['Activity Id,Day,Hour,Students Sets,Subject,Teachers,Room,Notes'];
+    E.filas.forEach(function(f, n) {
+      var doc = v(f, c.doc); if (!doc) return;
+      var diaV = v(f, c.dia), dia = E.dias[diaV] || _mapDia(diaV);
+      var hora = v(f, c.hora) || (v(f, c.ini) && v(f, c.fin) ? v(f, c.ini) + '-' + v(f, c.fin) : '') || v(f, c.tramo) || v(f, c.ini);
+      if (!dia || !hora) return;
+      var grupos = v(f, c.gru).split(/\s*(?:\+|\/|,|;|\by\b)\s*/i).filter(String).join('+');
+      var docentes = doc.split(/\s*(?:\+|;|\/)\s*/).filter(String).join('+');
+      out.push([n + 1, 'D' + ('LMXJV'.indexOf(dia) + 1), hora, grupos, v(f, c.mat) || v(f, c.rol), docentes, '', v(f, c.notas)].map(q).join(','));
+    });
+    try { localStorage.setItem('mapeo:' + E.cab.join('|'), JSON.stringify(E.cols.map(function(x) { return x.campo; }))); } catch (e) {}
+    document.getElementById(E.idTexto).value = out.join('\n');
+    document.getElementById(E.idDestino).innerHTML = '<div class="result ok">✓ Columnas asignadas (' + (out.length - 1) + ' filas). Interpretando…</div>';
+    var seguir = E.seguir; MAP_EST = null;
+    if (seguir) seguir();
+  }
+</script>
