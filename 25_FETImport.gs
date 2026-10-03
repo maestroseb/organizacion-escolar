@@ -25,12 +25,13 @@ function _crudasDesdeFET(lineas) {
   const cab = _split(lineas[0]).map(function(s) { return s.trim().toLowerCase(); });
   const col = function(re) { for (let i = 0; i < cab.length; i++) if (re.test(cab[i])) return i; return -1; };
   const iDia = col(/^(day|d[ií]a)$/), iHora = col(/^(hour|hora)$/), iGru = col(/student|alumn|grupo/),
-        iMat = col(/subject|asignatura|materia/), iDoc = col(/teacher|profesor|docente/), iNot = col(/^(notes|notas)$/);
+        iMat = col(/subject|asignatura|materia/), iDoc = col(/teacher|profesor|docente/), iNot = col(/^(notes|notas)$/),
+        iComp = col(/^(teachers full|nombre completo|docente completo|docente_completo)$/);
 
   const filas = lineas.slice(1).map(function(l) {
     const c = _split(l);
     const v = function(i) { return i < 0 ? '' : String(c[i] || '').trim(); };
-    return { dia: v(iDia), hora: v(iHora), grupos: v(iGru), materia: v(iMat), docentes: v(iDoc), notas: v(iNot) };
+    return { dia: v(iDia), hora: v(iHora), grupos: v(iGru), materia: v(iMat), docentes: v(iDoc), notas: v(iNot), completos: v(iComp) };
   });
 
   const tramoDe = _tramosFET(filas.map(function(f) { return f.hora; }));
@@ -39,15 +40,22 @@ function _crudasDesdeFET(lineas) {
     crudas.push({
       docente: o.docente || '', dia: o.dia || '', tramo: o.tramo || '', tipo: o.tipo || '',
       materia: o.materia || '', grupo: o.grupo || '', rol: o.rol || '', grupo_destino: o.grupo_destino || '',
-      notas: o.notas || '', abreviatura: '', docente_completo: '',
+      notas: o.notas || '', abreviatura: '', docente_completo: o.docente_completo || '',
       hora_inicio: o.hora_inicio || '', hora_fin: o.hora_fin || '', horas_tramo: true,
       soloCatalogo: !!o.soloCatalogo
     });
   };
 
   filas.forEach(function(f) {
-    const fila = function(o) { if (f.notas) o.notas = o.notas ? o.notas + ' · ' + f.notas : f.notas; filaBase(o); };
     const docentes = f.docentes.split('+').map(function(s) { return s.trim(); }).filter(String);
+    // Nombre completo de cada docente (columna opcional, en el mismo orden).
+    const completos = f.completos.split('+').map(function(s) { return s.trim(); });
+    const fila = function(o) {
+      if (f.notas) o.notas = o.notas ? o.notas + ' · ' + f.notas : f.notas;
+      const k = docentes.indexOf(o.docente);
+      if (k !== -1 && completos[k] && completos[k] !== o.docente) o.docente_completo = completos[k];
+      filaBase(o);
+    };
     if (!docentes.length) return;
     // Docente sin actividad: solo para el catálogo.
     if (!f.dia && !f.hora) { docentes.forEach(function(d) { fila({ docente: d, soloCatalogo: true }); }); return; }

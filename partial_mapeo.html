@@ -8,7 +8,7 @@
 
   var MAP_CAMPOS = [
     ['', '— ignorar —'],
-    ['docente', 'Docente'], ['dia', 'Día'], ['hora', 'Hora (09:00-09:30)'],
+    ['docente', 'Docente · nombre corto'], ['docente_completo', 'Docente · nombre completo (con apellidos)'], ['dia', 'Día'], ['hora', 'Hora (09:00-09:30)'],
     ['hora_inicio', 'Hora de inicio'], ['hora_fin', 'Hora de fin'], ['tramo', 'Nº de tramo'],
     ['grupo', 'Grupo / curso'], ['materia', 'Materia / área'], ['rol', 'Cargo / actividad'],
     ['notas', 'Notas']
@@ -46,9 +46,9 @@
 
   // Formato de un CSV: 'propio' (el de la app), 'fet', 'otro' (con cabecera
   // ajena) o '' (no es un CSV con columnas: texto libre, una sola línea…).
-  var MAP_PROPIO = { docente: 'Docente', dia: 'Día', tramo: 'Nº de tramo', tipo: 'Tipo (clase/apoyo/cargo)', materia: 'Materia',
+  var MAP_PROPIO = { docente: 'Docente · nombre corto', dia: 'Día', tramo: 'Nº de tramo', tipo: 'Tipo (clase/apoyo/cargo)', materia: 'Materia',
     grupo: 'Grupo', rol: 'Cargo / rol', grupo_destino: 'Grupo de destino', notas: 'Notas', abreviatura: 'Abreviatura',
-    docente_completo: 'Nombre completo', hora_inicio: 'Hora de inicio', hora_fin: 'Hora de fin' };
+    docente_completo: 'Docente · nombre completo', hora_inicio: 'Hora de inicio', hora_fin: 'Hora de fin' };
   var MAP_ORDEN_PROPIO = ['docente', 'dia', 'tramo', 'tipo', 'materia', 'grupo', 'rol', 'grupo_destino', 'notas', 'abreviatura', 'docente_completo', 'hora_inicio', 'hora_fin'];
   var MAP_FET = { 'activity id': '', 'id de actividad': '', 'id actividad': '', day: 'dia', 'dia': 'dia', hour: 'hora', hora: 'hora',
     'students sets': 'grupo', 'grupos de alumnos': 'grupo', subject: 'materia', asignatura: 'materia', teachers: 'docente', profesores: 'docente',
@@ -74,7 +74,10 @@
   function _mapAdivinar(nombre, valores) {
     var n = _mapNorm(nombre), v = valores.filter(function(x) { return x; }).slice(0, 60);
     var frac = function(re) { return v.length ? v.filter(function(x) { return re.test(_mapNorm(x)); }).length / v.length : 0; };
-    var porNombre = /docen|profe|teacher|maestr/.test(n) ? 'docente'
+    // Nombres de 3 o más palabras: es el nombre completo (con apellidos).
+    var largos = v.length && v.filter(function(x) { return x.trim().split(/\s+/).length >= 3; }).length / v.length > .6;
+    var porNombre = /complet|apellid|full/.test(n) ? 'docente_completo'
+      : /docen|profe|teacher|maestr/.test(n) ? (largos && !/corto|short|alias/.test(n) ? 'docente_completo' : 'docente')
       : /^d[i]a$|^day|^dia /.test(n) ? 'dia'
       : /inicio|desde|start|comienzo/.test(n) ? 'hora_inicio'
       : /fin$|hasta|end/.test(n) ? 'hora_fin'
@@ -149,7 +152,7 @@
     // Lo que falta para poder seguir.
     var falta = [];
     if (!propio) {
-    if (_mapColDe('docente') < 0) falta.push('qué columna es el <b>docente</b>');
+    if (_mapColDe('docente') < 0 && _mapColDe('docente_completo') < 0) falta.push('qué columna es el <b>docente</b>');
     if (_mapColDe('dia') < 0) falta.push('qué columna es el <b>día</b>');
     if (_mapColDe('hora') < 0 && _mapColDe('tramo') < 0 && _mapColDe('hora_inicio') < 0) falta.push('qué columna indica la <b>hora o el tramo</b>');
     if (_mapColDe('grupo') < 0 && _mapColDe('materia') < 0 && _mapColDe('rol') < 0) falta.push('al menos el <b>grupo</b>, la <b>materia</b> o el <b>cargo</b>');
@@ -199,19 +202,20 @@
       document.getElementById(E.idDestino).innerHTML = '<div class="result ok">✓ Columnas comprobadas. Interpretando…</div>';
       var sig = E.seguir; MAP_EST = null; if (sig) sig(); return;
     }
-    var c = { doc: col('docente'), dia: col('dia'), hora: col('hora'), ini: col('hora_inicio'), fin: col('hora_fin'),
+    var c = { doc: col('docente'), comp: col('docente_completo'), dia: col('dia'), hora: col('hora'), ini: col('hora_inicio'), fin: col('hora_fin'),
               tramo: col('tramo'), gru: col('grupo'), mat: col('materia'), rol: col('rol'), notas: col('notas') };
     var v = function(f, i) { return i < 0 ? '' : String(f[i] || '').trim(); };
     var q = function(s) { s = String(s || ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    var out = ['Activity Id,Day,Hour,Students Sets,Subject,Teachers,Room,Notes'];
+    var out = ['Activity Id,Day,Hour,Students Sets,Subject,Teachers,Room,Notes,Teachers Full'];
+    var partir = function(x) { return x.split(/\s*(?:\+|;|\/)\s*/).filter(String).join('+'); };
     E.filas.forEach(function(f, n) {
-      var doc = v(f, c.doc); if (!doc) return;
+      // Sin nombre corto, de momento va el completo (luego se acorta en el alta).
+      var doc = v(f, c.doc) || v(f, c.comp); if (!doc) return;
       var diaV = v(f, c.dia), dia = E.dias[diaV] || _mapDia(diaV);
       var hora = v(f, c.hora) || (v(f, c.ini) && v(f, c.fin) ? v(f, c.ini) + '-' + v(f, c.fin) : '') || v(f, c.tramo) || v(f, c.ini);
       if (!dia || !hora) return;
       var grupos = v(f, c.gru).split(/\s*(?:\+|\/|,|;|\by\b)\s*/i).filter(String).join('+');
-      var docentes = doc.split(/\s*(?:\+|;|\/)\s*/).filter(String).join('+');
-      out.push([n + 1, 'D' + ('LMXJV'.indexOf(dia) + 1), hora, grupos, v(f, c.mat) || v(f, c.rol), docentes, '', v(f, c.notas)].map(q).join(','));
+      out.push([n + 1, 'D' + ('LMXJV'.indexOf(dia) + 1), hora, grupos, v(f, c.mat) || v(f, c.rol), partir(doc), '', v(f, c.notas), partir(v(f, c.comp))].map(q).join(','));
     });
     if (E.formato === 'otro') try { localStorage.setItem('mapeo:' + E.cab.join('|'), JSON.stringify(E.cols.map(function(x) { return x.campo; }))); } catch (e) {}
     document.getElementById(E.idTexto).value = out.join('\n');
