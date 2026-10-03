@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root { --bg: #f4f5f8; --card: #fff; --text: #1f2430; --muted: #5b6272; --accent: #4f46e5; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #14161c; --card: #1d2028; --text: #e7e9ee; --muted: #a3a9b6; --accent: #818cf8; } }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .wrap { min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+    .card { background: var(--card); border-radius: 16px; box-shadow: 0 8px 30px rgba(0,0,0,.08); padding: 28px 30px; max-width: 420px; text-align: center; }
+    h1 { font-size: 20px; margin: 14px 0 6px; }
+    p { color: var(--muted); margin: 0; line-height: 1.45; }
+    .spin { width: 38px; height: 38px; border-radius: 50%; border: 4px solid color-mix(in srgb, var(--accent) 20%, transparent); border-top-color: var(--accent); animation: g 0.9s linear infinite; margin: 0 auto; }
+    @keyframes g { to { transform: rotate(360deg); } }
+    a.btn { display: inline-block; margin-top: 16px; background: var(--accent); color: #fff; text-decoration: none; padding: 10px 18px; border-radius: 10px; font-weight: 600; }
+    .err { color: #c0392b; }
+  </style>
+</head>
+<body>
+  <div class="wrap"><div class="card" id="c">
+    <div class="spin"></div>
+    <h1><?= primeraVez ? 'Preparando la aplicación…' : 'Actualizando la base de datos…' ?></h1>
+    <p><?= primeraVez ? 'Estoy creando la hoja de cálculo con todas sus pestañas. Solo pasa la primera vez y tarda unos segundos.' : 'Hay una versión nueva: estoy añadiendo lo que falta a la hoja de cálculo. Tarda unos segundos.' ?></p>
+  </div></div>
+  <script>
+    var URL_APP = <?= url ?>;
+    function abrir() {
+      try { window.top.location.href = URL_APP; } catch (e) {}
+      // Si el navegador no deja redirigir sola a la página, botón para entrar.
+      setTimeout(function() {
+        document.getElementById('c').innerHTML = '<h1>¡Listo!</h1><p>Ya está todo preparado.</p><a class="btn" href="' + URL_APP.replace(/"/g, '&quot;') + '">Entrar en la aplicación</a>';
+      }, 1500);
+    }
+    google.script.run
+      .withSuccessHandler(abrir)
+      .withFailureHandler(function(err) {
+        document.getElementById('c').innerHTML = '<h1 class="err">No se ha podido preparar</h1><p>' + String((err && err.message) || err).replace(/</g, '&lt;') + '</p><a class="btn" href="' + URL_APP.replace(/"/g, '&quot;') + '">Reintentar</a>';
+      })
+      .prepararBaseDatos();
+  </script>
+</body>
+</html>

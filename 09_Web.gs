@@ -11,8 +11,12 @@
  */
 
 function doGet(e) {
-  asegurarBaseDatos();
   const par = (e && e.parameter) || {};
+  // Primera vez (o esquema nuevo tras actualizar): crear/ampliar la hoja
+  // tarda; en lugar de una página en blanco se muestra «Preparando…» y el
+  // trabajo se hace desde el navegador (prepararBaseDatos).
+  if (par.api !== 'ahora' && !_baseDatosLista()) return _paginaPreparando(par);
+  asegurarBaseDatos();
 
   // Datos de Ahora para el panel externo (página fuera de Google, sin banda
   // ni sesión): JSON/JSONP con la clave del panel y sin ausentes.
@@ -174,4 +178,32 @@ function _datosIniciales() {
   } catch (e) {
     return null;
   }
+}
+
+// ---------- Preparación de la base de datos ----------
+
+/** ¿Base de datos creada y con el esquema al día? (sin abrir la hoja). */
+function _baseDatosLista() {
+  const props = PropertiesService.getScriptProperties();
+  const id = props.getProperty(PROP_BD_ID);
+  return !!id && props.getProperty(PROP_ESQUEMA_OK) === id + '|' + _firmaEsquema();
+}
+
+function _paginaPreparando(par) {
+  const t = HtmlService.createTemplateFromFile('preparando');
+  t.primeraVez = !PropertiesService.getScriptProperties().getProperty(PROP_BD_ID);
+  // Al terminar se vuelve a la misma dirección (con su ?page=…).
+  const q = Object.keys(par).map(function(k) { return encodeURIComponent(k) + '=' + encodeURIComponent(par[k]); }).join('&');
+  t.url = ScriptApp.getService().getUrl() + (q ? '?' + q : '');
+  return t.evaluate()
+    .setTitle('Preparando… · Gestor de Horarios y Sustituciones')
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+    .setFaviconUrl(FAVICON_URL)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/** Llamada desde la página «Preparando…». */
+function prepararBaseDatos() {
+  asegurarBaseDatos();
+  return true;
 }
