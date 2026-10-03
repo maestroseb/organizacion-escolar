@@ -225,6 +225,9 @@
       (tn?('<div class="muestra" style="color:var(--ok)">se crearán ' + tn + '</div>'):(res.tramos.existe?'<div class="muestra">ya hay tramos</div>':'')) +
       '</div></div>';
     html += '</div>';
+    // Si se van a crear los tramos, se definen aquí (horas y recreo).
+    IMP_TR = tramosPropuesta(res.tramos);
+    if (IMP_TR && IMP_TR.length) html += tramosTablaHtml(IMP_TR, 'IMP_TR');
     const conAnalizar = !!(DETECT_ENTIDADES && DETECT_ENTIDADES.analizarTras);
     const fuente = DETECT_ENTIDADES ? DETECT_ENTIDADES.fuente : 'csv';
     if (conAnalizar) {
@@ -237,8 +240,12 @@
     html += '<div id="res-detect"></div>';
     body.innerHTML = html;
   }
+  var IMP_TR = null;
   function crearCatalogoUI() {
     if (!DETECT_ENTIDADES) return;
+    const errTr = tramosValidar(IMP_TR, 'IMP_TR');
+    if (errTr) { document.getElementById('res-detect').innerHTML = '<div class="result err">' + _esc(errTr) + '</div>'; return; }
+    const trSel = tramosSeleccion(IMP_TR);
     const res = DETECT_ENTIDADES.res;
     const fuente = DETECT_ENTIDADES.fuente;
     const analizarTras = !!DETECT_ENTIDADES.analizarTras;
@@ -247,9 +254,9 @@
       grupos: res.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
       materias: res.materias.map(function(x){return { nombre:x.nombre, abreviatura:x.abreviatura || '' };}),
       roles: res.roles.map(function(x){return x.nombre;}),
-      tramosOrdenes: res.tramos.ordenes,
-      tramosHoras: res.tramos.horas || {},
-      tramosRecreo: res.tramos.recreos || []
+      tramosOrdenes: trSel ? trSel.ordenes : res.tramos.ordenes,
+      tramosHoras: trSel ? trSel.horas : (res.tramos.horas || {}),
+      tramosRecreo: trSel ? trSel.recreos : (res.tramos.recreos || [])
     };
     const btn = document.getElementById('btn-crear-catalogo'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
     google.script.run

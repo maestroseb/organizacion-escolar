@@ -343,27 +343,63 @@
     while (p.length > 2 && /^(de|del|la|las|los|y)$/i.test(p[p.length - 1])) p.pop();
     return p.join(' ');
   }
+  // ---- Tramos a crear desde un volcado (compartido con Importar) ----
+  // Propuesta editable a partir de lo detectado: horas del archivo o, si no
+  // hay, la jornada por defecto (como en el servidor). null si ya hay tramos.
+  function tramosPropuesta(t) {
+    t = t || {};
+    if (!t.total || t.existe) return null;
+    var max = Math.max.apply(null, t.ordenes), hay = {}, rec = {};
+    t.ordenes.forEach(function(o) { hay[o] = 1; });
+    (t.recreos || []).forEach(function(o) { rec[o] = 1; });
+    var DEF = [['09:00', '10:00'], ['10:00', '11:00'], ['11:00', '11:30'], ['11:30', '12:00', 1], ['12:00', '13:00'], ['13:00', '14:00']];
+    var sinHoras = !Object.keys(t.horas || {}).length, encaja = sinHoras && max <= DEF.length;
+    for (var r = 1; encaja && r <= max; r++) if (!!(!hay[r] || rec[r]) !== !!DEF[r - 1][2]) encaja = false;
+    var hora = 9 * 60, lista = [];
+    for (var o = 1; o <= max; o++) {
+      var d = encaja ? DEF[o - 1] : null;
+      var h = (t.horas || {})[o] || (d ? [d[0], d[1]] : null), esRec = !hay[o] || !!rec[o] || !!(d && d[2]);
+      var ini = h ? _obMin(h[0]) : hora, fin = h ? _obMin(h[1]) : hora + (esRec ? 30 : 60);
+      lista.push({ orden: o, ini: _obHora(ini), fin: _obHora(fin), recreo: esRec, conHora: !!(t.horas || {})[o] });
+      hora = fin;
+    }
+    return lista;
+  }
+  // Tabla editable. `v` es el nombre de la variable global con la lista.
+  // Si faltan horas en el archivo, hay que confirmar que se han revisado.
+  function tramosTablaHtml(lista, v) {
+    var sinHoras = lista.some(function(x) { return !x.conHora; });
+    return '<h3 style="margin:18px 0 4px;">Tramos horarios</h3><p class="hint" style="margin:0 0 6px;">' +
+      (sinHoras ? 'El archivo no trae las horas de todos los tramos: defínelas (he propuesto la jornada habitual, de 9:00 a 14:00 con tramos de una hora o media hora y recreo de 11:30 a 12:00).' : 'Comprueba las horas y marca el recreo.') + '</p>' +
+      '<div class="tablewrap"><table class="data fit"><thead><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Recreo</th></tr></thead><tbody>' +
+      lista.map(function(x, i) {
+        return '<tr' + (x.conHora ? '' : ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"') + '><td class="col-num">' + x.orden + '</td>' +
+          '<td><input type="time" value="' + x.ini + '" onchange="' + v + '[' + i + '].ini=this.value"></td>' +
+          '<td><input type="time" value="' + x.fin + '" onchange="' + v + '[' + i + '].fin=this.value"></td>' +
+          '<td class="col-center"><input type="checkbox"' + (x.recreo ? ' checked' : '') + ' onchange="' + v + '[' + i + '].recreo=this.checked"></td></tr>';
+      }).join('') + '</tbody></table></div>' +
+      (sinHoras ? '<label style="display:flex;gap:8px;align-items:center;margin-top:8px;font-weight:600;"><input type="checkbox" id="' + v + '-ok"> He revisado las horas de los tramos</label>' : '');
+  }
+  function tramosValidar(lista, v) {
+    if (!lista) return '';
+    for (var j = 0; j < lista.length; j++) {
+      var a = _obMin(lista[j].ini), b = _obMin(lista[j].fin);
+      if (a == null || b == null || b <= a) return 'Revisa las horas del tramo ' + lista[j].orden + '.';
+    }
+    var ok = document.getElementById(v + '-ok');
+    if (ok && !ok.checked) return 'Revisa las horas de los tramos y marca «He revisado las horas de los tramos».';
+    return '';
+  }
+  function tramosSeleccion(lista) {
+    if (!lista) return null;
+    var horas = {}, recreos = [];
+    lista.forEach(function(x) { horas[x.orden] = [x.ini, x.fin]; if (x.recreo) recreos.push(x.orden); });
+    return { ordenes: lista.map(function(x) { return x.orden; }), horas: horas, recreos: recreos };
+  }
+
   function _obPrepararFaltan(res) {
     OB_TR = null; OB_DOC = null;
-    var t = res.tramos || {};
-    if (t.total && !t.existe) {
-      var max = Math.max.apply(null, t.ordenes), hay = {}, rec = {};
-      t.ordenes.forEach(function(o) { hay[o] = 1; });
-      (t.recreos || []).forEach(function(o) { rec[o] = 1; });
-      // Sin ninguna hora: jornada por defecto si encaja (como en el servidor).
-      var DEF = [['09:00', '10:00'], ['10:00', '11:00'], ['11:00', '11:30'], ['11:30', '12:00', 1], ['12:00', '13:00'], ['13:00', '14:00']];
-      var sinHoras = !Object.keys(t.horas || {}).length, encaja = sinHoras && max <= DEF.length;
-      for (var r = 1; encaja && r <= max; r++) if (!!(!hay[r] || rec[r]) !== !!DEF[r - 1][2]) encaja = false;
-      var hora = 9 * 60;
-      OB_TR = [];
-      for (var o = 1; o <= max; o++) {
-        var d = encaja ? DEF[o - 1] : null;
-        var h = (t.horas || {})[o] || (d ? [d[0], d[1]] : null), esRec = !hay[o] || !!rec[o] || !!(d && d[2]);
-        var ini = h ? _obMin(h[0]) : hora, fin = h ? _obMin(h[1]) : hora + (esRec ? 30 : 60);
-        OB_TR.push({ orden: o, ini: _obHora(ini), fin: _obHora(fin), recreo: esRec, conHora: !!(t.horas || {})[o] });
-        hora = fin;
-      }
-    }
+    OB_TR = tramosPropuesta(res.tramos);
     OB_DOC = (res.docentes || []).filter(function(d) { return !d.existe; }).map(function(d) {
       var largo = String(d.nombre).trim().split(/\s+/).length >= 3;
       var completo = d.completo || (largo ? d.nombre : '');
@@ -373,18 +409,7 @@
   function _obPintarFaltan() {
     var cont = document.getElementById('ob-faltan'); if (!cont) return;
     var h = '';
-    if (OB_TR && OB_TR.length) {
-      var sinHoras = OB_TR.some(function(x) { return !x.conHora; });
-      h += '<h3 style="margin:18px 0 4px;">Tramos horarios</h3><p class="hint" style="margin:0 0 6px;">' +
-        (sinHoras ? 'El archivo no trae las horas de todos los tramos: compruébalas (he propuesto la jornada habitual, de 9:00 a 14:00 con tramos de una hora o media hora y recreo de 11:30 a 12:00).' : 'Comprueba las horas y marca el recreo.') + '</p>' +
-        '<div class="tablewrap"><table class="data fit"><thead><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Recreo</th></tr></thead><tbody>' +
-        OB_TR.map(function(x, i) {
-          return '<tr' + (x.conHora ? '' : ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"') + '><td class="col-num">' + x.orden + '</td>' +
-            '<td><input type="time" value="' + x.ini + '" onchange="OB_TR[' + i + '].ini=this.value"></td>' +
-            '<td><input type="time" value="' + x.fin + '" onchange="OB_TR[' + i + '].fin=this.value"></td>' +
-            '<td class="col-center"><input type="checkbox"' + (x.recreo ? ' checked' : '') + ' onchange="OB_TR[' + i + '].recreo=this.checked"></td></tr>';
-        }).join('') + '</tbody></table></div>';
-    }
+    if (OB_TR && OB_TR.length) h += tramosTablaHtml(OB_TR, 'OB_TR');
     if (OB_DOC && OB_DOC.length) {
       var dudosos = OB_DOC.filter(function(d) { return d.revisar; }).length;
       h += '<h3 style="margin:18px 0 4px;">Docentes nuevos (' + OB_DOC.length + ')</h3><p class="hint" style="margin:0 0 6px;">' +
@@ -410,11 +435,7 @@
       // El horario del archivo se enlaza por ese nombre: debe seguir siendo el corto o el completo.
       if (d.orig !== c && d.orig !== String(d.completo || '').trim()) return 'Para «' + d.orig + '»: ese nombre del archivo tiene que quedar como nombre corto o como nombre completo.';
     }
-    for (var j = 0; OB_TR && j < OB_TR.length; j++) {
-      var a = _obMin(OB_TR[j].ini), b = _obMin(OB_TR[j].fin);
-      if (a == null || b == null || b <= a) return 'Revisa las horas del tramo ' + OB_TR[j].orden + '.';
-    }
-    return '';
+    return tramosValidar(OB_TR, 'OB_TR');
   }
 
   function obCrearCatalogo() {
@@ -424,8 +445,7 @@
     if (err) { document.getElementById('ob-faltan').insertAdjacentHTML('beforeend', '<div class="result err" style="margin-top:10px;">' + _esc(err) + '</div>'); return; }
     const editados = {};
     (OB_DOC || []).forEach(function(d) { editados[d.orig] = d; });
-    const horas = {}, recreos = [];
-    (OB_TR || []).forEach(function(x) { horas[x.orden] = [x.ini, x.fin]; if (x.recreo) recreos.push(x.orden); });
+    const trSel = tramosSeleccion(OB_TR);
     const sel = {
       docentes: obEntidades.docentes.map(function(x){
         var d = editados[x.nombre];
@@ -434,9 +454,9 @@
       grupos: obEntidades.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
       materias: obEntidades.materias.map(function(x){return { nombre:x.nombre, abreviatura:x.abreviatura || '' };}),
       roles: obEntidades.roles.map(function(x){return x.nombre;}),
-      tramosOrdenes: OB_TR ? OB_TR.map(function(x) { return x.orden; }) : obEntidades.tramos.ordenes,
-      tramosHoras: OB_TR ? horas : (obEntidades.tramos.horas || {}),
-      tramosRecreo: OB_TR ? recreos : (obEntidades.tramos.recreos || [])
+      tramosOrdenes: trSel ? trSel.ordenes : obEntidades.tramos.ordenes,
+      tramosHoras: trSel ? trSel.horas : (obEntidades.tramos.horas || {}),
+      tramosRecreo: trSel ? trSel.recreos : (obEntidades.tramos.recreos || [])
     };
     const btn = document.getElementById('ob-btn-crear'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
     google.script.run
