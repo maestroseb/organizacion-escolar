@@ -321,22 +321,117 @@
       (tn ? '<div class="muestra" style="color:var(--ok)">se crearán ' + tn + '</div>' : (res.tramos.existe?'<div class="muestra">ya hay tramos</div>':'')) +
       '</div></div>';
     html += '</div>';
+    _obPrepararFaltan(res);
+    html += '<div id="ob-faltan"></div>';
     html += '<div class="actions"><button class="secondary" onclick="obCancelarPaste()">← Atrás</button>' +
       '<button class="primary" id="ob-btn-crear" onclick="obCrearCatalogo()">Crear catálogo y revisar horarios →</button></div>';
     document.getElementById('ob-detect-res').innerHTML = html;
+    _obPintarFaltan();
+  }
+
+  // ---------- Completar lo que falta antes de crear ----------
+  // Tramos (horas y recreo) y nombres de los docentes nuevos: el nombre
+  // corto es el que se ve en la sábana y las localizaciones; el completo
+  // lleva los apellidos.
+  var OB_TR = null, OB_DOC = null;
+  function _obMin(h) { var m = String(h || '').match(/^(\d{1,2}):(\d{2})$/); return m ? (+m[1]) * 60 + (+m[2]) : null; }
+  function _obHora(n) { return ('0' + Math.floor(n / 60)).slice(-2) + ':' + ('0' + n % 60).slice(-2); }
+  function _obAcortar(n) {
+    var p = String(n || '').trim().split(/\s+/);
+    if (p.length < 3) return String(n || '').trim();
+    p.pop();
+    while (p.length > 2 && /^(de|del|la|las|los|y)$/i.test(p[p.length - 1])) p.pop();
+    return p.join(' ');
+  }
+  function _obPrepararFaltan(res) {
+    OB_TR = null; OB_DOC = null;
+    var t = res.tramos || {};
+    if (t.total && !t.existe) {
+      var max = Math.max.apply(null, t.ordenes), hay = {}, rec = {};
+      t.ordenes.forEach(function(o) { hay[o] = 1; });
+      (t.recreos || []).forEach(function(o) { rec[o] = 1; });
+      var hora = 9 * 60;
+      OB_TR = [];
+      for (var o = 1; o <= max; o++) {
+        var h = (t.horas || {})[o], esRec = !hay[o] || !!rec[o];
+        var ini = h ? _obMin(h[0]) : hora, fin = h ? _obMin(h[1]) : hora + (esRec ? 30 : 45);
+        OB_TR.push({ orden: o, ini: _obHora(ini), fin: _obHora(fin), recreo: esRec, conHora: !!h });
+        hora = fin;
+      }
+    }
+    OB_DOC = (res.docentes || []).filter(function(d) { return !d.existe; }).map(function(d) {
+      var largo = String(d.nombre).trim().split(/\s+/).length >= 3;
+      var completo = d.completo || (largo ? d.nombre : '');
+      return { orig: d.nombre, corto: d.completo ? d.nombre : (largo ? _obAcortar(d.nombre) : d.nombre), completo: completo, revisar: !d.completo };
+    });
+  }
+  function _obPintarFaltan() {
+    var cont = document.getElementById('ob-faltan'); if (!cont) return;
+    var h = '';
+    if (OB_TR && OB_TR.length) {
+      var sinHoras = OB_TR.some(function(x) { return !x.conHora; });
+      h += '<h3 style="margin:18px 0 4px;">Tramos horarios</h3><p class="hint" style="margin:0 0 6px;">' +
+        (sinHoras ? 'El archivo no trae las horas de todos los tramos: complétalas (he propuesto 45 min desde las 9:00).' : 'Comprueba las horas y marca el recreo.') + '</p>' +
+        '<div class="tablewrap"><table class="data fit"><thead><tr><th>#</th><th>Inicio</th><th>Fin</th><th>Recreo</th></tr></thead><tbody>' +
+        OB_TR.map(function(x, i) {
+          return '<tr' + (x.conHora ? '' : ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"') + '><td class="col-num">' + x.orden + '</td>' +
+            '<td><input type="time" value="' + x.ini + '" onchange="OB_TR[' + i + '].ini=this.value"></td>' +
+            '<td><input type="time" value="' + x.fin + '" onchange="OB_TR[' + i + '].fin=this.value"></td>' +
+            '<td class="col-center"><input type="checkbox"' + (x.recreo ? ' checked' : '') + ' onchange="OB_TR[' + i + '].recreo=this.checked"></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    if (OB_DOC && OB_DOC.length) {
+      var dudosos = OB_DOC.filter(function(d) { return d.revisar; }).length;
+      h += '<h3 style="margin:18px 0 4px;">Docentes nuevos (' + OB_DOC.length + ')</h3><p class="hint" style="margin:0 0 6px;">' +
+        'El <b>nombre corto</b> es el que verás en la sábana y las localizaciones; el <b>nombre completo</b> lleva los apellidos.' +
+        (dudosos ? ' Revisa los marcados en amarillo: el archivo solo traía un nombre.' : '') + '</p>' +
+        '<div class="tablewrap"><table class="data fit"><thead><tr><th>En el archivo</th><th>Nombre corto *</th><th>Nombre completo</th></tr></thead><tbody>' +
+        OB_DOC.map(function(d, i) {
+          return '<tr' + (d.revisar ? ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"' : '') + '><td class="hint">' + _esc(d.orig) + '</td>' +
+            '<td><input type="text" value="' + _esc(d.corto) + '" oninput="OB_DOC[' + i + '].corto=this.value"></td>' +
+            '<td><input type="text" value="' + _esc(d.completo) + '" placeholder="Nombre y apellidos" oninput="OB_DOC[' + i + '].completo=this.value"></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    }
+    cont.innerHTML = h;
+  }
+  // Comprueba lo editado; devuelve un mensaje de error o ''.
+  function _obValidarFaltan() {
+    var vistos = {};
+    for (var i = 0; OB_DOC && i < OB_DOC.length; i++) {
+      var d = OB_DOC[i], c = String(d.corto || '').trim(), k = c.toLowerCase();
+      if (!c) return 'Falta el nombre corto de «' + d.orig + '».';
+      if (vistos[k]) return 'Hay dos docentes con el nombre corto «' + c + '».';
+      vistos[k] = 1;
+      // El horario del archivo se enlaza por ese nombre: debe seguir siendo el corto o el completo.
+      if (d.orig !== c && d.orig !== String(d.completo || '').trim()) return 'Para «' + d.orig + '»: ese nombre del archivo tiene que quedar como nombre corto o como nombre completo.';
+    }
+    for (var j = 0; OB_TR && j < OB_TR.length; j++) {
+      var a = _obMin(OB_TR[j].ini), b = _obMin(OB_TR[j].fin);
+      if (a == null || b == null || b <= a) return 'Revisa las horas del tramo ' + OB_TR[j].orden + '.';
+    }
+    return '';
   }
 
   function obCrearCatalogo() {
     if (!obEntidades) return;
     const texto = document.getElementById('ob-paste-texto').value;
+    const err = _obValidarFaltan();
+    if (err) { document.getElementById('ob-faltan').insertAdjacentHTML('beforeend', '<div class="result err" style="margin-top:10px;">' + _esc(err) + '</div>'); return; }
+    const editados = {};
+    (OB_DOC || []).forEach(function(d) { editados[d.orig] = d; });
+    const horas = {}, recreos = [];
+    (OB_TR || []).forEach(function(x) { horas[x.orden] = [x.ini, x.fin]; if (x.recreo) recreos.push(x.orden); });
     const sel = {
-      docentes: obEntidades.docentes.map(function(x){return { nombre:x.nombre, completo:x.completo || '' };}),
+      docentes: obEntidades.docentes.map(function(x){
+        var d = editados[x.nombre];
+        return d ? { nombre: String(d.corto).trim(), completo: String(d.completo || '').trim() } : { nombre:x.nombre, completo:x.completo || '' };
+      }),
       grupos: obEntidades.grupos.map(function(x){return { nombre:x.nombre, nivel:x.nivel };}),
       materias: obEntidades.materias.map(function(x){return { nombre:x.nombre, abreviatura:x.abreviatura || '' };}),
       roles: obEntidades.roles.map(function(x){return x.nombre;}),
-      tramosOrdenes: obEntidades.tramos.ordenes,
-      tramosHoras: obEntidades.tramos.horas || {},
-      tramosRecreo: obEntidades.tramos.recreos || []
+      tramosOrdenes: OB_TR ? OB_TR.map(function(x) { return x.orden; }) : obEntidades.tramos.ordenes,
+      tramosHoras: OB_TR ? horas : (obEntidades.tramos.horas || {}),
+      tramosRecreo: OB_TR ? recreos : (obEntidades.tramos.recreos || [])
     };
     const btn = document.getElementById('ob-btn-crear'); btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Creando…';
     google.script.run
