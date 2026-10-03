@@ -279,9 +279,10 @@ function _partirGrupos(v) {
 }
 
 /**
- * Genera tramos a partir de la lista de órdenes que aparecen en el volcado.
- * Rejilla de 45 min desde las 09:00. Los huecos de la secuencia (p.ej. el 4,
- * si hay 1,2,3,5,6) se marcan como recreo.
+ * Genera tramos a partir de la lista de órdenes que aparecen en el volcado,
+ * con las horas que traiga o, si no trae ninguna, la jornada por defecto
+ * (TRAMOS_POR_DEFECTO). Los huecos de la secuencia (p.ej. el 4, si hay
+ * 1,2,3,5,6) se marcan como recreo.
  */
 function _generarTramosDesdeOrdenes(ordenes, horas, recreos) {
   horas = horas || {};
@@ -293,14 +294,26 @@ function _generarTramosDesdeOrdenes(ordenes, horas, recreos) {
   Object.keys(set).forEach(function(k) { const n = parseInt(k, 10); if (n > max) max = n; });
   if (max === 0) return [];
 
-  // Sin horas en el volcado: rejilla de 45 min desde las 09:00 (recreo 30).
+  // Sin ninguna hora en el volcado: la jornada por defecto, si encaja (no
+  // más tramos que ella y el recreo, si lo hay, en el mismo sitio).
+  const recDatos = [];
+  for (let o = 1; o <= max; o++) if (!set[o] || rec[o]) recDatos.push(o);
+  const recDef = [];
+  TRAMOS_POR_DEFECTO.forEach(function(t, i) { if (t.es_recreo) recDef.push(i + 1); });
+  let usarDefecto = !Object.keys(horas).length && max <= TRAMOS_POR_DEFECTO.length;
+  for (let o = 1; usarDefecto && o <= max; o++) {
+    if ((recDatos.indexOf(o) !== -1) !== (recDef.indexOf(o) !== -1)) usarDefecto = false;
+  }
+
+  // Si no: cada tramo sin hora, de una hora (recreo, media) tras el anterior.
   const filas = [];
   let hora = 9 * 60;
   for (let orden = 1; orden <= max; orden++) {
-    const esRecreo = !set[orden] || rec[orden] === true;
-    const h = horas[orden];
+    const def = usarDefecto ? TRAMOS_POR_DEFECTO[orden - 1] : null;
+    const esRecreo = !set[orden] || rec[orden] === true || !!(def && def.es_recreo);
+    const h = horas[orden] || (def ? [def.hora_inicio, def.hora_fin] : null);
     const ini = h ? _horaAMins(h[0]) : hora;
-    const fin = h ? _horaAMins(h[1]) : hora + (esRecreo ? 30 : 45);
+    const fin = h ? _horaAMins(h[1]) : hora + (esRecreo ? 30 : 60);
     filas.push({
       hora_inicio: _minsAHora(ini),
       hora_fin: _minsAHora(fin),

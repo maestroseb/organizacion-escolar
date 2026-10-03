@@ -386,7 +386,7 @@
   function anadirTramo() {
     const ult = tramosLocal[tramosLocal.length - 1];
     const inicio = ult ? ult.hora_fin : '09:00';
-    tramosLocal.push({ id: null, hora_inicio: inicio, hora_fin: _sumarMinutos(inicio, 45), es_recreo: false, etiqueta: 'TR' + String(tramosLocal.length + 1).padStart(2,'0'), color: '' });
+    tramosLocal.push({ id: null, hora_inicio: inicio, hora_fin: _sumarMinutos(inicio, 60), es_recreo: false, etiqueta: 'TR' + String(tramosLocal.length + 1).padStart(2,'0'), color: '' });
     renderTramos();
   }
   function eliminarTramo(i) { tramosLocal.splice(i,1); renderTramos(); }
@@ -399,7 +399,7 @@
         '<td class="col-num">' + (i+1) + '</td>' +
         '<td class="col-center">' + _colorCell(t.color, 'setColorTramo', i, _defColorTramo(i, tramosLocal.length)) + '</td>' +
         '<td><input type="text" value="' + _esc(t.hora_inicio) + '" placeholder="09:00" oninput="actualizarTramo(' + i + ',\'hora_inicio\',this.value)"></td>' +
-        '<td><input type="text" value="' + _esc(t.hora_fin) + '" placeholder="09:45" oninput="actualizarTramo(' + i + ',\'hora_fin\',this.value)"></td>' +
+        '<td><input type="text" value="' + _esc(t.hora_fin) + '" placeholder="10:00" oninput="actualizarTramo(' + i + ',\'hora_fin\',this.value)"></td>' +
         '<td class="col-center"><input type="checkbox"' + (t.es_recreo?' checked':'') + ' onchange="actualizarTramo(' + i + ',\'es_recreo\',this.checked)"></td>' +
         '<td><input type="text" value="' + _esc(t.etiqueta) + '" placeholder="Recreo, Comedor…" oninput="actualizarTramo(' + i + ',\'etiqueta\',this.value)"></td>' +
         '<td class="col-acc"><button class="btn-icon" title="Eliminar" onclick="eliminarTramo(' + i + ')">×</button></td>';
