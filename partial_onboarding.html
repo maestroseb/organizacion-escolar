@@ -80,8 +80,12 @@
       <div id="ob-paste" style="display:none;">
         <label id="ob-paste-label">Pega aquí tus horarios</label>
         <textarea id="ob-paste-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Beatriz A.,L,1,grupo,Lengua,3º B,,,"></textarea>
+        <p class="hint" style="margin:6px 0 0;">También vale el CSV de actividades que exporta FET.</p>
         <div class="actions">
           <button class="secondary" onclick="obCancelarPaste()">← Atrás</button>
+          <label class="btn-like" for="ob-file">Subir archivo…</label>
+          <input type="file" id="ob-file" accept=".csv,.txt,text/csv,text/plain" style="display:none;" onchange="obCargarArchivo(this)">
+          <span id="ob-filename" class="hint"></span>
           <button class="primary" id="ob-btn-detectar" onclick="obDetectar()">Detectar datos</button>
         </div>
         <div id="ob-detect-res"></div>
@@ -272,6 +276,13 @@
     document.getElementById('ob-import-opciones').style.display = 'block';
   }
 
+  function obCargarArchivo(input) {
+    var file = input.files && input.files[0]; if (!file) return;
+    document.getElementById('ob-filename').textContent = file.name;
+    leerArchivoTexto(file, function(t) { document.getElementById('ob-paste-texto').value = t; },
+      function() { document.getElementById('ob-detect-res').innerHTML = '<div class="result err">No se pudo leer el archivo.</div>'; });
+    input.value = '';
+  }
   function obDetectar() {
     const texto = document.getElementById('ob-paste-texto').value;
     if (!texto.trim()) { document.getElementById('ob-detect-res').innerHTML = '<div class="result err">Pega algún dato primero.</div>'; return; }

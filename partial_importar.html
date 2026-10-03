@@ -35,7 +35,7 @@
 
 <!-- Fuente: CSV -->
 <div class="panelbox src-panel" id="src-csv" style="display:none;">
-  <p class="hint" style="margin-top:0;">Pega el CSV generado por el Gem o sube el archivo. Cabecera: <code>docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas</code></p>
+  <p class="hint" style="margin-top:0;">Pega el CSV o sube el archivo: el generado por el Gem (cabecera <code>docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas</code>) o el de actividades que exporta <b>FET</b> (se reconoce solo).</p>
   <textarea id="csv-texto" placeholder="docente,dia,tramo,tipo,materia,grupo,rol,grupo_destino,notas&#10;Sebastián,L,1,grupo,Lengua,3º B,,,"></textarea>
   <div class="toolbar">
     <label class="btn-like" for="csv-file">Subir .csv…</label>
@@ -366,10 +366,8 @@
   function cargarArchivoCSV(input) {
     const file = input.files && input.files[0]; if (!file) return;
     document.getElementById('csv-filename').textContent = file.name;
-    const reader = new FileReader();
-    reader.onload = function(e) { document.getElementById('csv-texto').value = e.target.result; };
-    reader.onerror = function() { document.getElementById('res-csv').innerHTML = '<div class="result err">No se pudo leer el archivo.</div>'; };
-    reader.readAsText(file, 'UTF-8');
+    leerArchivoTexto(file, function(t) { document.getElementById('csv-texto').value = t; },
+      function() { document.getElementById('res-csv').innerHTML = '<div class="result err">No se pudo leer el archivo.</div>'; });
     input.value = ''; // permite volver a elegir el mismo archivo
   }
   function analizarCSVUI() {

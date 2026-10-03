@@ -573,6 +573,17 @@
     function _jsAttr(v) { return _esc(JSON.stringify(v == null ? '' : v)); }
     // Mensaje de error de google.script.run, escapado.
     function _errMsg(err) { return _esc((err && err.message) || err || 'Error desconocido'); }
+    // Lee un archivo de texto (CSV…) como UTF-8; si trae caracteres
+    // inválidos (exportado en Windows), lo relee como Windows-1252.
+    function leerArchivoTexto(file, ok, ko) {
+      var leer = function(enc, sig) {
+        var r = new FileReader();
+        r.onload = function(e) { var t = String(e.target.result || ''); if (sig && t.indexOf('\uFFFD') !== -1) sig(); else ok(t.replace(/^\uFEFF/, '')); };
+        r.onerror = function() { if (ko) ko(); };
+        r.readAsText(file, enc);
+      };
+      leer('UTF-8', function() { leer('windows-1252'); });
+    }
     function _errHtml(err) { return '<div class="result err">✗ ' + _errMsg(err) + '</div>'; }
     // Invalida cachés de vistas (sábana, horario…) tras cambiar datos.
     function datosCambiados() { DATOS_VERSION++; }
