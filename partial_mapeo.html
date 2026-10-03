@@ -1,9 +1,10 @@
 <script>
-  // MAPEADOR DE COLUMNAS para CSV de cualquier programa.
-  // Si el CSV no es el propio (Gem) ni el de FET, se adivina qué columna es
-  // cada dato (por el nombre y por el contenido), se muestra con un
-  // desplegable para confirmar y solo se pregunta lo que falte. Al aceptar,
-  // se convierte al formato de FET, que el servidor ya sabe interpretar.
+  // MAPEADOR DE COLUMNAS. Con cualquier CSV se muestran sus columnas para
+  // comprobarlas antes de importar. Formatos conocidos (el de la app, FET):
+  // vienen ya asignadas y, si no se tocan, el archivo pasa tal cual. Otros:
+  // se adivina qué es cada columna (nombre y contenido), se confirma con un
+  // desplegable, se pregunta solo lo que falte y se convierte al formato de
+  // FET, que el servidor ya sabe interpretar.
 
   var MAP_CAMPOS = [
     ['', '— ignorar —'],
@@ -43,19 +44,31 @@
   }
   function _mapNorm(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim(); }
 
-  // ¿Hace falta mapear? Solo si la 1ª línea parece una cabecera ajena.
-  function mapeoNecesario(texto) {
+  // Formato de un CSV: 'propio' (el de la app), 'fet', 'otro' (con cabecera
+  // ajena) o '' (no es un CSV con columnas: texto libre, una sola línea…).
+  var MAP_PROPIO = { docente: 'Docente', dia: 'Día', tramo: 'Nº de tramo', tipo: 'Tipo (clase/apoyo/cargo)', materia: 'Materia',
+    grupo: 'Grupo', rol: 'Cargo / rol', grupo_destino: 'Grupo de destino', notas: 'Notas', abreviatura: 'Abreviatura',
+    docente_completo: 'Nombre completo', hora_inicio: 'Hora de inicio', hora_fin: 'Hora de fin' };
+  var MAP_ORDEN_PROPIO = ['docente', 'dia', 'tramo', 'tipo', 'materia', 'grupo', 'rol', 'grupo_destino', 'notas', 'abreviatura', 'docente_completo', 'hora_inicio', 'hora_fin'];
+  var MAP_FET = { 'activity id': '', 'id de actividad': '', 'id actividad': '', day: 'dia', 'dia': 'dia', hour: 'hora', hora: 'hora',
+    'students sets': 'grupo', 'grupos de alumnos': 'grupo', subject: 'materia', asignatura: 'materia', teachers: 'docente', profesores: 'docente',
+    room: '', aula: '', notes: 'notas', notas: 'notas' };
+  function mapeoFormato(texto) {
     var lin = String(texto || '').replace(/\r/g, '').split('\n').filter(function(l) { return l.trim(); });
-    if (lin.length < 2) return false;
+    if (lin.length < 2) return '';
     var sep = _mapSep(lin[0]);
     var cab = _mapSplit(lin[0], sep).map(_mapNorm);
-    if (cab.length < 3) return false;
-    if (cab[0] === 'docente' && cab.indexOf('tramo') !== -1) return false;                     // CSV propio
-    if (cab.some(function(c) { return /^(activity id|id de actividad|id actividad)$/.test(c); })) return false; // FET
-    // Cabecera: casi todo texto, sin horas ni días sueltos.
-    var pareceDato = cab.filter(function(c) { return /\d{1,2}:\d{2}/.test(c) || MAP_DIAS[c]; }).length;
-    return pareceDato === 0;
+    if (cab.length < 3) return '';
+    if (cab[0] === 'docente' && cab.indexOf('tramo') !== -1) return 'propio';
+    if (cab.some(function(c) { return /^(activity id|id de actividad|id actividad)$/.test(c); })) return 'fet';
+    // CSV propio sin cabecera: 2.ª columna con días y 4.ª con el tipo.
+    if (cab.length >= 4 && _mapDia(cab[1]) && /^(grupo|localizacion|especial)$/.test(cab[3])) return 'propio';
+    // Cabecera ajena: casi todo texto, sin horas ni días sueltos.
+    var pareceDato = cab.filter(function(c) { return /\d{1,2}:\d{2}/.test(c) || _mapDia(c); }).length;
+    return pareceDato === 0 && sep !== ' ' ? 'otro' : '';
   }
+  function mapeoNecesario(texto) { return mapeoFormato(texto) === 'otro'; }
+  var MAP_ACEPTADO = {};  // idTexto → texto ya confirmado (no se vuelve a preguntar)
 
   // Propuesta de campo para una columna: por nombre y por contenido.
   function _mapAdivinar(nombre, valores) {
@@ -92,22 +105,29 @@
    */
   function mapeoInterceptar(idTexto, idDestino, seguir) {
     var texto = document.getElementById(idTexto).value;
-    if (!mapeoNecesario(texto)) return false;
+    var formato = mapeoFormato(texto);
+    if (!formato || MAP_ACEPTADO[idTexto] === texto) return false;
     var lin = texto.replace(/\r/g, '').split('\n').filter(function(l) { return l.trim(); });
     var sep = _mapSep(lin[0]);
     var cab = _mapSplit(lin[0], sep);
     var filas = lin.slice(1).map(function(l) { return _mapSplit(l, sep); });
     var guardado = null;
     try { guardado = JSON.parse(localStorage.getItem('mapeo:' + cab.join('|')) || 'null'); } catch (e) {}
+    var sinCab = formato === 'propio' && _mapNorm(cab[0]) !== 'docente';
+    if (sinCab) { filas.unshift(cab); cab = MAP_ORDEN_PROPIO.slice(0, cab.length).map(function(k) { return MAP_PROPIO[k]; }); }
     var cols = cab.map(function(c, i) {
       var vals = filas.map(function(f) { return f[i] || ''; });
-      var g = guardado && guardado[i] != null ? { campo: guardado[i], seguro: true } : _mapAdivinar(c, vals);
-      return { nombre: c, campo: g.campo, seguro: g.seguro, muestra: vals.filter(String).slice(0, 3) };
+      var n = _mapNorm(c);
+      var g = formato === 'propio' ? { campo: sinCab ? MAP_ORDEN_PROPIO[i] : n, seguro: true }
+        : formato === 'fet' && MAP_FET[n] != null ? { campo: MAP_FET[n], seguro: true }
+        : guardado && guardado[i] != null ? { campo: guardado[i], seguro: true } : _mapAdivinar(c, vals);
+      return { nombre: c, campo: g.campo, seguro: g.seguro, muestra: vals.filter(function(x, k) { return x && vals.indexOf(x) === k; }).slice(0, 4) };
     });
     // Un campo, una columna: si se repite, se queda la primera y las demás dudan.
     var vistos = {};
     cols.forEach(function(c) { if (c.campo && vistos[c.campo]) { c.campo = ''; c.seguro = false; } else if (c.campo) vistos[c.campo] = 1; });
-    MAP_EST = { idTexto: idTexto, idDestino: idDestino, seguir: seguir, cab: cab, filas: filas, cols: cols, dias: {} };
+    MAP_EST = { idTexto: idTexto, idDestino: idDestino, seguir: seguir, cab: cab, filas: filas, cols: cols, dias: {},
+                formato: formato, texto: texto, cambiado: false };
     _mapPintar();
     return true;
   }
@@ -116,7 +136,9 @@
 
   function _mapPintar() {
     var E = MAP_EST, dest = document.getElementById(E.idDestino);
+    var propio = E.formato === 'propio';
     var filasCol = E.cols.map(function(c, i) {
+      if (propio) return '<tr><td><b>' + _esc(c.nombre) + '</b></td><td class="hint">' + _esc(c.muestra.join(' · ')) + '</td><td>' + _esc(MAP_PROPIO[c.campo] || '—') + '</td></tr>';
       var opts = MAP_CAMPOS.map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === c.campo ? ' selected' : '') + '>' + _esc(o[1]) + '</option>'; }).join('');
       return '<tr' + (c.seguro ? '' : ' style="background:color-mix(in srgb,var(--warn,#e7b23c) 14%,transparent)"') + '>' +
         '<td><b>' + _esc(c.nombre || '(sin nombre)') + '</b></td>' +
@@ -126,14 +148,16 @@
 
     // Lo que falta para poder seguir.
     var falta = [];
+    if (!propio) {
     if (_mapColDe('docente') < 0) falta.push('qué columna es el <b>docente</b>');
     if (_mapColDe('dia') < 0) falta.push('qué columna es el <b>día</b>');
     if (_mapColDe('hora') < 0 && _mapColDe('tramo') < 0 && _mapColDe('hora_inicio') < 0) falta.push('qué columna indica la <b>hora o el tramo</b>');
     if (_mapColDe('grupo') < 0 && _mapColDe('materia') < 0 && _mapColDe('rol') < 0) falta.push('al menos el <b>grupo</b>, la <b>materia</b> o el <b>cargo</b>');
+    }
 
     // Días que no se reconocen: se pregunta cuál es cada uno.
     var diasHtml = '', iDia = _mapColDe('dia');
-    if (iDia >= 0) {
+    if (iDia >= 0 && !propio) {
       var raros = {};
       E.filas.forEach(function(f) { var v = (f[iDia] || '').trim(); if (v && !_mapDia(v) && !E.dias[v]) raros[v] = 1; });
       Object.keys(E.dias).forEach(function(v) { raros[v] = 1; });
@@ -149,16 +173,19 @@
     }
 
     dest.innerHTML = '<div class="panelbox" style="margin-top:10px;">' +
-      '<h3 style="margin:0 0 4px;">Columnas del archivo</h3>' +
-      '<p class="hint" style="margin:0 0 8px;">No es un formato conocido. He intentado adivinar qué es cada columna: revisa sobre todo las marcadas en amarillo.</p>' +
+      '<h3 style="margin:0 0 4px;">Columnas del archivo' + (E.formato === 'fet' ? ' · formato FET' : propio ? ' · formato de la app' : '') + '</h3>' +
+      '<p class="hint" style="margin:0 0 8px;">' + (propio ? 'Formato reconocido. Comprueba que cada columna tiene lo que esperas y continúa.'
+        : E.formato === 'fet' ? 'Formato reconocido. Comprueba qué es cada columna; si cambias alguna, la interpretaré con tus cambios.'
+        : 'No es un formato conocido. He intentado adivinar qué es cada columna: revisa sobre todo las marcadas en amarillo.') + '</p>' +
+      '<p class="hint" style="margin:0 0 8px;">' + E.filas.length + ' filas.</p>' +
       '<div class="tablewrap"><table class="data"><thead><tr><th>Columna</th><th>Ejemplos</th><th>Es…</th></tr></thead><tbody>' + filasCol + '</tbody></table></div>' +
       diasHtml +
       (falta.length ? '<div class="result err" style="margin-top:10px;">Falta indicar ' + falta.join(', ') + '.</div>' : '') +
-      '<div class="actions"><button class="primary" onclick="mapAceptar()"' + (falta.length ? ' disabled' : '') + '>Usar estas columnas →</button></div></div>';
+      '<div class="actions"><button class="primary" onclick="mapAceptar()"' + (falta.length ? ' disabled' : '') + '>' + (E.formato !== 'otro' && !E.cambiado ? 'Correcto, continuar →' : 'Usar estas columnas →') + '</button></div></div>';
   }
   function mapSetCampo(i, v) {
     MAP_EST.cols.forEach(function(c, j) { if (j !== i && v && c.campo === v) { c.campo = ''; c.seguro = false; } });
-    MAP_EST.cols[i].campo = v; MAP_EST.cols[i].seguro = true;
+    MAP_EST.cols[i].campo = v; MAP_EST.cols[i].seguro = true; MAP_EST.cambiado = true;
     _mapPintar();
   }
   function mapSetDia(v, d) { MAP_EST.dias[v] = d; _mapPintar(); }
@@ -166,6 +193,12 @@
   // Convierte al CSV de FET (que el servidor ya interpreta) y sigue.
   function mapAceptar() {
     var E = MAP_EST, col = function(k) { return _mapColDe(k); };
+    // Formato conocido y sin cambios: el archivo pasa tal cual.
+    if (E.formato !== 'otro' && !E.cambiado) {
+      MAP_ACEPTADO[E.idTexto] = E.texto;
+      document.getElementById(E.idDestino).innerHTML = '<div class="result ok">✓ Columnas comprobadas. Interpretando…</div>';
+      var sig = E.seguir; MAP_EST = null; if (sig) sig(); return;
+    }
     var c = { doc: col('docente'), dia: col('dia'), hora: col('hora'), ini: col('hora_inicio'), fin: col('hora_fin'),
               tramo: col('tramo'), gru: col('grupo'), mat: col('materia'), rol: col('rol'), notas: col('notas') };
     var v = function(f, i) { return i < 0 ? '' : String(f[i] || '').trim(); };
@@ -180,8 +213,9 @@
       var docentes = doc.split(/\s*(?:\+|;|\/)\s*/).filter(String).join('+');
       out.push([n + 1, 'D' + ('LMXJV'.indexOf(dia) + 1), hora, grupos, v(f, c.mat) || v(f, c.rol), docentes, '', v(f, c.notas)].map(q).join(','));
     });
-    try { localStorage.setItem('mapeo:' + E.cab.join('|'), JSON.stringify(E.cols.map(function(x) { return x.campo; }))); } catch (e) {}
+    if (E.formato === 'otro') try { localStorage.setItem('mapeo:' + E.cab.join('|'), JSON.stringify(E.cols.map(function(x) { return x.campo; }))); } catch (e) {}
     document.getElementById(E.idTexto).value = out.join('\n');
+    MAP_ACEPTADO[E.idTexto] = out.join('\n');
     document.getElementById(E.idDestino).innerHTML = '<div class="result ok">✓ Columnas asignadas (' + (out.length - 1) + ' filas). Interpretando…</div>';
     var seguir = E.seguir; MAP_EST = null;
     if (seguir) seguir();
