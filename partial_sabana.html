@@ -220,16 +220,29 @@
       host.style.cssText = 'position:fixed;left:-100000px;top:0;';
       host.appendChild(copia); document.getElementById('sb-body').appendChild(host);
       var bg = getComputedStyle(document.body).backgroundColor;
-      // Escala alta (hasta 4x) para que al hacer zoom se lea todo, sin pasar
-      // los límites del canvas (32 767 px por lado y ~250 Mpx de área).
+      // Escala muy alta (hasta 6x) para que se lea todo al ampliar o imprimir
+      // en póster, sin pasar los límites del canvas (32 767 px por lado y
+      // ~260 Mpx de área en Chrome). Si el navegador no puede con ese tamaño
+      // (Safari, Firefox tienen límites más bajos), se reintenta más pequeño.
       var w = copia.scrollWidth, h = copia.scrollHeight;
-      var esc = Math.max(1, Math.min(4, 32000 / w, 32000 / h, Math.sqrt(250e6 / (w * h))));
-      html2canvas(copia, { scale: esc, backgroundColor: bg, windowWidth: w + 40, onclone: _sbColoresCompatibles })
-        .then(function(canvas) {
-          var a = document.createElement('a');
+      var esc = Math.max(1, Math.min(6, 32000 / w, 32000 / h, Math.sqrt(260e6 / (w * h))));
+      var intento = function(e) {
+        return html2canvas(copia, { scale: e, backgroundColor: bg, windowWidth: w + 40, onclone: _sbColoresCompatibles })
+          .then(function(canvas) {
+            return new Promise(function(ok, ko) {
+              if (!canvas.width || !canvas.height) return ko(new Error('lienzo vacío'));
+              canvas.toBlob(function(blob) { blob && blob.size > 1000 ? ok(blob) : ko(new Error('lienzo vacío')); }, 'image/png');
+            });
+          })
+          .catch(function(err) { if (e > 1.5) return intento(Math.max(1, e * 0.66)); throw err; });
+      };
+      intento(esc)
+        .then(function(blob) {
+          var url = URL.createObjectURL(blob), a = document.createElement('a');
           a.download = 'localizaciones-semana-' + (SB_SEM || '') + '.png';
-          a.href = canvas.toDataURL('image/png');
+          a.href = url;
           document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
         })
         .catch(function(e) { aviso('No se pudo generar la imagen: ' + ((e && e.message) || e), 'err'); })
         .then(function() { host.remove(); _sbPngFin(); });
