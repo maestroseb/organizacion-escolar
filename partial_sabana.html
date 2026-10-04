@@ -213,6 +213,9 @@
       // Copia sin recorte de scroll para capturar la sábana completa.
       var copia = g.cloneNode(true);
       copia.classList.add('sb-export');
+      // La vista le pone en línea una altura máxima (la de la pantalla): fuera,
+      // o la imagen sale recortada a una franja.
+      copia.style.maxHeight = 'none'; copia.style.maxWidth = 'none';
       var host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:-100000px;top:0;';
       host.appendChild(copia); document.getElementById('sb-body').appendChild(host);
