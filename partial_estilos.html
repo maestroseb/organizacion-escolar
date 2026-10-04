@@ -533,6 +533,9 @@
   /* Exportación: copia sin recorte (PNG) e impresión apaisada (PDF). */
   .sb-weekscroll.sb-export { overflow: visible; max-height: none; width: max-content; border-radius: 0; box-shadow: none; }
   .sb-export .sb-rail, .sb-export > .sb-recreo { position: static; }
+  /* html2canvas pinta las sombras interiores como bloques macizos: borde normal. */
+  .sb-export table.sb tr.sb-aten td.sb-loc { box-shadow: none; border-left: 3px solid var(--accent); }
+  .sb-export .sb-pill.sb-pill-aten { outline: none; box-shadow: inset 0 0 0 0 transparent; border: 1.5px solid var(--accent); }
   .sb-semb { display: inline-block; writing-mode: horizontal-tb; transform: rotate(180deg); margin-block-start: 8px; background: #fff; color: #1f2430; border-radius: 4px; font-size: 13px; font-weight: 800; line-height: 16px; min-width: 16px; text-align: center; padding: 0 3px; letter-spacing: 0; }
   #sb-print { display: none; }
   /* En pantalla, mientras se prepara la impresión, fuera de la vista pero medible. */
