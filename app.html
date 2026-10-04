@@ -710,7 +710,8 @@
       if (n.nodeType !== 1) return;
       var rs = n.matches('.result.ok:not(.fijo)') ? [n] : Array.prototype.slice.call(n.querySelectorAll('.result.ok:not(.fijo)'));
       rs.forEach(function(r) {
-        var txt = r.textContent.trim();
+        // El toast ya pone su propia marca «✓»: no se repite.
+        var txt = r.textContent.trim().replace(/^✓\s*/, '');
         if (!txt || txt.length > 200 || r.querySelector('ul, ol, table, div, button, a, input')) return;
         aviso(txt, 'ok'); r.remove();
       });
