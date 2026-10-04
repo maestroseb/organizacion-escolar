@@ -206,6 +206,20 @@
     document.head.appendChild(sc);
   }
   function _sbPngFin() { var b = document.getElementById('sb-btn-png'); b.disabled = false; b.textContent = 'PNG'; }
+  // html2canvas no entiende writing-mode: en la copia, el rótulo de cada rail
+  // pasa a texto horizontal girado -90° (se lee igual, de abajo arriba).
+  function _sbRailsHorizontales(raiz) {
+    raiz.querySelectorAll('.sb-rail').forEach(function(r) {
+      var w = r.offsetWidth;
+      var sp = document.createElement('span');
+      sp.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;display:flex;align-items:center;';
+      while (r.firstChild) sp.appendChild(r.firstChild);
+      sp.querySelectorAll('.sb-semb').forEach(function(b) { b.style.transform = 'rotate(90deg)'; b.style.marginBlockStart = '0'; b.style.marginLeft = '8px'; });
+      r.style.writingMode = 'horizontal-tb'; r.style.transform = 'none'; r.style.position = 'relative';
+      r.style.width = w + 'px'; r.style.padding = '0';
+      r.appendChild(sp);
+    });
+  }
   function sbPng() {
     var g = _sbGrid(); if (!g) return;
     var btn = document.getElementById('sb-btn-png'); btn.disabled = true; btn.textContent = 'Generando…';
@@ -219,6 +233,7 @@
       var host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:-100000px;top:0;';
       host.appendChild(copia); document.getElementById('sb-body').appendChild(host);
+      _sbRailsHorizontales(copia);
       var bg = getComputedStyle(document.body).backgroundColor;
       // Escala muy alta (hasta 6x) para que se lea todo al ampliar o imprimir
       // en póster, sin pasar los límites del canvas (32 767 px por lado y

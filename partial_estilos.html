@@ -549,6 +549,9 @@
     body.print-sabana .sb-weekscroll { overflow: visible; max-height: none; width: max-content; border: none; box-shadow: none; zoom: var(--sb-print-zoom, 1); }
     body.print-sabana .sb-rail, body.print-sabana .sb-weekscroll > .sb-recreo { position: static; }
     body.print-sabana .sb-weekrow { break-inside: avoid; }
+    /* Al imprimir la fuente se ensancha algo: sin esto «#01» salía como «#…» */
+    body.print-sabana .sb-weekscroll { --sb-lw: 3.9em; }
+    body.print-sabana .sb-loc { padding-left: 3px; padding-right: 3px; text-overflow: clip; }
     body.print-sabana * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 
