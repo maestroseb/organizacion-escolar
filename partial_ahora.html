@@ -35,9 +35,15 @@
 
   function renderAhora() {
     if (AH) { _ahPintar(); return; }
-    google.script.run.withSuccessHandler(ahDatos)
-      .withFailureHandler(function(err) { document.getElementById('ah-body').innerHTML = _errHtml(err); })
-      .datosAhora();
+    ahArrancar(function(err) { document.getElementById('ah-body').innerHTML = _errHtml(err); });
+  }
+  // Arranque instantáneo: se pinta lo que guarda el navegador (paquete de las
+  // próximas semanas) y los datos frescos de hoy llegan por detrás. Si no hay
+  // nada guardado, se espera al servidor y `ko` recibe el error.
+  function ahArrancar(ko) {
+    var d = _ahDiaGuardado(_ahHoy());
+    if (d) ahDatos(d);
+    _ahRefrescar(d ? null : ko);
   }
   function ahDatos(res) {
     AH = res; AH_FIJO = false; _ahPintar();
@@ -46,10 +52,40 @@
     if (!AH_TIMER) AH_TIMER = setInterval(function() {
       if (!AH || document.getElementById('ah-body').offsetParent === null) return; // pestaña oculta
       if (!AH_FIJO) _ahPintar();
-      if (Date.now() - (AH._t || 0) > 55000) { var run = google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); });
-        if (window.AH_CLAVE) run.datosAhoraPublico(window.AH_CLAVE); else run.datosAhora(); }
+      if (Date.now() - (AH._t || 0) > 55000) _ahRefrescar();
     }, 30000);
-    AH._t = Date.now();
+    if (!AH._t) AH._t = Date.now() - 50000; // guardado: se refresca enseguida
+  }
+  function _ahPedir(fn, ok, ko) {
+    var run = google.script.run.withSuccessHandler(ok).withFailureHandler(ko || function() {});
+    if (window.AH_CLAVE) run[fn + 'Publico'](window.AH_CLAVE); else run[fn]();
+  }
+  function _ahRefrescar(ko) {
+    if (AH) AH._t = Date.now();
+    _ahPedir('datosAhora', function(r) {
+      r._t = Date.now();
+      if (!AH) ahDatos(r); else { AH = r; if (!AH_FIJO) _ahPintar(); }
+      // Paquete guardado antiguo (otra versión de los datos) o corto: renovar.
+      var pk = _ahPaquete(), lim = _ahHoy(7);
+      if (!pk || pk.v !== r.v || !pk.dias[lim]) _ahPedir('datosAhoraSemana', _ahGuardar);
+    }, ko);
+  }
+
+  // ---- Paquete guardado en el navegador ----
+  // Clave aparte para el panel abierto (su paquete no lleva ausentes).
+  function _ahLS() { return 'ah-paquete' + (window.AH_CLAVE ? '-pub' : ''); }
+  function _ahHoy(mas) {
+    var d = new Date(); d.setDate(d.getDate() + (mas || 0));
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function _ahPaquete() { try { return JSON.parse(localStorage.getItem(_ahLS()) || 'null'); } catch (e) { return null; } }
+  function _ahGuardar(pk) { try { localStorage.setItem(_ahLS(), JSON.stringify(pk)); } catch (e) {} }
+  function _ahDiaGuardado(fecha) {
+    var pk = _ahPaquete(), d = pk && pk.dias && pk.dias[fecha];
+    if (!d) return null;
+    if (d.full) return d.full;
+    var b = pk.base[d.k];
+    return b ? Object.assign(JSON.parse(JSON.stringify(b)), { fecha: fecha, ausentes: [] }) : null;
   }
   function ahMover(d) {
     if (!AH || !AH.tramos || !AH.tramos.length) return;

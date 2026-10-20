@@ -12,14 +12,14 @@
     <?!= include('partial_ahora') ?>
   </main>
   <script>
-    // Página ligera para el Site del profesorado: los datos llegan incrustados
-    // (sin segunda ida y vuelta) y solo se muestra el tramo en curso.
+    // Página ligera para el Site del profesorado: solo el tramo en curso. Sale
+    // al momento con lo guardado en el navegador; los datos frescos, después.
     function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
     function _errHtml(err) { return '<div class="result err">✗ ' + _esc((err && err.message) || err || 'Error') + '</div>'; }
     function aviso(msg) { console.log(msg); }
     var ESTADO = null, DATOS_VERSION = 0;
     var AH_CLAVE = <?!= JSON.stringify(clave || '') ?>;   // panel abierto: refresca con la clave
-    ahDatos(<?!= JSON.stringify(datos).replace(/</g, '\\u003c') ?>);
+    ahArrancar(function(err) { document.getElementById('ah-body').innerHTML = _errHtml(err); });
   </script>
 </body>
 </html>
