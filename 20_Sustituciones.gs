@@ -4,6 +4,7 @@
  * - datosAhora(): el día de hoy (semana A/B incluida) tramo a tramo, con las
  *   sustituciones del día ya aplicadas. El cliente elige el tramo en curso
  *   con su reloj y navega sin volver a llamar al servidor.
+ * - datosAhoraSemana(): las próximas semanas, para guardarlas en el navegador.
  * - datosSustituciones(fecha): el parte de un día: horario de cada docente
  *   ese día, candidatos por tramo (apoyos por prioridad; `libres` = sin nada
  *   ese tramo, es decir, fuera del centro) y las
@@ -12,8 +13,54 @@
  */
 
 function datosAhora() {
+  // Caché del día calculado: cambia con cualquier escritura (y cada día).
+  const c = _cache(), k = c ? _claveDatos('ah') : '';
+  let res = c ? _cacheLeerJson(c, k) : null;
+  if (!res) { res = _ahoraDia(_hoyISO()); if (c) _cacheGuardarJson(c, k, res); }
+  res.v = _versionDatos();
+  return res;
+}
+
+/**
+ * Paquete para que el navegador guarde las próximas semanas y abra «Ahora» al
+ * instante: horario base de cada día/semana A-B (sin sustituciones) y, por
+ * fecha, la clave de su base o el día completo si tiene sustituciones.
+ * El cliente lo vuelve a pedir cuando cambia `v` (cualquier escritura).
+ */
+const AH_DIAS_PAQUETE = 21;
+function datosAhoraSemana() {
+  const c = _cache(), k = c ? _claveDatos('ahs') : '';
+  let pk = c ? _cacheLeerJson(c, k) : null;
+  if (!pk) {
+    const tz = Session.getScriptTimeZone(), hoy = _hoyISO();
+    const base = {}, dias = {};
+    for (let i = 0; i < AH_DIAS_PAQUETE; i++) {
+      const d = _fechaLocal(hoy); d.setDate(d.getDate() + i);
+      const f = Utilities.formatDate(d, tz, 'yyyy-MM-dd');
+      if (_susDeFecha(f).length) { dias[f] = { full: _ahoraDia(f) }; continue; }
+      const r = _ahoraDia(f, true);
+      if (!r.dia || r.finDeSemana) { dias[f] = { full: r }; continue; }
+      const clave = r.dia + '|' + r.semana;
+      if (!base[clave]) { delete r.fecha; base[clave] = r; }
+      dias[f] = { k: clave };
+    }
+    pk = { desde: hoy, base: base, dias: dias };
+    if (c) _cacheGuardarJson(c, k, pk);
+  }
+  pk.v = _versionDatos();
+  return pk;
+}
+
+/** Versión corta de los datos (cambia con cualquier escritura). */
+function _versionDatos() {
+  const c = _cache();
+  if (!c) return '';
+  return Utilities.base64Encode(Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, _versionGlobal(c))).slice(0, 12);
+}
+
+/** Un día de «Ahora» (sinSus: sin aplicar sustituciones, el horario base). */
+function _ahoraDia(fecha, sinSus) {
   const tz = Session.getScriptTimeZone();
-  const fecha = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
   const d = _fechaLocal(fecha).getDay();
   const dia = ['', 'L', 'M', 'X', 'J', 'V', ''][d];
   const semana = semanaActual(fecha);
@@ -29,7 +76,7 @@ function datosAhora() {
   if (!dia) return { fecha: fecha, finDeSemana: true, semana: semana, tramos: [] };
 
   const ctx = _ctxDia(dia, semana);
-  const sus = _susDeFecha(fecha);
+  const sus = sinSus ? [] : _susDeFecha(fecha);
   const ausentes = {};
   sus.forEach(function(s) { ausentes[s.docente_ausente_id] = true; });
 

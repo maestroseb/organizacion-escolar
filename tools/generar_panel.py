@@ -41,20 +41,21 @@ CABECERA = r'''<script>
   var AH_CLAVE = PANEL.k;
   // JSONP contra la implementación abierta (sin CORS ni sesión).
   var _jsonpN = 0;
-  function _panelPedir(ok, ko) {
+  function _panelPedir(ok, ko, modo) {
     var cb = '_panelCb' + (++_jsonpN), s = document.createElement('script'), fin = false;
     var t = setTimeout(function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('Sin respuesta del servidor')); } }, 20000);
     function limpiar() { clearTimeout(t); delete window[cb]; s.remove(); }
     window[cb] = function(d) { if (fin) return; fin = true; limpiar(); if (d && d.error) { ko && ko(new Error(d.error)); } else { d._t = Date.now(); ok && ok(d); } };
     s.onerror = function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('No se pudo conectar. Comprueba que la implementación abierta tiene la última versión del código y acceso «Cualquier usuario».')); } };
-    s.src = PANEL.u + '?api=ahora&k=' + encodeURIComponent(PANEL.k) + '&callback=' + cb + '&_=' + Date.now();
+    s.src = PANEL.u + '?api=ahora&k=' + encodeURIComponent(PANEL.k) + (modo ? '&modo=' + modo : '') + '&callback=' + cb + '&_=' + Date.now();
     document.head.appendChild(s);
   }
-  // Sustituto de google.script.run: solo existe la lectura de Ahora.
+  // Sustituto de google.script.run: solo existen las lecturas de Ahora.
   window.google = { script: { run: (function() {
     var mk = function() { var ok = null, ko = null, o = {
       withSuccessHandler: function(f) { ok = f; return o; }, withFailureHandler: function(f) { ko = f; return o; },
-      datosAhoraPublico: function() { _panelPedir(ok, ko); }, datosAhora: function() { _panelPedir(ok, ko); } }; return o; };
+      datosAhoraPublico: function() { _panelPedir(ok, ko); }, datosAhora: function() { _panelPedir(ok, ko); },
+      datosAhoraSemanaPublico: function() { _panelPedir(ok, ko, 'semana'); }, datosAhoraSemana: function() { _panelPedir(ok, ko, 'semana'); } }; return o; };
     return new Proxy({}, { get: function(_, p) { return mk()[p]; } });
   })() } };
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -83,7 +84,7 @@ PIE = r'''<div id="panel-config" class="panel-config" hidden>
         '<p class="hint"><a href="#" onclick="try{localStorage.clear()}catch(e){};location.search=\'\';return false">Cambiar el enlace del panel</a></p>';
       setTimeout(arrancar, 60000);
     };
-    _panelPedir(function(d) { ahDatos(d); }, reintento);
+    ahArrancar(reintento);  // al momento con lo guardado; si no hay nada, espera al servidor
   })();
   // Doble clic: pantalla completa.
   document.addEventListener('dblclick', function() { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} });

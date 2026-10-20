@@ -38,9 +38,10 @@ function doGet(e) {
   const page = par.page || '';
 
   // Enlace directo para el Site del profesorado: solo el tramo en curso.
+  // Sin datos incrustados: la página sale al momento con lo que guarda el
+  // navegador y los datos frescos llegan después (google.script.run).
   if (par.vista === 'ahora') {
     const ta = HtmlService.createTemplateFromFile('ahora');
-    ta.datos = publico ? _ahoraSinAusentes(datosAhora()) : datosAhora();
     ta.clave = publico ? String(par.k) : '';
     return ta.evaluate()
       .setTitle('Ahora · Localizaciones')
@@ -96,9 +97,22 @@ function datosAhoraPublico(k) {
   _LECTURA = true;
   return _ahoraSinAusentes(datosAhora());
 }
+/** Paquete de las próximas semanas para el panel abierto (sin ausentes). */
+function datosAhoraSemanaPublico(k) {
+  if (!_clavePanelValida(k)) throw new Error('Enlace del panel no válido o caducado.');
+  _LECTURA = true;
+  return _ahoraSemanaSinAusentes(datosAhoraSemana());
+}
+function _ahoraSemanaSinAusentes(pk) {
+  Object.keys(pk.dias).forEach(function(f) { if (pk.dias[f].full) _ahoraSinAusentes(pk.dias[f].full); });
+  return pk;
+}
 function _apiAhora(par) {
   let datos;
-  if (_clavePanelValida(par.k)) { _LECTURA = true; datos = _ahoraSinAusentes(datosAhora()); }
+  if (_clavePanelValida(par.k)) {
+    _LECTURA = true;
+    datos = par.modo === 'semana' ? _ahoraSemanaSinAusentes(datosAhoraSemana()) : _ahoraSinAusentes(datosAhora());
+  }
   else datos = { error: 'Enlace del panel no válido o caducado.' };
   const json = JSON.stringify(datos);
   // JSONP (?callback=fn): la página del panel lo carga con <script>, sin CORS.

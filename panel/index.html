@@ -31,20 +31,21 @@
   var AH_CLAVE = PANEL.k;
   // JSONP contra la implementación abierta (sin CORS ni sesión).
   var _jsonpN = 0;
-  function _panelPedir(ok, ko) {
+  function _panelPedir(ok, ko, modo) {
     var cb = '_panelCb' + (++_jsonpN), s = document.createElement('script'), fin = false;
     var t = setTimeout(function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('Sin respuesta del servidor')); } }, 20000);
     function limpiar() { clearTimeout(t); delete window[cb]; s.remove(); }
     window[cb] = function(d) { if (fin) return; fin = true; limpiar(); if (d && d.error) { ko && ko(new Error(d.error)); } else { d._t = Date.now(); ok && ok(d); } };
     s.onerror = function() { if (!fin) { fin = true; limpiar(); ko && ko(new Error('No se pudo conectar. Comprueba que la implementación abierta tiene la última versión del código y acceso «Cualquier usuario».')); } };
-    s.src = PANEL.u + '?api=ahora&k=' + encodeURIComponent(PANEL.k) + '&callback=' + cb + '&_=' + Date.now();
+    s.src = PANEL.u + '?api=ahora&k=' + encodeURIComponent(PANEL.k) + (modo ? '&modo=' + modo : '') + '&callback=' + cb + '&_=' + Date.now();
     document.head.appendChild(s);
   }
-  // Sustituto de google.script.run: solo existe la lectura de Ahora.
+  // Sustituto de google.script.run: solo existen las lecturas de Ahora.
   window.google = { script: { run: (function() {
     var mk = function() { var ok = null, ko = null, o = {
       withSuccessHandler: function(f) { ok = f; return o; }, withFailureHandler: function(f) { ko = f; return o; },
-      datosAhoraPublico: function() { _panelPedir(ok, ko); }, datosAhora: function() { _panelPedir(ok, ko); } }; return o; };
+      datosAhoraPublico: function() { _panelPedir(ok, ko); }, datosAhora: function() { _panelPedir(ok, ko); },
+      datosAhoraSemanaPublico: function() { _panelPedir(ok, ko, 'semana'); }, datosAhoraSemana: function() { _panelPedir(ok, ko, 'semana'); } }; return o; };
     return new Proxy({}, { get: function(_, p) { return mk()[p]; } });
   })() } };
   function _esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -587,6 +588,9 @@
   /* Exportación: copia sin recorte (PNG) e impresión apaisada (PDF). */
   .sb-weekscroll.sb-export { overflow: visible; max-height: none; width: max-content; border-radius: 0; box-shadow: none; }
   .sb-export .sb-rail, .sb-export > .sb-recreo { position: static; }
+  /* html2canvas pinta las sombras interiores como bloques macizos: borde normal. */
+  .sb-export table.sb tr.sb-aten td.sb-loc { box-shadow: none; border-left: 3px solid var(--accent); }
+  .sb-export .sb-pill.sb-pill-aten { outline: none; box-shadow: inset 0 0 0 0 transparent; border: 1.5px solid var(--accent); }
   .sb-semb { display: inline-block; writing-mode: horizontal-tb; transform: rotate(180deg); margin-block-start: 8px; background: #fff; color: #1f2430; border-radius: 4px; font-size: 13px; font-weight: 800; line-height: 16px; min-width: 16px; text-align: center; padding: 0 3px; letter-spacing: 0; }
   #sb-print { display: none; }
   /* En pantalla, mientras se prepara la impresión, fuera de la vista pero medible. */
@@ -600,6 +604,9 @@
     body.print-sabana .sb-weekscroll { overflow: visible; max-height: none; width: max-content; border: none; box-shadow: none; zoom: var(--sb-print-zoom, 1); }
     body.print-sabana .sb-rail, body.print-sabana .sb-weekscroll > .sb-recreo { position: static; }
     body.print-sabana .sb-weekrow { break-inside: avoid; }
+    /* Al imprimir la fuente se ensancha algo: sin esto «#01» salía como «#…» */
+    body.print-sabana .sb-weekscroll { --sb-lw: 3.9em; }
+    body.print-sabana .sb-loc { padding-left: 3px; padding-right: 3px; text-overflow: clip; }
     body.print-sabana * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 
@@ -676,6 +683,25 @@
   .info-btn:hover { color: var(--accent-text); border-color: var(--accent); }
   .info-pop { position: absolute; top: calc(100% + 6px); left: 0; z-index: 50; width: 280px; background: var(--surface); color: var(--text); border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm); box-shadow: var(--shadow); padding: 8px 10px; font-size: var(--fs-sm); font-weight: 400; line-height: 1.4; }
+
+  /* ---------- Banda de créditos (autoría) ---------- */
+  .credits { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;
+    padding: 4px 20px calc(4px + env(safe-area-inset-bottom, 0px));
+    background: var(--surface); border-top: 1px solid var(--border); color: var(--faint); font-size: 12px; }
+  .credits-txt b { color: var(--muted); font-weight: 600; }
+  /* El contenido ocupa al menos la pantalla: el pie queda abajo aunque la vista sea corta. */
+  #workspace, #onboarding { min-height: calc(100vh - 37px); }
+  .credits-links { display: inline-flex; gap: 4px; align-items: center; }
+  .credits-links a { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    color: var(--faint); transition: color .15s, background .15s; }
+  .credits-links a:hover { color: var(--accent); background: var(--accent-weak); }
+  .credits-links a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .credits-links .ico { width: 15px; height: 15px; }
+  /* Ko-fi: pastilla «Apóyame» como llamada suave. */
+  .credits-links a.kofi-btn { width: auto; gap: 6px; padding: 0 11px; height: 24px; border-radius: var(--radius-pill);
+    grid-auto-flow: column; background: var(--accent-weak); color: var(--accent-text); font-size: 12px; font-weight: 600; text-decoration: none; }
+  .credits-links a.kofi-btn:hover { background: var(--accent); color: var(--on-accent); }
+  @media print { .credits { display: none; } }
 
   /* ---------- Avisos (toast) ---------- */
   #toasts { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; align-items: center; pointer-events: none; }
@@ -892,7 +918,7 @@
   .toolbar input.doc-buscar { flex: 1 1 180px; width: auto; min-width: 160px; margin-left: auto; }
   /* Recreo con turnos de vigilancia (sábana y Ahora). */
   .sb-rail-recreo { background: var(--recreo); }
-  .sb-recreo-col { width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw) + var(--sb-lw) + var(--sb-dw2) + var(--sb-ow2) + 1px); padding: 3px 6px; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; justify-content: center; background: color-mix(in srgb, var(--recreo) 14%, var(--surface)); font-size: var(--fs-sm); }
+  .sb-recreo-col { width: calc(var(--sb-cw) + var(--sb-docw) + var(--sb-ocw) + var(--sb-lw) + var(--sb-dw2) + var(--sb-ow2) + 3px); /* + borde izquierdo (2px) y separador de paneles (1px), como .sb-daycol */ padding: 3px 6px; display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: center; justify-content: center; background: color-mix(in srgb, var(--recreo) 14%, var(--surface)); font-size: var(--fs-sm); }
   .sb-zona { white-space: nowrap; }
   .sb-zona b { color: var(--muted); font-weight: 700; }
   .sb-zona-vacia { color: var(--faint); }
@@ -1191,6 +1217,20 @@
     document.head.appendChild(sc);
   }
   function _sbPngFin() { var b = document.getElementById('sb-btn-png'); b.disabled = false; b.textContent = 'PNG'; }
+  // html2canvas no entiende writing-mode: en la copia, el rótulo de cada rail
+  // pasa a texto horizontal girado -90° (se lee igual, de abajo arriba).
+  function _sbRailsHorizontales(raiz) {
+    raiz.querySelectorAll('.sb-rail').forEach(function(r) {
+      var w = r.offsetWidth;
+      var sp = document.createElement('span');
+      sp.style.cssText = 'position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-90deg);white-space:nowrap;display:flex;align-items:center;';
+      while (r.firstChild) sp.appendChild(r.firstChild);
+      sp.querySelectorAll('.sb-semb').forEach(function(b) { b.style.transform = 'rotate(90deg)'; b.style.marginBlockStart = '0'; b.style.marginLeft = '8px'; });
+      r.style.writingMode = 'horizontal-tb'; r.style.transform = 'none'; r.style.position = 'relative';
+      r.style.width = w + 'px'; r.style.padding = '0';
+      r.appendChild(sp);
+    });
+  }
   function sbPng() {
     var g = _sbGrid(); if (!g) return;
     var btn = document.getElementById('sb-btn-png'); btn.disabled = true; btn.textContent = 'Generando…';
@@ -1198,20 +1238,37 @@
       // Copia sin recorte de scroll para capturar la sábana completa.
       var copia = g.cloneNode(true);
       copia.classList.add('sb-export');
+      // La vista le pone en línea una altura máxima (la de la pantalla): fuera,
+      // o la imagen sale recortada a una franja.
+      copia.style.maxHeight = 'none'; copia.style.maxWidth = 'none';
       var host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:-100000px;top:0;';
       host.appendChild(copia); document.getElementById('sb-body').appendChild(host);
+      _sbRailsHorizontales(copia);
       var bg = getComputedStyle(document.body).backgroundColor;
-      // Escala alta (hasta 4x) para que al hacer zoom se lea todo, sin pasar
-      // los límites del canvas (32 767 px por lado y ~250 Mpx de área).
+      // Escala muy alta (hasta 6x) para que se lea todo al ampliar o imprimir
+      // en póster, sin pasar los límites del canvas (32 767 px por lado y
+      // ~260 Mpx de área en Chrome). Si el navegador no puede con ese tamaño
+      // (Safari, Firefox tienen límites más bajos), se reintenta más pequeño.
       var w = copia.scrollWidth, h = copia.scrollHeight;
-      var esc = Math.max(1, Math.min(4, 32000 / w, 32000 / h, Math.sqrt(250e6 / (w * h))));
-      html2canvas(copia, { scale: esc, backgroundColor: bg, windowWidth: w + 40, onclone: _sbColoresCompatibles })
-        .then(function(canvas) {
-          var a = document.createElement('a');
+      var esc = Math.max(1, Math.min(6, 32000 / w, 32000 / h, Math.sqrt(260e6 / (w * h))));
+      var intento = function(e) {
+        return html2canvas(copia, { scale: e, backgroundColor: bg, windowWidth: w + 40, onclone: _sbColoresCompatibles })
+          .then(function(canvas) {
+            return new Promise(function(ok, ko) {
+              if (!canvas.width || !canvas.height) return ko(new Error('lienzo vacío'));
+              canvas.toBlob(function(blob) { blob && blob.size > 1000 ? ok(blob) : ko(new Error('lienzo vacío')); }, 'image/png');
+            });
+          })
+          .catch(function(err) { if (e > 1.5) return intento(Math.max(1, e * 0.66)); throw err; });
+      };
+      intento(esc)
+        .then(function(blob) {
+          var url = URL.createObjectURL(blob), a = document.createElement('a');
           a.download = 'localizaciones-semana-' + (SB_SEM || '') + '.png';
-          a.href = canvas.toDataURL('image/png');
+          a.href = url;
           document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
         })
         .catch(function(e) { aviso('No se pudo generar la imagen: ' + ((e && e.message) || e), 'err'); })
         .then(function() { host.remove(); _sbPngFin(); });
@@ -1379,9 +1436,15 @@
 
   function renderAhora() {
     if (AH) { _ahPintar(); return; }
-    google.script.run.withSuccessHandler(ahDatos)
-      .withFailureHandler(function(err) { document.getElementById('ah-body').innerHTML = _errHtml(err); })
-      .datosAhora();
+    ahArrancar(function(err) { document.getElementById('ah-body').innerHTML = _errHtml(err); });
+  }
+  // Arranque instantáneo: se pinta lo que guarda el navegador (paquete de las
+  // próximas semanas) y los datos frescos de hoy llegan por detrás. Si no hay
+  // nada guardado, se espera al servidor y `ko` recibe el error.
+  function ahArrancar(ko) {
+    var d = _ahDiaGuardado(_ahHoy());
+    if (d) ahDatos(d);
+    _ahRefrescar(d ? null : ko);
   }
   function ahDatos(res) {
     AH = res; AH_FIJO = false; _ahPintar();
@@ -1390,10 +1453,40 @@
     if (!AH_TIMER) AH_TIMER = setInterval(function() {
       if (!AH || document.getElementById('ah-body').offsetParent === null) return; // pestaña oculta
       if (!AH_FIJO) _ahPintar();
-      if (Date.now() - (AH._t || 0) > 55000) { var run = google.script.run.withSuccessHandler(function(r) { r._t = Date.now(); AH = r; if (!AH_FIJO) _ahPintar(); });
-        if (window.AH_CLAVE) run.datosAhoraPublico(window.AH_CLAVE); else run.datosAhora(); }
+      if (Date.now() - (AH._t || 0) > 55000) _ahRefrescar();
     }, 30000);
-    AH._t = Date.now();
+    if (!AH._t) AH._t = Date.now() - 50000; // guardado: se refresca enseguida
+  }
+  function _ahPedir(fn, ok, ko) {
+    var run = google.script.run.withSuccessHandler(ok).withFailureHandler(ko || function() {});
+    if (window.AH_CLAVE) run[fn + 'Publico'](window.AH_CLAVE); else run[fn]();
+  }
+  function _ahRefrescar(ko) {
+    if (AH) AH._t = Date.now();
+    _ahPedir('datosAhora', function(r) {
+      r._t = Date.now();
+      if (!AH) ahDatos(r); else { AH = r; if (!AH_FIJO) _ahPintar(); }
+      // Paquete guardado antiguo (otra versión de los datos) o corto: renovar.
+      var pk = _ahPaquete(), lim = _ahHoy(7);
+      if (!pk || pk.v !== r.v || !pk.dias[lim]) _ahPedir('datosAhoraSemana', _ahGuardar);
+    }, ko);
+  }
+
+  // ---- Paquete guardado en el navegador ----
+  // Clave aparte para el panel abierto (su paquete no lleva ausentes).
+  function _ahLS() { return 'ah-paquete' + (window.AH_CLAVE ? '-pub' : ''); }
+  function _ahHoy(mas) {
+    var d = new Date(); d.setDate(d.getDate() + (mas || 0));
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function _ahPaquete() { try { return JSON.parse(localStorage.getItem(_ahLS()) || 'null'); } catch (e) { return null; } }
+  function _ahGuardar(pk) { try { localStorage.setItem(_ahLS(), JSON.stringify(pk)); } catch (e) {} }
+  function _ahDiaGuardado(fecha) {
+    var pk = _ahPaquete(), d = pk && pk.dias && pk.dias[fecha];
+    if (!d) return null;
+    if (d.full) return d.full;
+    var b = pk.base[d.k];
+    return b ? Object.assign(JSON.parse(JSON.stringify(b)), { fecha: fecha, ausentes: [] }) : null;
   }
   function ahMover(d) {
     if (!AH || !AH.tramos || !AH.tramos.length) return;
@@ -1909,7 +2002,7 @@
         '<p class="hint"><a href="#" onclick="try{localStorage.clear()}catch(e){};location.search=\'\';return false">Cambiar el enlace del panel</a></p>';
       setTimeout(arrancar, 60000);
     };
-    _panelPedir(function(d) { ahDatos(d); }, reintento);
+    ahArrancar(reintento);  // al momento con lo guardado; si no hay nada, espera al servidor
   })();
   // Doble clic: pantalla completa.
   document.addEventListener('dblclick', function() { try { document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen(); } catch (e) {} });
